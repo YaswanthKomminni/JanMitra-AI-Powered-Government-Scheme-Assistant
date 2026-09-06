@@ -1,0 +1,294 @@
+import { create } from "zustand";
+import { SupportedLanguage, translations } from "@/lib/i18n";
+import {
+  FarmerProfile,
+  Scheme,
+  PeerSuccessStory,
+  MockOcrResult,
+  DEMO_FARMERS,
+  SCHEMES_DATABASE,
+  NEARBY_PEERS,
+  MOCK_OCR_PRESETS,
+} from "@/lib/mockData";
+import { speakText, stopSpeaking } from "@/lib/speech";
+
+export interface ChatMessage {
+  id: string;
+  sender: "user" | "ai";
+  text: string;
+  timestamp: string;
+  image?: string;
+  clarificationChips?: string[];
+  isClarification?: boolean;
+}
+
+interface FarmerState {
+  language: SupportedLanguage;
+  currentFarmer: FarmerProfile;
+  isAuthenticated: boolean;
+  authModalOpen: boolean;
+  activeTab: "dashboard" | "schemes" | "peers" | "chat" | "verify";
+  selectedCategoryFilter: string;
+  
+  // Modals & Details
+  selectedScheme: Scheme | null;
+  peerContactModal: PeerSuccessStory | null;
+  verificationModalOpen: boolean;
+
+  // Chat & Speech
+  chatMessages: ChatMessage[];
+  isListening: boolean;
+  isSpeaking: boolean;
+  speakingMessageId: string | null;
+
+  // Document OCR Verification
+  verificationScanning: boolean;
+  verificationResult: MockOcrResult | null;
+  selectedPresetKey: string | null;
+
+  // Actions
+  setLanguage: (lang: SupportedLanguage) => void;
+  setCurrentFarmer: (farmer: FarmerProfile) => void;
+  setAuthModalOpen: (open: boolean) => void;
+  loginWithPhone: (phone: string, otp: string) => boolean;
+  logout: () => void;
+  setActiveTab: (tab: "dashboard" | "schemes" | "peers" | "chat" | "verify") => void;
+  setSelectedCategoryFilter: (category: string) => void;
+  setSelectedScheme: (scheme: Scheme | null) => void;
+  setPeerContactModal: (peer: PeerSuccessStory | null) => void;
+  setVerificationModalOpen: (open: boolean) => void;
+  
+  // Chat Actions
+  sendChatMessage: (text: string, image?: string) => void;
+  handleClarificationChip: (chipText: string) => void;
+  setIsListening: (listening: boolean) => void;
+  speakMessage: (id: string, text: string) => void;
+  stopAudio: () => void;
+
+  // OCR Verification Actions
+  startMockVerification: (presetKey: string) => void;
+  confirmExtractedData: () => void;
+  resetVerification: () => void;
+}
+
+const INITIAL_MESSAGES: ChatMessage[] = [
+  {
+    id: "msg_01",
+    sender: "ai",
+    text: "Namaste Ramesh Ji! I am KrishiMitra AI. Based on your 3.5 Acres Black Soil in Kothur, you are 98% eligible for PM-KUSUM 60% Solar Pump subsidy. Your neighbor Rameshwar Reddy (3.8 km away) already saved ₹4,600/month with it! How can I assist your farm today?",
+    timestamp: "10:30 AM",
+    clarificationChips: [
+      "How to apply for PM-KUSUM Solar Pump?",
+      "Pest control for whiteflies on cotton",
+      "Check PM-KISAN ₹6,000 status",
+      "Upload soil card for fertilizer dose",
+    ],
+  },
+];
+
+export const useFarmerStore = create<FarmerState>((set, get) => ({
+  language: "en",
+  currentFarmer: DEMO_FARMERS[0],
+  isAuthenticated: true, // Default to true so dashboard is immediately interactive
+  authModalOpen: false,
+  activeTab: "dashboard",
+  selectedCategoryFilter: "all",
+  
+  selectedScheme: null,
+  peerContactModal: null,
+  verificationModalOpen: false,
+
+  chatMessages: INITIAL_MESSAGES,
+  isListening: false,
+  isSpeaking: false,
+  speakingMessageId: null,
+
+  verificationScanning: false,
+  verificationResult: null,
+  selectedPresetKey: null,
+
+  setLanguage: (lang) => {
+    set({ language: lang });
+    // Update AI greeting in the new language
+    const t = translations[lang];
+    const farmer = get().currentFarmer;
+    const localizedGreeting = `${t.welcome} ${farmer.name}! ${t.appName} AI. ${t.recommendedSchemesSubtitle}.`;
+    
+    // Add a welcome notice in user's preferred language if needed
+  },
+
+  setCurrentFarmer: (farmer) => {
+    set({
+      currentFarmer: farmer,
+      language: (farmer.preferredLanguage as SupportedLanguage) || "en",
+    });
+  },
+
+  setAuthModalOpen: (open) => set({ authModalOpen: open }),
+
+  loginWithPhone: (phone, otp) => {
+    // Check if phone matches any demo farmer
+    const matched = DEMO_FARMERS.find((f) => f.phone === phone) || DEMO_FARMERS[0];
+    set({
+      currentFarmer: matched,
+      isAuthenticated: true,
+      authModalOpen: false,
+      language: (matched.preferredLanguage as SupportedLanguage) || "en",
+    });
+    return true;
+  },
+
+  logout: () => {
+    set({ isAuthenticated: false, authModalOpen: true });
+  },
+
+  setActiveTab: (tab) => set({ activeTab: tab }),
+
+  setSelectedCategoryFilter: (category) => set({ selectedCategoryFilter: category }),
+
+  setSelectedScheme: (scheme) => set({ selectedScheme: scheme }),
+
+  setPeerContactModal: (peer) => set({ peerContactModal: peer }),
+
+  setVerificationModalOpen: (open) => set({ verificationModalOpen: open }),
+
+  setIsListening: (listening) => set({ isListening: listening }),
+
+  sendChatMessage: (text, image) => {
+    const userMsg: ChatMessage = {
+      id: `msg_usr_${Date.now()}`,
+      sender: "user",
+      text,
+      image,
+      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    };
+
+    set((state) => ({
+      chatMessages: [...state.chatMessages, userMsg],
+    }));
+
+    // Synthesize Llama 3.3 multi-model reasoning response
+    setTimeout(() => {
+      const lower = text.toLowerCase();
+      let replyText = "";
+      let chips: string[] | undefined = undefined;
+
+      const lang = get().language;
+
+      if (lower.includes("kusum") || lower.includes("solar") || lower.includes("pump")) {
+        if (lang === "te") {
+          replyText = "PM-KUSUM పథకం ద్వారా 60% సబ్సిడీతో 5HP సోలార్ పంపు లభిస్తుంది. మీ పొలానికి కరెంట్ బిల్లు లేదా డీజిల్ ఖర్చు ఉండదు. మీ దగ్గరలోని రైతు రామేశ్వర్ రెడ్డి (3.8 కి.మీ) దీనిని అమర్చి నెలకు ₹4,600 డీజిల్ ఆదా చేసుకున్నారు. మీ దగ్గర బోరుబావి ఉందా?";
+          chips = ["అవును, బోరుబావి ఉంది", "బావి ఉంది", "కొత్తగా వేయాలి", "సబ్సిడీ అర్హతలు చూపించు"];
+        } else if (lang === "hi") {
+          replyText = "पीएम-कुसुम योजना के तहत 60% सरकारी सब्सिडी पर 5HP सोलर पंप मिल रहा है। आपके पड़ोस में रामेश्वर जी (3.8 किमी दूर) ने इसे लगवाकर हर महीने ₹4,600 डीजल का बचाया। क्या आपके पास वर्तमान में बोरवेल या कुआं है?";
+          chips = ["हाँ, बोरवेल है", "कुआं है", "नया बोरवेल लगवाना है", "आवश्यक दस्तावेज़ बताएं"];
+        } else {
+          replyText = "Under PM-KUSUM Scheme Component-B, you are eligible for 60% subsidy on a 5HP Solar Pump (Subsidy value ₹1,32,000). Your neighbor Rameshwar Reddy (3.8 km away in Kothur) installed this and saved ₹4,600/month on diesel! What is your existing water source type?";
+          chips = ["I have a Borewell", "Open Irrigation Well", "Canal Water only", "What documents are needed?"];
+        }
+      } else if (lower.includes("pest") || lower.includes("whitefly") || lower.includes("disease") || lower.includes("leaf") || lower.includes("cotton")) {
+        if (lang === "te") {
+          replyText = "మీ పత్తి చేనులో తెల్లదోమ (Whitefly) తెగులు గుర్తించబడింది. ఆకులు ముడుచుకుని తేనెజిగురు కారుతుంది. నివారణకు: ఎకరాకు వేపనూనె 10,000 ppm 2ml/లీటరు లేదా డయాఫెంథియురాన్ 50% WP 1గ్రాము/లీటరు నీటిలో కలిపి సాయంత్రం వేళ పిచికారీ చేయండి.";
+          chips = ["పిచికారీ సమయం ఎప్పుడు?", "మందుల షాపు వివరాలు", "పంట నష్టం బీమా వర్తిస్తుందా?"];
+        } else {
+          replyText = "For Whitefly nymph pest control on Cotton: Spray Neem Oil (10,000 ppm) @ 2ml/litre water, or Diafenthiuron 50% WP @ 1g/litre water during cooler evening hours. Ensure spray covers underside of the leaves.";
+          chips = ["Spray schedule", "Eligible under PMFBY crop insurance?", "Upload photo for scan"];
+        }
+      } else if (lower.includes("kisan") || lower.includes("6000") || lower.includes("installment")) {
+        replyText = "Your PM-KISAN 16th installment of ₹2,000 is processed. Your Aadhaar e-KYC and Dharani Land Record are verified and linked to your SBI Bank Account ending in •••• 4108.";
+        chips = ["Next installment date?", "Download Payment Receipt", "Check land linkage"];
+      } else {
+        replyText = `Understood! With your ${get().currentFarmer.landSizeAcres} Acres of ${get().currentFarmer.soilTypeName} in ${get().currentFarmer.village}, our AI engine recommends applying for PM-KUSUM and Soil Health Testing. What specific advice or subsidy would you like to explore?`;
+        chips = ["Solar Pump 60% Subsidy", "Soil Health Card Free Test", "Low-Interest Kisan Credit Card", "Connect with nearby peer farmer"];
+      }
+
+      const aiMsg: ChatMessage = {
+        id: `msg_ai_${Date.now()}`,
+        sender: "ai",
+        text: replyText,
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        clarificationChips: chips,
+      };
+
+      set((state) => ({
+        chatMessages: [...state.chatMessages, aiMsg],
+      }));
+
+      // Automatically speak reply if language is set and supported
+      // (Optional: let user trigger or auto-speak)
+    }, 800);
+  },
+
+  handleClarificationChip: (chipText) => {
+    get().sendChatMessage(chipText);
+  },
+
+  speakMessage: (id, text) => {
+    const lang = get().language;
+    set({ isSpeaking: true, speakingMessageId: id });
+
+    speakText(
+      text,
+      lang,
+      () => set({ isSpeaking: false, speakingMessageId: null }),
+      () => set({ isSpeaking: false, speakingMessageId: null })
+    );
+  },
+
+  stopAudio: () => {
+    stopSpeaking();
+    set({ isSpeaking: false, speakingMessageId: null });
+  },
+
+  startMockVerification: (presetKey) => {
+    const preset = MOCK_OCR_PRESETS[presetKey];
+    if (!preset) return;
+
+    set({
+      selectedPresetKey: presetKey,
+      verificationScanning: true,
+      verificationResult: null,
+    });
+
+    // Simulate Llama 3.2 Vision OCR latency
+    setTimeout(() => {
+      set({
+        verificationScanning: false,
+        verificationResult: preset,
+      });
+    }, 2200);
+  },
+
+  confirmExtractedData: () => {
+    const result = get().verificationResult;
+    if (!result) return;
+
+    // If land record, update farmer land size
+    if (result.extractedData.landAreaAcres) {
+      set((state) => ({
+        currentFarmer: {
+          ...state.currentFarmer,
+          landSizeAcres: result.extractedData.landAreaAcres || state.currentFarmer.landSizeAcres,
+          verifiedDocsCount: state.currentFarmer.verifiedDocsCount + 1,
+        },
+        verificationModalOpen: false,
+      }));
+    } else {
+      set((state) => ({
+        currentFarmer: {
+          ...state.currentFarmer,
+          verifiedDocsCount: state.currentFarmer.verifiedDocsCount + 1,
+        },
+        verificationModalOpen: false,
+      }));
+    }
+  },
+
+  resetVerification: () => {
+    set({
+      verificationScanning: false,
+      verificationResult: null,
+      selectedPresetKey: null,
+    });
+  },
+}));

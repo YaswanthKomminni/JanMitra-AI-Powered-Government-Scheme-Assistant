@@ -1,0 +1,26 @@
+{
+    "title": "JanMitra Dataset: Multilingual Conversational and Eligibility Recommendation Dataset for Government Scheme Assistants",
+    "abstract": "The JanMitra Dataset is a multi-dimensional synthetic and speech dataset designed to support the development and evaluation of conversational agents, recommendation systems, natural language understanding (NLU) models, and spoken language identification (SLID) systems within the context of government welfare accessibility. The dataset includes four primary components: (1) Government Schemes Knowledge Base: Detailed eligibility criteria, benefits, and required documents for 4,706 Indian government welfare schemes (combining 15 baselines with 4,691 schemes scraped from the myScheme portal). (2) Citizen Profiles and Ground-Truth Recommendations: 10,000 synthetic citizen profiles covering all 36 Indian States and Union Territories and key occupations (including Fisherman, Artisan, and Weaver) mapped to programmatically computed eligible schemes using state-level matching constraints. (3) Multilingual Intent & Entity Corpus: 6,000 labeled user queries (1,000 each in English, Hindi, Telugu, Tamil, Kannada, and Bengali) mapped to 6 dialog intents and structured entity dictionaries for NER, generated from an expanded set of conversational templates. (4) Multilingual Speech Corpus: A speech dataset covering 10 major Indian languages (bengali, gujarati, hindi, kannada, malayalam, marathi, punjabi, tamil, telugu, urdu) containing 5-second voice audio segments in WAV/MP3 format. This dataset serves as a benchmark for rule-based matching, recommendation accuracy, multilingual NLP performance, and spoken language identification.",
+    "keywords": [
+        "Conversational AI",
+        "Recommendation Systems",
+        "Multilingual NLP",
+        "Government Welfare Schemes",
+        "Intent Classification",
+        "Named Entity Recognition (NER)",
+        "Social Goods",
+        "Rural Inclusion"
+    ],
+    "categories": [
+        "Social Sciences",
+        "Communication",
+        "Computing",
+        "Information Science",
+        "Data Management"
+    ],
+    "data_formats": [
+        "CSV",
+        "JSON"
+    ],
+    "instructions": "Use the schemes folder to load eligibility rules and descriptions. Use the citizen_profiles folder for training and testing eligibility prediction models or recommendation systems (e.g. classification of eligible schemes based on user attributes). Use the conversational_nlp folder to train and validate NLU modules like intent classifiers and NER extractors in various regional Indian languages."
+}
