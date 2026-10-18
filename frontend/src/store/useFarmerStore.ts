@@ -139,6 +139,24 @@ export function formatDocumentAnalysisReply(det: any, lang: SupportedLanguage): 
         chips: ["धरणी म्यूटेशन प्रक्रिया", "PM-KISAN ₹6,000 जांचें", "KCC 4% ऋण आवेदन", "दस्तावेज़ विवरण देखें"],
       };
     }
+    if (lang === "ta") {
+      return {
+        text: `🏛️ தெலங்கானா அரசு - தரணி பதிவு செய்யப்பட்ட விற்பனைப் பத்திரம் (Registered Sale Deed) சரிபார்க்கப்பட்டது!\n\n📋 சரிபார்க்கப்பட்ட ஆவண விவரங்கள்:\n• ஆவண வகை: விவசாய நில விற்பனைப் பத்திரம் (Registered Sale Deed)\n• வாங்குபவர் (Vendee / புதிய உரிமையாளர்): ${ext.ownerName || "பனோத்து வெங்கன்னா"}\n• விற்பனையாளர் (Vendor): ${ext.sellerName || "நராலா நவ்யா ஸ்ரீ"}\n• சர்வே எண்: ${ext.surveyNumber || "65/ஆ/1 (ரெட்லவாடா)"}\n• நில அளவு: ${ext.extentAcGts || "0.2250 ஏக்கர்"}\n• பதிவுத் தொகை: ${ext.considerationAmount || "₹1,26,518"}\n• பாஸ்புக் எண்: ${ext.passBookNumber || "T22090081201"}\n• வருவாய் பகுதி: ${ext.districtMandal || "ரெட்லவாடா, நெக்கொண்டா மண்டலம், வாரங்கல் மாவட்டம்"}\n\n✅ தகுதியான அரசு நலத்திட்டங்கள் & அடுத்த நடவடிக்கைகள்:\n1. தரணி தானியங்கி பட்டா மாற்றம் & இ-பாஸ்புக்: விற்பனைப் பத்திரத்தின் அடிப்படையில் டிஜிட்டல் பட்டாதாரர் பாஸ்புக் வழங்கல்.\n2. PM-KISAN: பட்டா மாற்றத்திற்குப் பிறகு ஆண்டுக்கு ₹6,000 வங்கி கணக்கில் நேரடியாக வரவு.\n3. ரைத்து பந்து / ரைத்து பரோசா: ஏக்கருக்கு சாகுபடி முதலீட்டு உதவி.\n4. கிசான் கிரெடிட் கார்டு (KCC): பதிவு செய்யப்பட்ட நிலத்திற்கு 4% மானிய வட்டியில் வங்கிப் பயிர்க்கடன்.\n5. PM-KUSUM: 60% மானியத்தில் சோலார் நீர் பம்ப்.`,
+        chips: ["தரணி பட்டா மாற்றம் விண்ணப்பம்", "PM-KISAN தகுதி சரிபார்", "KCC வங்கி கடன் விவரங்கள்", "ஆவண சரிபார்ப்பை திறக்கவும்"],
+      };
+    }
+    if (lang === "kn") {
+      return {
+        text: `🏛️ ತೆಲಂಗಾಣ ಸರ್ಕಾರ - ಧರಣಿ ನೋಂದಾಯಿತ ಮಾರಾಟ ಪತ್ರ (Registered Sale Deed) ಪರಿಶೀಲಿಸಲಾಗಿದೆ!\n\n📋 ಪರಿಶೀಲಿಸಲಾದ ದಾಖಲೆಯ ವಿವರಗಳು:\n• ದಾಖಲೆಯ ಪ್ರಕಾರ: ಕೃಷಿ ಭೂಮಿ ಮಾರಾಟ ಪತ್ರ (Registered Sale Deed)\n• ಖರೀದಿದಾರ (Vendee / ಹೊಸ ಮಾಲೀಕ): ${ext.ownerName || "ಬಾನೋತು ವೆಂಕಣ್ಣ"}\n• ಮಾರಾಟಗಾರ (Vendor): ${ext.sellerName || "ನರಾಲ ನವ್ಯಶ್ರೀ"}\n• ಸರ್ವೆ ಸಂಖ್ಯೆ: ${ext.surveyNumber || "65/ಆ/1 (ರೆಡ್ಲವಾಡ)"}\n• ವಿಸ್ತೀರ್ಣ: ${ext.extentAcGts || "0.2250 ಎಕರೆ"}\n• ನೋಂದಣಿ ಮೌಲ್ಯ: ${ext.considerationAmount || "₹1,26,518"}\n• ಪಾಸ್ ಬುಕ್ ಸಂಖ್ಯೆ: ${ext.passBookNumber || "T22090081201"}\n• ಕಂದಾಯ ಪ್ರದೇಶ: ${ext.districtMandal || "ರೆಡ್ಲವಾಡ, ನೆಕ್ಕೊಂಡ ಮಂಡಲ, ವಾರಂಗಲ್ ಜಿಲ್ಲೆ"}\n\n✅ ಅರ್ಹ ಸರ್ಕಾರಿ ಕಲ್ಯಾಣ ಯೋಜನೆಗಳು & ಮುಂದಿನ ಕ್ರಮಗಳು:\n1. ಧರಣಿ ಸ್ವಯಂ-ಮ್ಯುಟೇಶನ್ & ಇ-ಪಾಸ್ ಬುಕ್: ಮಾರಾಟ ಪತ್ರದ ಆಧಾರದ ಮೇಲೆ ಡಿಜಿಟಲ್ ಪಟ್ಟಾದಾರ ಪಾಸ್ ಬುಕ್ ವಿತರಣೆ.\n2. PM-KISAN: ಮ್ಯುಟೇಶನ್ ನಂತರ ವರ್ಷಕ್ಕೆ ₹6,000 ನೇರ ಬ್ಯಾಂಕ್ ಖಾತೆಗೆ ಜಮೆ.\n3. ರೈತ ಬಂಧು / ರೈತ ಭರೋಸಾ: ಪ್ರತಿ ಎಕರೆಗೆ ಕೃಷಿ ಹೂಡಿಕೆ ನೆರವು.\n4. ಕಿಸಾನ್ ಕ್ರೆಡಿಟ್ ಕಾರ್ಡ್ (KCC): ನೋಂದಾಯಿತ ಭೂಮಿಗೆ 4% ರಿಯಾಯಿತಿ ಬಡ್ಡಿಯಲ್ಲಿ ಬೆಳೆ ಸಾಲ.\n5. PM-KUSUM: 60% ಸಬ್ಸಿಡಿಯೊಂದಿಗೆ ಸೋಲಾರ್ ವಾಟರ್ ಪಂಪ್.`,
+        chips: ["ಧರಣಿ ಮ್ಯುಟೇಶನ್ ಪ್ರಕ್ರಿಯೆ", "PM-KISAN ಲಿಂಕ್ ಪರಿಶೀಲಿಸಿ", "KCC ಬ್ಯಾಂಕ್ ಸಾಲ ವಿವರ", "ದಾಖಲೆ ವಿವರ ನೋಡಿ"],
+      };
+    }
+    if (lang === "bn") {
+      return {
+        text: `🏛️ তেলেঙ্গানা সরকার - ধরণী নিবন্ধিত বিক্রয় দলিল (Registered Sale Deed) যাচাইকৃত!\n\n📋 যাচাইকৃত দলিলের বিবরণ:\n• দলিলের ধরন: কৃষিজমি বিক্রয় দলিল (Registered Sale Deed)\n• ক্রেতা (Vendee / নতুন মালিক): ${ext.ownerName || "বানোথু ভেঙ্কান্না"}\n• বিক্রেতা (Vendor): ${ext.sellerName || "নরালা নব্যাশ্রী"}\n• দাগ/সার্ভে নং: ${ext.surveyNumber || "৬৫/আ/১ (রেডলাওয়াদা)"}\n• জমির পরিমাণ: ${ext.extentAcGts || "০.২২৫০ একর"}\n• রেজিস্ট্রেশন মূল্য: ${ext.considerationAmount || "₹১,২৬,৫১৮"}\n• পাসবুক নং: ${ext.passBookNumber || "T22090081201"}\n• এলাকা: ${ext.districtMandal || "রেডলাওয়াদা, নেক্কোন্ডা, ওয়ারাঙ্গল"}\n\n✅ যোগ্য সরকারি কল্যাণ প্রকল্প ও পরবর্তী করণীয়:\n1. ধরণী অটো-মিউটেশন ও ই-পাসবুক: দলিলের ভিত্তিতে ডিজিটাল পাট্টাদার পাসবুক প্রদান।\n2. PM-KISAN: বার্ষিক ₹৬,০০০ সরাসরি ব্যাংক অ্যাকাউন্টে জমা।\n3. রায়থু বন্ধু / রায়থু ভরসা: একর প্রতি চাষের বিনিয়োগ সহায়তা।\n4. কিষাণ ক্রেডিট কার্ড (KCC): ৪% রেয়াতি সুদে ফসল ঋণ।\n5. PM-KUSUM: ৬০% ভর্তুকিতে সৌর জল পাম্প।`,
+        chips: ["ধরণী মিউটেশন আবেদন", "PM-KISAN স্থিতি যাচাই", "KCC লোন তথ্য", "দলিল বিবরণ দেখুন"],
+      };
+    }
     return {
       text: `🏛️ Government of Telangana Dharani Registered Sale Deed Verified:\n\n📋 Verified Title & Conveyance Parameters:\n• Document Type: Farmland Registered Deed of Sale (Sale Deed)\n• Vendee (Buyer / Absolute Owner): ${ext.ownerName || "Banothu Venkanna"}\n• Vendor (Seller): ${ext.sellerName || "Narala Navya Sri"}\n• Survey Number: ${ext.surveyNumber || "Survey No: 65/ఆ/1 (Redlawada)"}\n• Land Extent: ${ext.extentAcGts || "0.2250 Ac.Gts"}\n• Consideration Paid: ${ext.considerationAmount || "₹1,26,518"}\n• Passbook Number: ${ext.passBookNumber || "T22090081201"}\n• Revenue Location: ${ext.districtMandal || "Redlawada (V), Nekkonda (M), Warangal Dist"}\n\n✅ Unlocked Welfare Schemes & Actions:\n1. Dharani Auto-Mutation & e-Passbook: Automatic transfer of title and issuance of digital Pattadar Passbook.\n2. PM-KISAN: Direct Benefit Transfer of ₹6,000/year to linked bank account.\n3. Rythu Bharosa / Rythu Bandhu: Seasonal farm investment support.\n4. Kisan Credit Card (KCC): Concessional crop credit at 4% interest against registered land.\n5. PM-KUSUM Component-B: 60% subsidy for solar water pump.`,
       chips: ["Dharani Mutation Process", "Check PM-KISAN Linkage", "Apply for KCC Loan", "Open in Document Modal"],
@@ -167,6 +185,24 @@ export function formatDocumentAnalysisReply(det: any, lang: SupportedLanguage): 
     return {
       text: `📜 ${det.title} सफलतापूर्वक विश्लेषित!\n• पहचान: ${det.detectionSummary}\n• सटीकता: ${(det.confidenceScore * 100).toFixed(0)}%\n\n📋 पहचाने गए विवरण:\n${paramEntries}\n\n✅ अनुशंसित योजनाएं:\n${schemesList}`,
       chips: ["सरकारी योजनाएं देखें", "दस्तावेज़ स्कैनर खोलें"],
+    };
+  }
+  if (lang === "ta") {
+    return {
+      text: `📜 ${det.title} வெற்றிகரமாக பகுப்பாய்வு செய்யப்பட்டது!\n• கண்டறிதல்: ${det.detectionSummary}\n• நம்பகத்தன்மை: ${(det.confidenceScore * 100).toFixed(0)}%\n\n📋 கண்டறியப்பட்ட விவரங்கள்:\n${paramEntries}\n\n✅ பரிந்துரைக்கப்பட்ட திட்டங்கள்:\n${schemesList}`,
+      chips: ["அரசு திட்டங்கள் விவரம்", "ஆவண ஸ்கேனரைத் திறக்கவும்"],
+    };
+  }
+  if (lang === "kn") {
+    return {
+      text: `📜 ${det.title} ಯಶಸ್ವಿಯಾಗಿ ವಿಶ್ಲೇಷಿಸಲಾಗಿದೆ!\n• ಗುರುತಿಸುವಿಕೆ: ${det.detectionSummary}\n• ನಿಖರತೆ: ${(det.confidenceScore * 100).toFixed(0)}%\n\n📋 ಗುರುತಿಸಲಾದ ನಿಯತಾಂಕಗಳು:\n${paramEntries}\n\n✅ ಶಿಫಾರಸು ಮಾಡಲಾದ ಯೋಜನೆಗಳು:\n${schemesList}`,
+      chips: ["ಸರ್ಕಾರಿ ಯೋಜನೆಗಳ ವಿವರ", "ದಾಖಲೆ ಸ್ಕ್ಯಾನರ್ ತೆರೆಯಿರಿ"],
+    };
+  }
+  if (lang === "bn") {
+    return {
+      text: `📜 ${det.title} সফলভাবে বিশ্লেষিত হয়েছে!\n• সনাক্তকরণ: ${det.detectionSummary}\n• নির্ভুলতা: ${(det.confidenceScore * 100).toFixed(0)}%\n\n📋 সনাক্তকৃত তথ্যাবলী:\n${paramEntries}\n\n✅ প্রস্তাবিত সরকারি প্রকল্পসমূহ:\n${schemesList}`,
+      chips: ["সরকারি প্রকল্পসমূহ দেখুন", "নথি স্ক্যানার খুলুন"],
     };
   }
 
@@ -275,12 +311,55 @@ export const useFarmerStore = create<FarmerState>((set, get) => ({
       }
 
       // 2. Verified document AI response
-      if (msg.sender === "ai" && msg.docDetection) {
-        const localized = formatDocumentAnalysisReply(msg.docDetection, lang);
+      if (
+        msg.sender === "ai" &&
+        (msg.docDetection ||
+          msg.text.includes("🏛️") ||
+          msg.text.includes("Sale Deed") ||
+          msg.text.includes("ధరణి") ||
+          msg.text.includes("धरणी") ||
+          msg.text.includes("తరணி") ||
+          msg.text.includes("ధృవీకరించబడిన") ||
+          msg.text.includes("పత్ర వివరాలు") ||
+          msg.text.includes("దస్తావేజు") ||
+          msg.text.includes("దస్త్రం") ||
+          msg.text.includes("విక్రయ") ||
+          msg.text.includes("விற்பனை") ||
+          msg.text.includes("ಮಾರಾಟ") ||
+          msg.text.includes("বিক্রয়") ||
+          msg.text.includes("Analyzed Successfully") ||
+          msg.text.includes("విజయవంతంగా విశ్లేషించబడింది") ||
+          msg.text.includes("வெற்றிகரமாக பகுப்பாய்வு"))
+      ) {
+        const det = msg.docDetection || get().verificationResult || {
+          title: "Telangana Dharani Registered Sale Deed (0.2250 Ac.Gts)",
+          confidenceScore: 0.98,
+          detectionSummary: "Farmland Registered Deed of Sale (Sale Deed) - Warangal District",
+          extractedData: {
+            docType: "Registered Sale Deed (Farmland)",
+            ownerName: "Banothu Venkanna",
+            sellerName: "Narala Navya Sri",
+            surveyNumber: "Survey No: 65/ఆ/1 (Redlawada)",
+            extentAcGts: "0.2250 Ac.Gts",
+            considerationAmount: "₹1,26,518",
+            passBookNumber: "T22090081201",
+            districtMandal: "Redlawada (V), Nekkonda (M), Warangal Dist",
+            natureOfDeed: "Absolute Sale of Agricultural Land",
+          },
+          schemesUnlocked: [
+            "Dharani Auto-Mutation & e-Passbook",
+            "PM-KISAN ₹6,000/year DBT",
+            "Rythu Bharosa / Rythu Bandhu Farm Investment Support",
+            "Kisan Credit Card (KCC) Concessional 4% Loan",
+            "PM-KUSUM 60% Solar Water Pump",
+          ],
+        };
+        const localized = formatDocumentAnalysisReply(det, lang);
         return {
           ...msg,
           text: localized.text,
           clarificationChips: localized.chips,
+          docDetection: det,
         };
       }
 
@@ -319,6 +398,110 @@ export const useFarmerStore = create<FarmerState>((set, get) => ({
           ...msg,
           text: `${t.inspectDocFilePrompt || "Please analyze this attached government document"}: ${msg.fileName}`,
         };
+      }
+
+      // 5. Conversational AI responses in chat history
+      if (msg.sender === "ai" && !msg.docDetection) {
+        const text = msg.text;
+        // Whitefly pest control
+        if (
+          text.includes("Whitefly") ||
+          text.includes("whiteflies") ||
+          text.includes("తెల్లదోమ") ||
+          text.includes("सफेद मक्खी") ||
+          text.includes("வெள்ளை ஈ") ||
+          text.includes("ಬಿಳಿ ನೊಣ") ||
+          text.includes("সাদা মাছি")
+        ) {
+          if (lang === "te") {
+            return {
+              ...msg,
+              text: "మీ పత్తి చేనులో తెల్లదోమ (Whitefly) తెగులు గుర్తించబడింది. ఆకులు ముడుచుకుని తేనెజిగురు కారుతుంది. నివారణకు: ఎకరాకు వేపనూనె 10,000 ppm 2ml/లీటరు లేదా డయాఫెంథియురాన్ 50% WP 1గ్రాము/లీటరు నీటిలో కలిపి సాయంత్రం వేళ పిచికారీ చేయండి.",
+              clarificationChips: ["పిచికారీ సమయం ఎప్పుడు?", "మందుల షాపు వివరాలు", "పంట నష్టం బీమా వర్తిస్తుందా?"],
+            };
+          } else if (lang === "hi") {
+            return {
+              ...msg,
+              text: "कपास में सफेद मक्खी (Whitefly) का प्रकोप पहचाना गया है। पत्तियां मुड़ने और चिपचिपा स्राव की समस्या के लिए: नीम का तेल 10,000 ppm @ 2 मिली/लीटर पानी, या डायफेंथियूरॉन 50% WP @ 1 ग्राम/लीटर का शाम को छिड़काव करें।",
+              clarificationChips: ["दवा छिड़काव का समय", "नजदीकी कृषि केंद्र", "फसल बीमा क्लेम प्रक्रिया"],
+            };
+          } else if (lang === "ta") {
+            return {
+              ...msg,
+              text: "பருத்தியில் வெள்ளை ஈ (Whitefly) தாக்குதல் கண்டறியப்பட்டுள்ளது. இலைகள் சுருங்கி தேன் போன்ற பிசின் வடிகிறது. தடுப்பு முறை: ஏக்கருக்கு வேப்பெண்ணெய் 10,000 ppm @ 2 மிலி/லிட்டர் அல்லது டயாபெந்தியூரான் 50% WP @ 1 கிராம்/லிட்டர் தண்ணீரில் கலந்து மாலை வேளையில் தெளிக்கவும்.",
+              clarificationChips: ["மருந்து தெளிக்கும் நேரம் எப்போது?", "அருகிலுள்ள உழவர் மருந்தகம்", "பயிர் காப்பீட்டு உதவி"],
+            };
+          } else if (lang === "kn") {
+            return {
+              ...msg,
+              text: "ಹತ್ತಿ ಬೆಳೆಯಲ್ಲಿ ಬಿಳಿ ನೊಣ (Whitefly) ಬಾಧೆ ಕಂಡುಬಂದಿದೆ. ಎಲೆಗಳು ಸುರುಟಿಕೊಂಡು ಜಿಗುಟು ಸ್ರವಿಸುತ್ತದೆ. ನಿಯಂತ್ರಣಕ್ಕೆ: ಎಕರೆಗೆ ಬೇವಿನ ಎಣ್ಣೆ 10,000 ppm @ 2 ಮಿಲಿ/ಲೀಟರ್ ಅಥವಾ ಡಯಾಫೆಂಥಿಯುರಾನ್ 50% WP @ 1 ಗ್ರಾಂ/ಲೀಟರ್ ನೀರಿನಲ್ಲಿ ಬೆರೆಸಿ ಸಂಜೆ ವೇಳೆ ಸಿಂಪಡಿಸಿ.",
+              clarificationChips: ["ಸಿಂಪಡಣೆ ಸಮಯ ಯಾವಾಗ?", "ಔಷಧಿ ಅಂಗಡಿ ವಿವರ", "ಬೆಳೆ ವಿಮೆ ಲಭ್ಯವಿದೆಯೇ?"],
+            };
+          } else if (lang === "bn") {
+            return {
+              ...msg,
+              text: "তুলা ফসলে সাদা মাছি (Whitefly) আক্রমণ সনাক্ত করা হয়েছে। পাতা কুঁকড়ে যাচ্ছে ও আঠালো ভাব হচ্ছে। দমনের জন্য: প্রতি লিটার জলে নিম তেল 10,000 ppm @ ২ মিলি বা ডায়াফেন্থিউরন 50% WP @ ১ গ্রাম মিশিয়ে বিকেলের দিকে স্প্রে করুন।",
+              clarificationChips: ["স্প্রে করার সঠিক সময়", "নিকটবর্তী কৃষি সেবা কেন্দ্র", "ফসল বীমা সুবিধা"],
+            };
+          } else {
+            return {
+              ...msg,
+              text: "For Whitefly nymph pest control on Cotton: Spray Neem Oil (10,000 ppm) @ 2ml/litre water, or Diafenthiuron 50% WP @ 1g/litre water during cooler evening hours. Ensure spray covers underside of the leaves.",
+              clarificationChips: ["Spray schedule", "Eligible under PMFBY crop insurance?", "Upload photo for scan"],
+            };
+          }
+        }
+
+        // PM-KUSUM Solar pump
+        if (
+          text.includes("PM-KUSUM") ||
+          text.includes("solar") ||
+          text.includes("pump") ||
+          text.includes("కుసుమ్") ||
+          text.includes("సోలార్") ||
+          text.includes("सोलर") ||
+          text.includes("சோலார்") ||
+          text.includes("ಸೋಲಾರ್") ||
+          text.includes("সৌর")
+        ) {
+          if (lang === "te") {
+            return {
+              ...msg,
+              text: "PM-KUSUM పథకం ద్వారా 60% సబ్సిడీతో 5HP సోలార్ పంపు లభిస్తుంది. మీ పొలానికి కరెంట్ బిల్లు లేదా డీజిల్ ఖర్చు ఉండదు. మీ దగ్గరలోని రైతు రామేశ్వర్ రెడ్డి (3.8 కి.మీ) దీనిని అమర్చి నెలకు ₹4,600 డీజిల్ ఆదా చేసుకున్నారు. మీ దగ్గర బోరుబావి ఉందా?",
+              clarificationChips: ["అవును, బోరుబావి ఉంది", "బావి ఉంది", "కొత్తగా వేయాలి", "సబ్సిడీ అర్హతలు చూపించు"],
+            };
+          } else if (lang === "hi") {
+            return {
+              ...msg,
+              text: "पीएम-कुसुम योजना के तहत 60% सरकारी सब्सिडी पर 5HP सोलर पंप मिल रहा है। आपके पड़ोस में रामेश्वर जी (3.8 किमी दूर) ने इसे लगवाकर हर महीने ₹4,600 डीजल का बचाया। क्या आपके पास वर्तमान में बोरवेल या कुआं है?",
+              clarificationChips: ["हाँ, बोरवेल है", "कुआं है", "नया बोरवेल लगवाना है", "आवश्यक दस्तावेज़ बताएं"],
+            };
+          } else if (lang === "ta") {
+            return {
+              ...msg,
+              text: "PM-KUSUM திட்டத்தின் கீழ் 60% அரசு மானியத்துடன் 5HP சோலார் பம்ப் கிடைக்கிறது. உங்கள் வயலுக்கு மின் கட்டணம் அல்லது டீசல் செலவு இருக்காது. உங்கள் அண்டை விவசாயி ராமேஸ்வர ரெட்டி (3.8 கி.மீ) இதனை அமைத்து மாதம் ₹4,600 டீசல் சேமித்துள்ளார். உங்களிடம் ஆழ்துளை கிணறு உள்ளதா?",
+              clarificationChips: ["ஆம், ஆழ்துளை கிணறு உள்ளது", "திறந்த கிணறு உள்ளது", "புதிதாக அமைக்க வேண்டும்", "மானிய தகுதிகள் காட்டு"],
+            };
+          } else if (lang === "kn") {
+            return {
+              ...msg,
+              text: "PM-KUSUM ಯೋಜನೆಯಡಿ 60% ಸಬ್ಸಿಡಿಯೊಂದಿಗೆ 5HP ಸೋಲಾರ್ ಪಂಪ್ ಲಭ್ಯವಿದೆ. ನಿಮ್ಮ ಜಮೀನಿಗೆ ವಿದ್ಯುತ್ ಬಿಲ್ ಅಥವಾ ಡೀಸೆಲ್ ವೆಚ್ಚ ಇರುವುದಿಲ್ಲ. ನಿಮ್ಮ ನೆರೆಯ ರಾಮೇಶ್ವರ್ ರೆಡ್ಡಿ (3.8 ಕಿ.ಮೀ) ಇದನ್ನು ಅಳವಡಿಸಿ ತಿಂಗಳಿಗೆ ₹4,600 ಡೀಸೆಲ್ ಉಳಿಸಿದ್ದಾರೆ. ನಿಮ್ಮಲ್ಲಿ ಕೊಳವೆಬಾವಿ ಇದೆಯೇ?",
+              clarificationChips: ["ಹೌದು, ಕೊಳವೆಬಾವಿ ಇದೆ", "ಬಾವಿ ಇದೆ", "ಹೊಸದಾಗಿ ಕೊರೆಯಬೇಕು", "ಸಬ್ಸಿಡಿ ಅರ್ಹತೆಗಳನ್ನು ತೋರಿಸಿ"],
+            };
+          } else if (lang === "bn") {
+            return {
+              ...msg,
+              text: "PM-KUSUM প্রকল্পের অধীনে ৬০% সরকারি ভর্তুকিতে ৫HP সৌর পাম্প পাওয়া যাচ্ছে। আপনার জমিতে বিদ্যুৎ বিল বা ডিজেল খরচ থাকবে না। আপনার প্রতিবেশী রামেশ্বর রেড্ডি (৩.৮ কিমি) এটি বসিয়ে মাসে ₹৪,৬০০ ডিজেল বাঁচিয়েছেন। আপনার কি সাবমার্সিবল বা নলকূপ আছে?",
+              clarificationChips: ["হ্যাঁ, নলকূপ আছে", "কুয়ো আছে", "নতুন বসাতে হবে", "ভর্তুকির যোগ্যতা দেখান"],
+            };
+          } else {
+            return {
+              ...msg,
+              text: "Under PM-KUSUM Scheme Component-B, you are eligible for 60% subsidy on a 5HP Solar Pump (Subsidy value ₹1,32,000). Your neighbor Rameshwar Reddy (3.8 km away in Kothur) installed this and saved ₹4,600/month on diesel! What is your existing water source type?",
+              clarificationChips: ["I have a Borewell", "Open Irrigation Well", "Canal Water only", "What documents are needed?"],
+            };
+          }
+        }
       }
 
       return msg;
@@ -510,6 +693,15 @@ export const useFarmerStore = create<FarmerState>((set, get) => ({
         } else if (lang === "hi") {
           replyText = "पीएम-कुसुम योजना के तहत 60% सरकारी सब्सिडी पर 5HP सोलर पंप मिल रहा है। आपके पड़ोस में रामेश्वर जी (3.8 किमी दूर) ने इसे लगवाकर हर महीने ₹4,600 डीजल का बचाया। क्या आपके पास वर्तमान में बोरवेल या कुआं है?";
           chips = ["हाँ, बोरवेल है", "कुआं है", "नया बोरवेल लगवाना है", "आवश्यक दस्तावेज़ बताएं"];
+        } else if (lang === "ta") {
+          replyText = "PM-KUSUM திட்டத்தின் கீழ் 60% அரசு மானியத்துடன் 5HP சோலார் பம்ப் கிடைக்கிறது. உங்கள் வயலுக்கு மின் கட்டணம் அல்லது டீசல் செலவு இருக்காது. உங்கள் அண்டை விவசாயி ராமேஸ்வர ரெட்டி (3.8 கி.மீ) இதனை அமைத்து மாதம் ₹4,600 டீசல் சேமித்துள்ளார். உங்களிடம் ஆழ்துளை கிணறு உள்ளதா?";
+          chips = ["ஆம், ஆழ்துளை கிணறு உள்ளது", "திறந்த கிணறு உள்ளது", "புதிதாக அமைக்க வேண்டும்", "மானிய தகுதிகள் காட்டு"];
+        } else if (lang === "kn") {
+          replyText = "PM-KUSUM ಯೋಜನೆಯಡಿ 60% ಸಬ್ಸಿಡಿಯೊಂದಿಗೆ 5HP ಸೋಲಾರ್ ಪಂಪ್ ಲಭ್ಯವಿದೆ. ನಿಮ್ಮ ಜಮೀನಿಗೆ ವಿದ್ಯುತ್ ಬಿಲ್ ಅಥವಾ ಡೀಸೆಲ್ ವೆಚ್ಚ ಇರುವುದಿಲ್ಲ. ನಿಮ್ಮ ನೆರೆಯ ರಾಮೇಶ್ವರ್ ರೆಡ್ಡಿ (3.8 ಕಿ.ಮೀ) ಇದನ್ನು ಅಳವಡಿಸಿ ತಿಂಗಳಿಗೆ ₹4,600 ಡೀಸೆಲ್ ಉಳಿಸಿದ್ದಾರೆ. ನಿಮ್ಮಲ್ಲಿ ಕೊಳವೆಬಾವಿ ಇದೆಯೇ?";
+          chips = ["ಹೌದು, ಕೊಳವೆಬಾವಿ ಇದೆ", "ಬಾವಿ ಇದೆ", "ಹೊಸದಾಗಿ ಕೊರೆಯಬೇಕು", "ಸಬ್ಸಿಡಿ ಅರ್ಹತೆಗಳನ್ನು ತೋರಿಸಿ"];
+        } else if (lang === "bn") {
+          replyText = "PM-KUSUM প্রকল্পের অধীনে ৬০% সরকারি ভর্তুকিতে ৫HP সৌর পাম্প পাওয়া যাচ্ছে। আপনার জমিতে বিদ্যুৎ বিল বা ডিজেল খরচ থাকবে না। আপনার প্রতিবেশী রামেশ্বর রেড্ডি (৩.৮ কিমি) এটি বসিয়ে মাসে ₹৪,৬০০ ডিজেল বাঁচিয়েছেন। আপনার কি সাবমার্সিবল বা নলকূপ আছে?";
+          chips = ["হ্যাঁ, নলকূপ আছে", "কুয়ো আছে", "নতুন বসাতে হবে", "ভর্তুকির যোগ্যতা দেখান"];
         } else {
           replyText = "Under PM-KUSUM Scheme Component-B, you are eligible for 60% subsidy on a 5HP Solar Pump (Subsidy value ₹1,32,000). Your neighbor Rameshwar Reddy (3.8 km away in Kothur) installed this and saved ₹4,600/month on diesel! What is your existing water source type?";
           chips = ["I have a Borewell", "Open Irrigation Well", "Canal Water only", "What documents are needed?"];
@@ -538,6 +730,15 @@ export const useFarmerStore = create<FarmerState>((set, get) => ({
         } else if (lang === "hi") {
           replyText = "कपास में सफेद मक्खी (Whitefly) का प्रकोप पहचाना गया है। पत्तियां मुड़ने और चिपचिपा स्राव की समस्या के लिए: नीम का तेल 10,000 ppm @ 2 मिली/लीटर पानी, या डायफेंथियूरॉन 50% WP @ 1 ग्राम/लीटर का शाम को छिड़काव करें।";
           chips = ["दवा छिड़काव का समय", "नजदीकी कृषि केंद्र", "फसल बीमा क्लेम प्रक्रिया"];
+        } else if (lang === "ta") {
+          replyText = "பருத்தியில் வெள்ளை ஈ (Whitefly) தாக்குதல் கண்டறியப்பட்டுள்ளது. இலைகள் சுருங்கி தேன் போன்ற பிசின் வடிகிறது. தடுப்பு முறை: ஏக்கருக்கு வேப்பெண்ணெய் 10,000 ppm @ 2 மிலி/லிட்டர் அல்லது டயாபெந்தியூரான் 50% WP @ 1 கிராம்/லிட்டர் தண்ணீரில் கலந்து மாலை வேளையில் தெளிக்கவும்.";
+          chips = ["மருந்து தெளிக்கும் நேரம் எப்போது?", "அருகிலுள்ள உழவர் மருந்தகம்", "பயிர் காப்பீட்டு உதவி"];
+        } else if (lang === "kn") {
+          replyText = "ಹತ್ತಿ ಬೆಳೆಯಲ್ಲಿ ಬಿಳಿ ನೊಣ (Whitefly) ಬಾಧೆ ಕಂಡುಬಂದಿದೆ. ಎಲೆಗಳು ಸುರುಟಿಕೊಂಡು ಜಿಗುಟು ಸ್ರವಿಸುತ್ತದೆ. ನಿಯಂತ್ರಣಕ್ಕೆ: ಎಕರೆಗೆ ಬೇವಿನ ಎಣ್ಣೆ 10,000 ppm @ 2 ಮಿಲಿ/ಲೀಟರ್ ಅಥವಾ ಡಯಾಫೆಂಥಿಯುರಾನ್ 50% WP @ 1 ಗ್ರಾಂ/ಲೀಟರ್ ನೀರಿನಲ್ಲಿ ಬೆರೆಸಿ ಸಂಜೆ ವೇಳೆ ಸಿಂಪಡಿಸಿ.";
+          chips = ["ಸಿಂಪಡಣೆ ಸಮಯ ಯಾವಾಗ?", "ಔಷಧಿ ಅಂಗಡಿ ವಿವರ", "ಬೆಳೆ ವಿಮೆ ಲಭ್ಯವಿದೆಯೇ?"];
+        } else if (lang === "bn") {
+          replyText = "তুলা ফসলে সাদা মাছি (Whitefly) আক্রমণ সনাক্ত করা হয়েছে। পাতা কুঁকড়ে যাচ্ছে ও আঠালো ভাব হচ্ছে। দমনের জন্য: প্রতি লিটার জলে নিম তেল 10,000 ppm @ ২ মিলি বা ডায়াফেন্থিউরন 50% WP @ ১ গ্রাম মিশিয়ে বিকেলের দিকে স্প্রে করুন।";
+          chips = ["স্প্রে করার সঠিক সময়", "নিকটবর্তী কৃষি সেবা কেন্দ্র", "ফসল বীমা সুবিধা"];
         } else {
           replyText = "For Whitefly nymph pest control on Cotton: Spray Neem Oil (10,000 ppm) @ 2ml/litre water, or Diafenthiuron 50% WP @ 1g/litre water during cooler evening hours. Ensure spray covers underside of the leaves.";
           chips = ["Spray schedule", "Eligible under PMFBY crop insurance?", "Upload photo for scan"];
@@ -557,6 +758,15 @@ export const useFarmerStore = create<FarmerState>((set, get) => ({
         } else if (lang === "hi") {
           replyText = "आपकी PM-KISAN 16वीं किस्त ₹2,000 स्वीकृत हो चुकी है। आपका आधार ई-केवाईसी और भूमि रिकॉर्ड आपके एसबीआई खाते (•••• 4108) से लिंक हैं।";
           chips = ["अगली किस्त की तारीख?", "भुगतान रसीद डाउनलोड करें", "भूमि लिंकेज जांचें"];
+        } else if (lang === "ta") {
+          replyText = "உங்கள் PM-KISAN 16வது தவணை ₹2,000 அங்கீகரிக்கப்பட்டுவிட்டது. உங்கள் ஆதார் இ-கேஒய்சி மற்றும் நில ஆவணங்கள் உங்கள் எஸ்பிஐ வங்கி கணக்குடன் (•••• 4108) இணைக்கப்பட்டுள்ளன.";
+          chips = ["அடுத்த தவணை எப்போது?", "கட்டண ரசீது பதிவிறக்கம்", "நில இணைப்பு நிலை"];
+        } else if (lang === "kn") {
+          replyText = "ನಿಮ್ಮ PM-KISAN 16ನೇ ಕಂತು ₹2,000 ಪ್ರಕ್ರಿಯೆಗೊಂಡಿದೆ. ನಿಮ್ಮ ಆಧಾರ್ ಇ-ಕೆವೈಸಿ ಮತ್ತು ಭೂ ದಾಖಲೆಗಳು ನಿಮ್ಮ ಎಸ್‌ಬಿಐ ಬ್ಯಾಂಕ್ ಖಾತೆಗೆ (•••• 4108) ಲಿಂಕ್ ಆಗಿವೆ.";
+          chips = ["ಮುಂದಿನ ಕಂತಿನ ದಿನಾಂಕ?", "ಪಾವತಿ ರಶೀದಿ ಡೌನ್‌ಲೋಡ್", "ಭೂಮಿ ಲಿಂಕ್ ಸ್ಥಿತಿ"];
+        } else if (lang === "bn") {
+          replyText = "আপনার PM-KISAN ১৬তম কিস্তি ₹২,০০০ অনুমোদিত হয়েছে। আপনার আধার ই-কেওয়াইসি এবং জমির রেকর্ড আপনার এসবিআই অ্যাকাউন্টের সাথে (•••• ৪১০৮) লিঙ্ক করা রয়েছে।";
+          chips = ["পরের কিস্তির তারিখ?", "পেমেন্ট রশিদ ডাউনলোড", "জমির লিঙ্ক স্ট্যাটাস"];
         } else {
           replyText = "Your PM-KISAN 16th installment of ₹2,000 is processed. Your Aadhaar e-KYC and Dharani Land Record are verified and linked to your SBI Bank Account ending in •••• 4108.";
           chips = ["Next installment date?", "Download Payment Receipt", "Check land linkage"];
@@ -569,6 +779,15 @@ export const useFarmerStore = create<FarmerState>((set, get) => ({
         } else if (lang === "hi") {
           replyText = `समझा! आपकी ${farmer.landSizeAcres} एकड़ ${farmer.soilTypeName} भूमि (${farmer.village}) के आधार पर, हमारा एआई इंजन PM-KUSUM और सॉइल हेल्थ टेस्टिंग की सिफारिश करता है। आप किस योजना या सलाह की जानकारी चाहते हैं?`;
           chips = ["सोलर पंप 60% सब्सिडी", "मुफ़्त मृदा परीक्षण कार्ड", "कम ब्याज किसान क्रेडिट कार्ड", "आसपास के किसान से जुड़ें"];
+        } else if (lang === "ta") {
+          replyText = `புரிந்தது! உங்கள் ${farmer.landSizeAcres} ஏக்கர் ${farmer.soilTypeName} நிலம் (${farmer.village}) அடிப்படையில், எங்களது AI என்ஜின் PM-KUSUM சோலார் பம்ப் மற்றும் மண் பரிசோதனை அட்டைக்கு விண்ணப்பிக்க பரிந்துரைக்கிறது. உங்களுக்கு என்ன குறிப்பிட்ட ஆலோசனை தேவை?`;
+          chips = ["சோலார் பம்ப் 60% மானியம்", "இலவச மண் பரிசோதனை அட்டை", "குறைந்த வட்டி கிசான் கிரெடிட் கார்டு (KCC)", "அருகிலுள்ள விவசாயியுடன் பேசுங்கள்"];
+        } else if (lang === "kn") {
+          replyText = `ತಿಳಿಯಿತು! ನಿಮ್ಮ ${farmer.landSizeAcres} ಎಕರೆ ${farmer.soilTypeName} ಭೂಮಿ (${farmer.village}) ಆಧರಿಸಿ, ನಮ್ಮ AI ಎಂಜಿನ್ PM-KUSUM ಸೋಲಾರ್ ಪಂಪ್ ಮತ್ತು ಮಣ್ಣಿನ ಆರೋಗ್ಯ ಕಾರ್ಡ್‌ಗೆ ಅರ್ಜಿ ಸಲ್ಲಿಸಲು ಶಿಫಾರಸು ಮಾಡುತ್ತದೆ. ನಿಮಗೆ ಯಾವ ನಿರ್ದಿಷ್ಟ ಸಲಹೆ ಅಥವಾ ಸಬ್ಸಿಡಿ ಮಾಹಿತಿ ಬೇಕು?`;
+          chips = ["ಸೋಲಾರ್ ಪಂಪ್ 60% ಸಬ್ಸಿಡಿ", "ಉಚಿತ ಮಣ್ಣಿನ ಪರೀಕ್ಷಾ ಕಾರ್ಡ್", "ಕಡಿಮೆ ಬಡ್ಡಿಯ ಕಿಸಾನ್ ಕ್ರೆಡಿಟ್ ಕಾರ್ಡ್", "ಸಮೀಪದ ರೈತರೊಂದಿಗೆ ಮಾತನಾಡಿ"];
+        } else if (lang === "bn") {
+          replyText = `বুঝেছি! আপনার ${farmer.landSizeAcres} একর ${farmer.soilTypeName} জমি (${farmer.village}) অনুযায়ী, আমাদের এআই ইঞ্জিন PM-KUSUM সৌর পাম্প এবং মৃত্তিকা স্বাস্থ্য কার্ডের জন্য আবেদনের পরামর্শ দিচ্ছে। আপনি কোন প্রকল্পের তথ্য জানতে চান?`;
+          chips = ["সৌর পাম্প ৬০% ভর্তুকি", "বিনামূল্যে মৃত্তিকা পরীক্ষা কার্ড", "স্বল্প সুদের কিষাণ ক্রেডিট কার্ড", "নিকটবর্তী কৃষকের সাথে যোগাযোগ"];
         } else {
           replyText = `Understood! With your ${farmer.landSizeAcres} Acres of ${farmer.soilTypeName} in ${farmer.village}, our AI engine recommends applying for PM-KUSUM and Soil Health Testing. What specific advice or subsidy would you like to explore?`;
           chips = ["Solar Pump 60% Subsidy", "Soil Health Card Free Test", "Low-Interest Kisan Credit Card", "Connect with nearby peer farmer"];
