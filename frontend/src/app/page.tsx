@@ -212,13 +212,13 @@ export default function Home() {
               <div className="flex flex-col lg:flex-row gap-8 items-start justify-between">
                 <div className="max-w-xl space-y-3">
                   <span className="px-3 py-1 rounded-full text-xs font-extrabold bg-emerald-700 text-white">
-                    24/7 AI Voice Advisory
+                    {(t as any).voiceAdvisoryBadge || "24/7 AI Voice Advisory"}
                   </span>
                   <h3 className="text-2xl font-black text-stone-900">
                     {t.chatAssistantTitle}
                   </h3>
                   <p className="text-sm text-stone-600 leading-relaxed">
-                    Have doubts about pesticide spraying, soil testing, or subsidy eligibility? Speak directly in your mother tongue using speech-to-text or upload leaf photos for disease diagnostics.
+                    {(t as any).voiceAdvisoryDesc || "Have doubts about pesticide spraying, soil testing, or subsidy eligibility? Speak directly in your mother tongue using speech-to-text or upload leaf photos for disease diagnostics."}
                   </p>
                   <div className="flex flex-wrap gap-2 pt-2">
                     <button
@@ -226,14 +226,14 @@ export default function Home() {
                       className="px-5 py-3 rounded-2xl bg-emerald-700 hover:bg-emerald-800 text-white font-black text-sm shadow-md flex items-center gap-2 active:scale-98 transition"
                     >
                       <Mic className="w-4 h-4 text-emerald-300" />
-                      <span>Start Voice Chat Now</span>
+                      <span>{(t as any).startVoiceChatNow || "Start Voice Chat Now"}</span>
                     </button>
                     <button
                       onClick={() => setVerificationModalOpen(true)}
                       className="px-5 py-3 rounded-2xl bg-white border border-emerald-300 text-emerald-900 font-extrabold text-sm hover:bg-emerald-50 transition flex items-center gap-2"
                     >
                       <Camera className="w-4 h-4 text-emerald-700" />
-                      <span>Take Live Photo / Scan Doc</span>
+                      <span>{(t as any).takeLivePhotoScan || "Take Live Photo / Scan Doc"}</span>
                     </button>
                   </div>
                 </div>

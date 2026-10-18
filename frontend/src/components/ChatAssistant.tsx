@@ -133,11 +133,14 @@ export default function ChatAssistant() {
 
   const handleSend = () => {
     if (!inputVal.trim() && !selectedFile) return;
+    const defaultPrompt = selectedFile?.isImage
+      ? (t as any).inspectDocPrompt || "Please inspect this attached crop/document photo using AI Vision"
+      : (t as any).inspectDocFilePrompt
+        ? `${(t as any).inspectDocFilePrompt}: ${selectedFile?.name}`
+        : `Please analyze this attached government document: ${selectedFile?.name}`;
+
     sendChatMessage(
-      inputVal.trim() ||
-        (selectedFile?.isImage
-          ? "Please inspect this attached crop/document photo using AI Vision"
-          : `Please analyze this attached government document: ${selectedFile?.name}`),
+      inputVal.trim() || defaultPrompt,
       selectedFile?.base64,
       selectedFile?.name,
       selectedFile?.type
