@@ -80,6 +80,7 @@ export interface MockOcrResult {
     citizenName?: string;
     maskedIdNumber?: string;
     dbtLinkedBank?: string;
+    stateDistrict?: string;
   };
   boundingBoxes?: Array<{
     id: string;

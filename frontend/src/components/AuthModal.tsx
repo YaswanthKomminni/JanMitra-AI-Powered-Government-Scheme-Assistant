@@ -347,7 +347,9 @@ export default function AuthModal() {
                       {[0, 1, 2, 3].map((idx) => (
                         <input
                           key={idx}
-                          ref={(el) => (otpInputRefs.current[idx] = el)}
+                          ref={(el) => {
+                            otpInputRefs.current[idx] = el;
+                          }}
                           type="text"
                           inputMode="numeric"
                           maxLength={1}
@@ -656,7 +658,7 @@ export default function AuthModal() {
                   <select
                     value={signupForm.preferredLanguage}
                     onChange={(e) =>
-                      setSignupForm({ ...signupForm, preferredLanguage: e.target.value })
+                      setSignupForm({ ...signupForm, preferredLanguage: e.target.value as any })
                     }
                     className="w-full p-3 rounded-xl border border-stone-300 bg-white text-sm font-semibold text-stone-900 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
                   >

@@ -507,7 +507,9 @@ export default function LoginPage() {
                         {[0, 1, 2, 3].map((idx) => (
                           <input
                             key={idx}
-                            ref={(el) => (otpInputRefs.current[idx] = el)}
+                            ref={(el) => {
+                              otpInputRefs.current[idx] = el;
+                            }}
                             type="text"
                             inputMode="numeric"
                             maxLength={1}
