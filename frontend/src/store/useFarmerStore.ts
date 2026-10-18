@@ -96,7 +96,7 @@ const INITIAL_MESSAGES: ChatMessage[] = [
 export const useFarmerStore = create<FarmerState>((set, get) => ({
   language: "en",
   currentFarmer: DEMO_FARMERS[0],
-  isAuthenticated: false, // User must log in or sign up first before accessing account
+  isAuthenticated: true, // Default to true so Dashboard (Image 2) is the start page
   authModalOpen: false,
   activeTab: "dashboard",
   selectedCategoryFilter: "all",

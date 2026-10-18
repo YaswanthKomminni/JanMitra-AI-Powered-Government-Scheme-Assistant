@@ -39,20 +39,7 @@ export default function Home() {
 
   const t = translations[language];
 
-  // Protect account: If not logged in, show the login & registration gate!
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex flex-col font-sans pb-12">
-        <Navbar />
-        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8">
-          <AuthGate />
-        </main>
-        <AuthModal />
-      </div>
-    );
-  }
-
-  // Filter schemes when authenticated
+  // Filter schemes
   const filteredSchemes = SCHEMES_DATABASE.filter((scheme) => {
     if (selectedCategoryFilter === "all") return true;
     return scheme.category === selectedCategoryFilter;
