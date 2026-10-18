@@ -18,6 +18,7 @@ import {
   Filter,
   Mic,
   ScanLine,
+  Camera,
   PhoneCall,
   ExternalLink,
   BookOpen,
@@ -229,9 +230,10 @@ export default function Home() {
                     </button>
                     <button
                       onClick={() => setVerificationModalOpen(true)}
-                      className="px-5 py-3 rounded-2xl bg-white border border-emerald-300 text-emerald-900 font-extrabold text-sm hover:bg-emerald-50 transition"
+                      className="px-5 py-3 rounded-2xl bg-white border border-emerald-300 text-emerald-900 font-extrabold text-sm hover:bg-emerald-50 transition flex items-center gap-2"
                     >
-                      Scan Farm Document
+                      <Camera className="w-4 h-4 text-emerald-700" />
+                      <span>Take Live Photo / Scan Doc</span>
                     </button>
                   </div>
                 </div>

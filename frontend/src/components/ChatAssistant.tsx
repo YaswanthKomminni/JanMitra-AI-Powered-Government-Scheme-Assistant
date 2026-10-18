@@ -19,6 +19,7 @@ import {
 import { useFarmerStore } from "@/store/useFarmerStore";
 import { translations } from "@/lib/i18n";
 import { createSpeechRecognizer } from "@/lib/speech";
+import LiveCameraCapture from "@/components/LiveCameraCapture";
 
 export default function ChatAssistant() {
   const {
@@ -39,6 +40,7 @@ export default function ChatAssistant() {
   const [inputVal, setInputVal] = useState("");
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [speechActive, setSpeechActive] = useState(false);
+  const [liveCameraOpen, setLiveCameraOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recognizerRef = useRef<any>(null);
   const chatFileInputRef = useRef<HTMLInputElement>(null);
@@ -352,22 +354,22 @@ export default function ChatAssistant() {
             onChange={handleImageSelect}
           />
 
-          {/* Quick Attach Image Button */}
+          {/* Take Live Camera Photo */}
+          <button
+            onClick={() => setLiveCameraOpen(true)}
+            className="p-3 sm:p-3.5 rounded-2xl bg-emerald-100 hover:bg-emerald-200 text-emerald-900 transition active:scale-95 shrink-0 border border-emerald-300 shadow-sm"
+            title="Take Live Photo with Webcam/Camera"
+          >
+            <Camera className="w-5 h-5 text-emerald-900" />
+          </button>
+
+          {/* Quick Attach Image File */}
           <button
             onClick={() => chatFileInputRef.current?.click()}
             className="p-3 sm:p-3.5 rounded-2xl bg-stone-100 hover:bg-emerald-50 hover:text-emerald-800 text-stone-700 transition active:scale-95 shrink-0"
-            title="Attach Photo for Vision Analysis"
+            title="Attach Photo File from Device"
           >
-            <ImageIcon className="w-5 h-5 text-emerald-800" />
-          </button>
-
-          {/* Camera / Full Document OCR Modal Scanner */}
-          <button
-            onClick={() => setVerificationModalOpen(true)}
-            className="p-3 sm:p-3.5 rounded-2xl bg-stone-100 hover:bg-stone-200 text-stone-700 transition active:scale-95 shrink-0"
-            title="Open Document Bounding Box Scanner"
-          >
-            <Camera className="w-5 h-5 text-stone-800" />
+            <ImageIcon className="w-5 h-5 text-stone-600" />
           </button>
 
           {/* Large Push-To-Talk Voice Button */}
@@ -413,6 +415,23 @@ export default function ChatAssistant() {
           </button>
         </div>
       </div>
+
+      {/* Live Camera Modal for In-Browser Capture */}
+      {liveCameraOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-md animate-in fade-in">
+          <div className="w-full max-w-xl">
+            <LiveCameraCapture
+              category="crop_disease"
+              title="Snap Live Photo with Webcam / Mobile Camera"
+              onCapture={(base64) => {
+                setSelectedImage(base64);
+                setLiveCameraOpen(false);
+              }}
+              onCancel={() => setLiveCameraOpen(false)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

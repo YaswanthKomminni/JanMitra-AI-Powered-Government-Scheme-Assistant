@@ -23,6 +23,7 @@ import {
 import { useFarmerStore } from "@/store/useFarmerStore";
 import { translations } from "@/lib/i18n";
 import { MOCK_OCR_PRESETS } from "@/lib/mockData";
+import LiveCameraCapture from "@/components/LiveCameraCapture";
 
 export default function DocumentVerificationModal() {
   const {
@@ -47,9 +48,17 @@ export default function DocumentVerificationModal() {
   const [hoveredBoxId, setHoveredBoxId] = useState<string | null>(null);
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
   const [uploadedFileSize, setUploadedFileSize] = useState<string | null>(null);
+  const [inputMode, setInputMode] = useState<"camera" | "upload">("camera");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const t = translations[language];
+
+  const handleCameraCapture = async (base64Image: string) => {
+    const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }).replace(/:/g, "-");
+    setUploadedFileName(`Live_Scan_${timeStr}.jpg`);
+    setUploadedFileSize("Live Camera");
+    await analyzeUploadedFile(base64Image, "live_scan.jpg", "image/jpeg", selectedCategory);
+  };
 
   if (!verificationModalOpen) return null;
 
@@ -156,6 +165,37 @@ export default function DocumentVerificationModal() {
             </div>
           )}
 
+          {/* Mode Switcher: Live Camera vs Upload File */}
+          {!verificationResult && !verificationScanning && (
+            <div className="flex items-center p-1.5 bg-stone-100 rounded-2xl border border-stone-200">
+              <button
+                type="button"
+                onClick={() => setInputMode("camera")}
+                className={`flex-1 py-2.5 px-3 rounded-xl font-black text-xs sm:text-sm transition flex items-center justify-center gap-2 ${
+                  inputMode === "camera"
+                    ? "bg-emerald-800 text-white shadow-md shadow-emerald-900/20"
+                    : "text-stone-700 hover:text-stone-900 hover:bg-stone-200"
+                }`}
+              >
+                <Camera className="w-4 h-4 text-emerald-400" />
+                <span>Take Live Photo (Webcam / Camera)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setInputMode("upload")}
+                className={`flex-1 py-2.5 px-3 rounded-xl font-black text-xs sm:text-sm transition flex items-center justify-center gap-2 ${
+                  inputMode === "upload"
+                    ? "bg-emerald-800 text-white shadow-md shadow-emerald-900/20"
+                    : "text-stone-700 hover:text-stone-900 hover:bg-stone-200"
+                }`}
+              >
+                <UploadCloud className="w-4 h-4 text-emerald-400" />
+                <span>Upload File / Document</span>
+              </button>
+            </div>
+          )}
+
           {/* Hidden File Input */}
           <input
             ref={fileInputRef}
@@ -165,8 +205,17 @@ export default function DocumentVerificationModal() {
             onChange={handleFileInputChange}
           />
 
+          {/* Live Camera Viewfinder */}
+          {!verificationResult && !verificationScanning && inputMode === "camera" && (
+            <LiveCameraCapture
+              category={selectedCategory}
+              onCapture={handleCameraCapture}
+              onCancel={() => setInputMode("upload")}
+            />
+          )}
+
           {/* Drag & Drop File Zone */}
-          {!verificationResult && !verificationScanning && (
+          {!verificationResult && !verificationScanning && inputMode === "upload" && (
             <div
               onDragOver={(e) => {
                 e.preventDefault();
@@ -194,10 +243,17 @@ export default function DocumentVerificationModal() {
               </div>
 
               <div className="flex flex-wrap items-center justify-center gap-2 mt-1">
-                <span className="inline-flex items-center gap-1.5 text-xs font-black text-emerald-900 bg-emerald-100/90 px-3.5 py-1.5 rounded-full border border-emerald-300">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setInputMode("camera");
+                  }}
+                  className="inline-flex items-center gap-1.5 text-xs font-black text-emerald-900 bg-emerald-100/90 hover:bg-emerald-200 px-3.5 py-1.5 rounded-full border border-emerald-300 transition"
+                >
                   <Camera className="w-3.5 h-3.5" />
-                  Camera Photo or Device File
-                </span>
+                  Switch to Live Camera
+                </button>
                 <span className="inline-flex items-center gap-1.5 text-xs font-bold text-stone-700 bg-white px-3 py-1.5 rounded-full border border-stone-200 shadow-sm">
                   <FileText className="w-3.5 h-3.5 text-stone-500" />
                   PDF & Images up to 10MB
@@ -646,15 +702,32 @@ export default function DocumentVerificationModal() {
 
         {/* Footer Actions */}
         <div className="p-4 bg-stone-50 border-t border-stone-200 flex items-center justify-between gap-3">
-          <button
-            onClick={() => {
-              setVerificationModalOpen(false);
-              resetVerification();
-            }}
-            className="px-4 py-2.5 rounded-xl border border-stone-300 text-stone-700 font-bold text-xs sm:text-sm hover:bg-stone-100 transition"
-          >
-            Close
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                setVerificationModalOpen(false);
+                resetVerification();
+              }}
+              className="px-4 py-2.5 rounded-xl border border-stone-300 text-stone-700 font-bold text-xs sm:text-sm hover:bg-stone-100 transition"
+            >
+              Close
+            </button>
+
+            {verificationResult && (
+              <button
+                onClick={() => {
+                  resetVerification();
+                  setUploadedFileName(null);
+                  setUploadedFileSize(null);
+                  setInputMode("camera");
+                }}
+                className="px-3.5 py-2.5 rounded-xl border border-stone-300 bg-white text-stone-700 hover:text-emerald-800 hover:border-emerald-500 font-bold text-xs sm:text-sm transition flex items-center gap-1.5"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>Take Another Photo</span>
+              </button>
+            )}
+          </div>
 
           {verificationResult && (
             <button
