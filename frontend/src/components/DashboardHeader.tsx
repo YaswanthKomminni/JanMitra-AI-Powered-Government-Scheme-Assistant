@@ -12,6 +12,9 @@ import {
   Sparkles,
   ShieldCheck,
   RefreshCw,
+  LogIn,
+  UserPlus,
+  MessageSquareText,
 } from "lucide-react";
 import { useFarmerStore } from "@/store/useFarmerStore";
 import { translations } from "@/lib/i18n";
@@ -22,6 +25,9 @@ export default function DashboardHeader() {
     language,
     setActiveTab,
     setVerificationModalOpen,
+    isAuthenticated,
+    authStatus,
+    setAuthModalOpen,
   } = useFarmerStore();
 
   const [gpsRefreshing, setGpsRefreshing] = useState(false);
@@ -41,14 +47,42 @@ export default function DashboardHeader() {
 
       <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
         {/* Left Demographics & Greeting */}
+        {!isAuthenticated ? (
+          <div className="space-y-3 max-w-2xl">
+            <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white">
+              {t.welcome}! {(t as any).guestHeroTitle || "Welcome to JanMithra"}
+            </h1>
+            <p className="text-sm sm:text-base text-emerald-100/90 leading-relaxed">
+              {(t as any).guestHeroSubtitle ||
+                "Explore government schemes and nearby farmer success stories. Sign in or create a free account to ask the AI assistant, scan documents, and keep your conversations saved."}
+            </p>
+            {authStatus !== "unknown" && (
+              <div className="flex flex-wrap gap-2 pt-1">
+                <button
+                  onClick={() => setAuthModalOpen(true, "login")}
+                  className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-white text-emerald-900 font-black text-sm shadow-md hover:bg-emerald-50 transition active:scale-98"
+                >
+                  <LogIn className="w-4 h-4" /> Sign In
+                </button>
+                <button
+                  onClick={() => setAuthModalOpen(true, "signup")}
+                  className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-emerald-700/80 border border-emerald-400/40 text-white font-black text-sm hover:bg-emerald-600 transition active:scale-98"
+                >
+                  <UserPlus className="w-4 h-4" /> Create Free Account
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
         <div className="space-y-3 max-w-2xl">
           <div className="flex flex-wrap items-center gap-2">
             {/* GPS Location Tag */}
+            {(currentFarmer.village || currentFarmer.district || currentFarmer.state) && (
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/70 border border-emerald-500/40 text-xs font-bold text-emerald-200 shadow-sm">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
               <MapPin className="w-3.5 h-3.5 text-emerald-400" />
               <span>
-                {currentFarmer.village}, {currentFarmer.district}, {currentFarmer.state}
+                {[currentFarmer.village, currentFarmer.district, currentFarmer.state].filter(Boolean).join(", ")}
               </span>
               <button
                 onClick={handleRefreshGps}
@@ -60,6 +94,7 @@ export default function DashboardHeader() {
                 />
               </button>
             </div>
+            )}
 
             {/* Verified Documents Badge */}
             <div className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-400/40 text-xs font-bold text-amber-300">
@@ -76,33 +111,42 @@ export default function DashboardHeader() {
 
           {/* High-Contrast Land Profile Badge */}
           <div className="flex flex-wrap items-center gap-2 sm:gap-3 pt-1">
+            {currentFarmer.landSizeAcres > 0 && (
             <div className="flex items-center gap-2 bg-emerald-950/80 border border-emerald-500/30 px-3.5 py-2 rounded-2xl">
               <Layers className="w-4 h-4 text-emerald-400" />
               <span className="text-sm font-black text-emerald-100">
                 {currentFarmer.landSizeAcres} {t.acres}
               </span>
             </div>
+            )}
 
+            {currentFarmer.soilTypeName && (
             <div className="flex items-center gap-2 bg-emerald-950/80 border border-emerald-500/30 px-3.5 py-2 rounded-2xl">
               <span className="text-sm font-semibold text-emerald-200">
                 🌱 {currentFarmer.soilTypeName}
               </span>
             </div>
+            )}
 
+            {currentFarmer.irrigationTypeName && (
             <div className="flex items-center gap-2 bg-emerald-950/80 border border-emerald-500/30 px-3.5 py-2 rounded-2xl">
               <Droplets className="w-4 h-4 text-cyan-400" />
               <span className="text-sm font-semibold text-emerald-200">
                 {currentFarmer.irrigationTypeName}
               </span>
             </div>
+            )}
 
+            {currentFarmer.primaryCrops.length > 0 && (
             <div className="flex items-center gap-2 bg-amber-950/60 border border-amber-500/30 px-3.5 py-2 rounded-2xl">
               <span className="text-sm font-semibold text-amber-200">
                 🌾 {currentFarmer.primaryCrops.join(", ")}
               </span>
             </div>
+            )}
           </div>
         </div>
+        )}
 
         {/* Right CTA Action Buttons */}
         <div className="flex flex-col sm:flex-row md:flex-col gap-3 shrink-0">
@@ -118,7 +162,11 @@ export default function DashboardHeader() {
             onClick={() => setActiveTab("chat")}
             className="flex items-center justify-center gap-3 px-6 py-3.5 rounded-2xl bg-emerald-700/80 hover:bg-emerald-600 text-white font-bold text-sm border border-emerald-500/40 shadow-lg active:scale-98 transition"
           >
-            <Mic className="w-5 h-5 text-emerald-300 animate-bounce-subtle" />
+            {isAuthenticated ? (
+              <Mic className="w-5 h-5 text-emerald-300 animate-bounce-subtle" />
+            ) : (
+              <MessageSquareText className="w-5 h-5 text-emerald-300" />
+            )}
             <span>{t.tabs.chat}</span>
           </button>
         </div>

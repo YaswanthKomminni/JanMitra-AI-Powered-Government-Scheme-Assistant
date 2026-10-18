@@ -3,7 +3,6 @@
 import React, { useState } from "react";
 import Navbar from "@/components/Navbar";
 import AuthModal from "@/components/AuthModal";
-import AuthGate from "@/components/AuthGate";
 import DashboardHeader from "@/components/DashboardHeader";
 import SchemeCard from "@/components/SchemeCard";
 import PeerNetwork from "@/components/PeerNetwork";
@@ -35,7 +34,7 @@ export default function Home() {
     selectedCategoryFilter,
     setSelectedCategoryFilter,
     setVerificationModalOpen,
-    isAuthenticated,
+    authNotice,
   } = useFarmerStore();
 
   const t = translations[language];
@@ -53,6 +52,18 @@ export default function Home() {
 
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+        {authNotice && (
+          <div role="status" className="mb-4 p-3 rounded-2xl bg-amber-50 border border-amber-200 text-xs sm:text-sm font-bold text-amber-900 flex items-center justify-between gap-3">
+            <span>{authNotice}</span>
+            <button
+              onClick={() => useFarmerStore.setState({ authNotice: null })}
+              className="px-2 py-1 rounded-lg hover:bg-amber-100 text-amber-800"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
         {/* Farmer Dashboard Header */}
         <DashboardHeader />
 
@@ -113,8 +124,8 @@ export default function Home() {
 
         {/* Dynamic Content Views */}
         {activeTab === "chat" ? (
-          <div className="max-w-4xl mx-auto my-4">
-            <ChatAssistant />
+          <div className="max-w-6xl mx-auto my-4">
+            <ChatAssistant variant="full" />
           </div>
         ) : activeTab === "peers" ? (
           <PeerNetwork />
@@ -239,7 +250,7 @@ export default function Home() {
                 </div>
 
                 <div className="w-full lg:max-w-md">
-                  <ChatAssistant />
+                  <ChatAssistant variant="compact" />
                 </div>
               </div>
             </section>

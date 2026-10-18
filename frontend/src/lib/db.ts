@@ -1,67 +1,100 @@
 import mysql from "mysql2/promise";
-import fs from "fs";
-import path from "path";
 
-let currentPassword = process.env.DB_PASSWORD || "";
-
-function createDbPool(passwordToUse?: string) {
-  return mysql.createPool({
+/**
+ * MySQL connection pool for JanMithra.
+ *
+ * Credentials come ONLY from environment variables (frontend/.env.local in
+ * development). The old browser-facing "enter MySQL root password" flow, which
+ * let any visitor rewrite .env.local, has been removed on purpose.
+ */
+function createDbPool() {
+  const pool = mysql.createPool({
     host: process.env.DB_HOST || "127.0.0.1",
     port: Number(process.env.DB_PORT) || 3306,
     user: process.env.DB_USER || "root",
-    password: passwordToUse !== undefined ? passwordToUse : currentPassword,
+    password: process.env.DB_PASSWORD || "",
     database: process.env.DB_NAME || "JanMithra",
     waitForConnections: true,
-    connectionLimit: 10,
+    connectionLimit: Number(process.env.DB_POOL_SIZE) || 10,
     queueLimit: 0,
+    charset: "utf8mb4",
+    timezone: "Z",
+    connectTimeout: 8000,
   });
+  // Keep TIMESTAMP values in UTC so the API always returns correct ISO times.
+  pool.on("connection", (conn) => {
+    conn.query("SET time_zone = '+00:00'");
+  });
+  return pool;
 }
 
-let pool = createDbPool();
+// Reuse one pool across Next.js hot reloads in development.
+const globalForDb = globalThis as unknown as { __janmitraPool?: mysql.Pool };
+const pool: mysql.Pool = globalForDb.__janmitraPool ?? createDbPool();
+if (process.env.NODE_ENV !== "production") globalForDb.__janmitraPool = pool;
 
-export function setDbPassword(newPassword: string) {
-  currentPassword = newPassword;
-  process.env.DB_PASSWORD = newPassword;
-  pool = createDbPool(newPassword);
-
-  // Also persist to .env.local
-  try {
-    const envPath = path.join(process.cwd(), ".env.local");
-    const content = `# JanMithra MySQL Configuration\nDB_HOST=127.0.0.1\nDB_PORT=3306\nDB_USER=root\nDB_PASSWORD=${newPassword}\nDB_NAME=JanMithra\n`;
-    fs.writeFileSync(envPath, content, "utf-8");
-  } catch (e) {
-    console.warn("Could not write .env.local:", e);
+export class DatabaseError extends Error {
+  constructor(message: string, public readonly code?: string) {
+    super(message);
+    this.name = "DatabaseError";
   }
 }
 
 /**
- * Test connectivity to MySQL JanMithra with optional candidate password
+ * Run a placeholder-parameterized query and THROW on failure.
+ * Use this anywhere a silent failure would be wrong (auth, chat history).
  */
-export async function testConnection(candidatePassword?: string): Promise<{
-  connected: boolean;
-  userCount?: number;
-  schemeCount?: number;
-  error?: string;
-}> {
-  const testPool = candidatePassword !== undefined ? createDbPool(candidatePassword) : pool;
+export async function dbQuery<T = any>(sql: string, params: any[] = []): Promise<T> {
   try {
-    const [userRows]: any = await testPool.query("SELECT COUNT(*) as count FROM users");
-    const [schemeRows]: any = await testPool.query("SELECT COUNT(*) as count FROM schemes");
-    return {
-      connected: true,
-      userCount: userRows[0]?.count || 0,
-      schemeCount: schemeRows[0]?.count || 0,
-    };
+    const [rows] = await pool.query(sql, params);
+    return rows as T;
   } catch (err: any) {
-    return {
-      connected: false,
-      error: err.message,
-    };
+    throw new DatabaseError(err?.message || "Database error", err?.code);
+  }
+}
+
+/** Run several statements atomically on one connection. */
+export async function withTransaction<T>(fn: (conn: mysql.PoolConnection) => Promise<T>): Promise<T> {
+  let conn: mysql.PoolConnection;
+  try {
+    conn = await pool.getConnection();
+  } catch (err: any) {
+    throw new DatabaseError(err?.message || "Database unavailable", err?.code);
+  }
+  try {
+    await conn.beginTransaction();
+    const result = await fn(conn);
+    await conn.commit();
+    return result;
+  } catch (err: any) {
+    try {
+      await conn.rollback();
+    } catch {
+      /* ignore rollback errors */
+    }
+    if (err instanceof DatabaseError) throw err;
+    if (err?.code && typeof err.code === "string" && err.sqlMessage !== undefined) {
+      throw new DatabaseError(err.message, err.code);
+    }
+    throw err;
+  } finally {
+    conn.release();
+  }
+}
+
+/** Lightweight health check. Never returns credentials or row counts. */
+export async function testConnection(): Promise<{ connected: boolean }> {
+  try {
+    await pool.query("SELECT 1");
+    return { connected: true };
+  } catch {
+    return { connected: false };
   }
 }
 
 /**
- * Execute a query against the JanMithra MySQL database.
+ * Legacy helper kept for read-only public endpoints (schemes, peers) that fall
+ * back to bundled data when MySQL is unavailable.
  */
 export async function queryDatabase<T = any>(
   sql: string,
