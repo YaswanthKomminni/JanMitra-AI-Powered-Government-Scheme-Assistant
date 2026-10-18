@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireUser } from "@/lib/auth";
+
+export const dynamic = "force-dynamic";
 
 const SUPPORTED_LANG_MAP: Record<string, string> = {
   te: "te",
@@ -215,6 +218,9 @@ async function fetchAudioSegment(textChunk: string, ttsLang: string): Promise<Bu
 }
 
 export async function GET(req: NextRequest) {
+  // Reading assistant answers aloud sends their text to the speech service: signed-in users only.
+  const auth = await requireUser(req);
+  if (auth instanceof NextResponse) return auth;
   try {
     const { searchParams } = new URL(req.url);
     const text = searchParams.get("text");
@@ -233,7 +239,7 @@ export async function GET(req: NextRequest) {
         status: 200,
         headers: {
           "Content-Type": "audio/mpeg",
-          "Cache-Control": "public, max-age=86400",
+          "Cache-Control": "private, max-age=86400",
         },
       });
     }
@@ -265,7 +271,7 @@ export async function GET(req: NextRequest) {
       status: 200,
       headers: {
         "Content-Type": "audio/mpeg",
-        "Cache-Control": "public, max-age=86400",
+        "Cache-Control": "private, max-age=86400",
       },
     });
   } catch (error: any) {
@@ -275,6 +281,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await requireUser(req);
+  if (auth instanceof NextResponse) return auth;
   try {
     const body = await req.json();
     const { text, lang } = body;
@@ -292,7 +300,7 @@ export async function POST(req: NextRequest) {
         status: 200,
         headers: {
           "Content-Type": "audio/mpeg",
-          "Cache-Control": "public, max-age=86400",
+          "Cache-Control": "private, max-age=86400",
         },
       });
     }
@@ -320,7 +328,7 @@ export async function POST(req: NextRequest) {
       status: 200,
       headers: {
         "Content-Type": "audio/mpeg",
-        "Cache-Control": "public, max-age=86400",
+        "Cache-Control": "private, max-age=86400",
       },
     });
   } catch (error: any) {

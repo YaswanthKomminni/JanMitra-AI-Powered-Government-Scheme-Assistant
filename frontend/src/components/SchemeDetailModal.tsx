@@ -88,17 +88,29 @@ export default function SchemeDetailModal() {
               <p className="text-sm text-emerald-950 font-medium">
                 {selectedScheme.eligibilitySummary}
               </p>
+              {currentFarmer.landSizeAcres > 0 || currentFarmer.soilTypeName || currentFarmer.annualIncomeSlab ? (
               <div className="flex flex-wrap gap-2 pt-2 border-t border-emerald-200/60">
+                {currentFarmer.landSizeAcres > 0 && (
                 <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-white text-emerald-900 border border-emerald-300">
                   Land Size: {currentFarmer.landSizeAcres} Acres (Eligible)
                 </span>
+                )}
+                {currentFarmer.soilTypeName && (
                 <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-white text-emerald-900 border border-emerald-300">
                   Soil Type: {currentFarmer.soilTypeName} (Eligible)
                 </span>
+                )}
+                {currentFarmer.annualIncomeSlab && (
                 <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-white text-emerald-900 border border-emerald-300">
                   Income: {currentFarmer.annualIncomeSlab} (Eligible)
                 </span>
+                )}
               </div>
+              ) : (
+                <p className="pt-2 border-t border-emerald-200/60 text-xs font-semibold text-emerald-900/80">
+                  Sign in and add your farm details to see how you match these criteria.
+                </p>
+              )}
             </div>
           </div>
 
@@ -126,7 +138,7 @@ export default function SchemeDetailModal() {
             <div>
               <p className="font-bold">Nearest Assistance Center:</p>
               <p className="text-stone-600">
-                MeeSeva / Common Service Center (CSC), {currentFarmer.village}, Mandal Office (Open Mon-Sat, 9AM-5PM).
+                MeeSeva / Common Service Center (CSC){currentFarmer.village ? `, ${currentFarmer.village}` : ""}, Mandal Office (Open Mon-Sat, 9AM-5PM).
               </p>
             </div>
           </div>

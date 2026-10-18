@@ -201,7 +201,7 @@ export default function PeerNetwork() {
                   {peerContactModal.schemeName}
                 </p>
                 <p className="text-xs text-stone-600 mt-2 leading-relaxed">
-                  "{peerContactModal.outcomeSummary}"
+                  &ldquo;{peerContactModal.outcomeSummary}&rdquo;
                 </p>
               </div>
 

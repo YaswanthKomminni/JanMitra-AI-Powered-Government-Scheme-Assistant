@@ -11,24 +11,22 @@ COLLATE utf8mb4_unicode_ci;
 
 USE JanMithra;
 
--- 2. Drop existing tables if needed (in proper foreign-key order)
-SET FOREIGN_KEY_CHECKS = 0;
-DROP TABLE IF EXISTS chat_logs;
-DROP TABLE IF EXISTS document_verifications;
-DROP TABLE IF EXISTS peer_success_stories;
-DROP TABLE IF EXISTS schemes;
-DROP TABLE IF EXISTS users;
-SET FOREIGN_KEY_CHECKS = 1;
+-- 2. Non-destructive setup
+-- This script never drops tables or deletes data. It is safe to re-run.
+-- After running it, ALWAYS apply the migrations in database/migrations/
+-- (or run `npm run db:setup` from frontend/, which does both).
+-- The old version of this script dropped every table and seeded demo
+-- farmer logins with the plaintext password "1234"; both were removed.
 
 -- ====================================================================
 -- 3. Users Table (Farmers / Rural Citizens for Login & Signup)
 -- ====================================================================
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     phone VARCHAR(15) NOT NULL UNIQUE,
     email VARCHAR(100) NULL,
-    password_hash VARCHAR(255) NULL,
+    password_hash VARCHAR(255) NULL, -- bcrypt hash only, never plaintext
     role VARCHAR(20) DEFAULT 'farmer',
     state VARCHAR(60) DEFAULT 'Telangana',
     district VARCHAR(60) DEFAULT 'Rangareddy',
@@ -50,7 +48,7 @@ CREATE TABLE users (
 -- ====================================================================
 -- 4. Government Schemes Table (Knowledge Base)
 -- ====================================================================
-CREATE TABLE schemes (
+CREATE TABLE IF NOT EXISTS schemes (
     id VARCHAR(50) PRIMARY KEY,
     code VARCHAR(50) NOT NULL,
     name VARCHAR(255) NOT NULL,
@@ -72,7 +70,7 @@ CREATE TABLE schemes (
 -- ====================================================================
 -- 5. Document Verifications Table (AI Vision OCR Extracted Data)
 -- ====================================================================
-CREATE TABLE document_verifications (
+CREATE TABLE IF NOT EXISTS document_verifications (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
     doc_type VARCHAR(50) NOT NULL,
@@ -89,7 +87,7 @@ CREATE TABLE document_verifications (
 -- ====================================================================
 -- 6. Peer Success Stories Table (PostGIS / Geospatial Network)
 -- ====================================================================
-CREATE TABLE peer_success_stories (
+CREATE TABLE IF NOT EXISTS peer_success_stories (
     id VARCHAR(50) PRIMARY KEY,
     farmer_name VARCHAR(100) NOT NULL,
     distance_km DECIMAL(5,2) NOT NULL,
@@ -112,7 +110,7 @@ CREATE TABLE peer_success_stories (
 -- ====================================================================
 -- 7. Chat Logs Table (Conversational History & Multilingual Queries)
 -- ====================================================================
-CREATE TABLE chat_logs (
+CREATE TABLE IF NOT EXISTS chat_logs (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NULL,
     sender ENUM('user', 'ai') NOT NULL,
@@ -124,17 +122,15 @@ CREATE TABLE chat_logs (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ====================================================================
--- 8. Seed Default Users (Demonstration Profiles)
+-- 8. Users
+-- No demo accounts are seeded. Farmers create their own accounts through
+-- the Sign Up form; passwords are stored only as bcrypt hashes.
 -- ====================================================================
-INSERT INTO users (id, name, phone, email, password_hash, role, state, district, village, land_size_acres, soil_type, irrigation_type, primary_crops, annual_income_slab, preferred_language, verified_docs_count, avatar_url) VALUES
-(1, 'Ramesh Goud', '9876543210', 'ramesh.goud@example.com', '1234', 'farmer', 'Telangana', 'Rangareddy', 'Kothur Gramam', 3.50, 'black_soil', 'drip', 'Cotton, Chilli, Red Gram', 'Below ₹2.5 Lakhs', 'te', 2, 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=150&auto=format&fit=crop&q=80'),
-(2, 'Sunita Devi', '9812345678', 'sunita.devi@example.com', '1234', 'farmer', 'Uttar Pradesh', 'Varanasi', 'Rajatalab', 2.20, 'alluvial', 'borewell', 'Wheat, Mustard, Sugarcane', 'Below ₹1.5 Lakhs', 'hi', 1, 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80'),
-(3, 'Murugan S.', '9845612345', 'murugan.s@example.com', '1234', 'farmer', 'Tamil Nadu', 'Thanjavur', 'Papanasam', 4.80, 'wetland', 'canal', 'Paddy (Rice), Banana, Pulses', 'Below ₹2.0 Lakhs', 'ta', 3, 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80');
 
 -- ====================================================================
 -- 9. Seed Schemes Knowledge Base
 -- ====================================================================
-INSERT INTO schemes (id, code, name, category, category_name, match_score, subsidy_amount, description, benefits, eligibility_summary, documents_required, department, tag_color, application_mode) VALUES
+INSERT IGNORE INTO schemes (id, code, name, category, category_name, match_score, subsidy_amount, description, benefits, eligibility_summary, documents_required, department, tag_color, application_mode) VALUES
 ('SCH_KUSUM', 'PM-KUSUM-B', 'PM-KUSUM Solar Water Pump Subsidy', 'solar', 'Solar & Energy', 98, '60% Subsidy (Up to ₹1,42,000)', 
  'Install 3HP to 7.5HP standalone solar agricultural pumps with 60% government subsidy, eliminating diesel and high grid electricity bills.',
  'Zero power bill for irrigation, 25-year solar panel life warranty, 30% state subsidy + 30% central subsidy.',
@@ -173,7 +169,7 @@ INSERT INTO schemes (id, code, name, category, category_name, match_score, subsi
 -- ====================================================================
 -- 10. Seed Nearby Peer Farmers (PostGIS / Geospatial Network)
 -- ====================================================================
-INSERT INTO peer_success_stories (id, farmer_name, distance_km, village, land_type, crops_grown, scheme_id, scheme_name, outcome_summary, yield_increase_pct, subsidy_received, implementation_date, contact_allowed, contact_phone, avatar_url) VALUES
+INSERT IGNORE INTO peer_success_stories (id, farmer_name, distance_km, village, land_type, crops_grown, scheme_id, scheme_name, outcome_summary, yield_increase_pct, subsidy_received, implementation_date, contact_allowed, contact_phone, avatar_url) VALUES
 ('peer_01', 'Rameshwar Reddy', 3.80, 'Kothur, Mandal Rangareddy', '3.0 Acres • Black Soil', 'Cotton & Red Gram', 'SCH_KUSUM', 'PM-KUSUM 5HP Solar Pump',
  'Replaced 6HP diesel pump with 5HP solar. Saved ₹4,600 per month on fuel. Cotton yield rose by 32% with reliable daytime irrigation.', 32, '₹1,32,000 (60% Subsidy)', 'March 2024', TRUE, '+91 98480 34120', 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&auto=format&fit=crop&q=80'),
 
@@ -190,7 +186,7 @@ INSERT INTO peer_success_stories (id, farmer_name, distance_km, village, land_ty
 -- 1. Display list of all tables in JanMithra
 SHOW TABLES;
 
--- 2. Display Users (Registered Farmers for Login & Signup)
+-- 2. Display Users (Registered Farmers; password hashes are never selected)
 SELECT 
     id AS user_id, 
     name AS farmer_name, 

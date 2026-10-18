@@ -6,15 +6,22 @@
     "dev": "next dev -p 3000",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "db:migrate": "node scripts/db-migrate.mjs",
+    "db:setup": "node scripts/db-migrate.mjs --setup",
+    "user:set-password": "node scripts/set-password.mjs",
+    "test:api": "node --test --test-concurrency=1 tests/api.test.mjs"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.2",
     "clsx": "^2.1.1",
     "lucide-react": "^0.453.0",
     "mysql2": "^3.24.5",
     "next": "^14.2.15",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "server-only": "^0.0.1",
     "tailwind-merge": "^2.5.4",
     "tesseract.js": "^7.0.0",
     "zustand": "^4.5.5"
@@ -24,6 +31,8 @@
     "@types/react": "^18.3.11",
     "@types/react-dom": "^18.3.1",
     "autoprefixer": "^10.4.20",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "^14.2.35",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.14",
     "typescript": "^5.6.3"

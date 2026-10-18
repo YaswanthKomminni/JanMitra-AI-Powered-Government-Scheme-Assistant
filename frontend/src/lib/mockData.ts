@@ -2,16 +2,17 @@ export interface FarmerProfile {
   id: string;
   name: string;
   phone: string;
+  email?: string;
   state: string;
   district: string;
   village: string;
   lat: number;
   lng: number;
   landSizeAcres: number;
-  soilType: "black_soil" | "red_soil" | "alluvial" | "dryland" | "wetland";
+  soilType: "black_soil" | "red_soil" | "alluvial" | "dryland" | "wetland" | "";
   soilTypeName: string;
   primaryCrops: string[];
-  irrigationType: "drip" | "borewell" | "canal" | "rainfed";
+  irrigationType: "drip" | "borewell" | "canal" | "rainfed" | "";
   irrigationTypeName: string;
   preferredLanguage: string;
   annualIncomeSlab: string;
@@ -105,68 +106,33 @@ export interface MockOcrResult {
   schemesUnlocked?: string[];
 }
 
-export const DEMO_FARMERS: FarmerProfile[] = [
-  {
-    id: "farmer_01",
-    name: "Ramesh Goud",
-    phone: "9876543210",
-    state: "Telangana",
-    district: "Rangareddy",
-    village: "Kothur Gramam",
-    lat: 17.1472,
-    lng: 78.2882,
-    landSizeAcres: 3.5,
-    soilType: "black_soil",
-    soilTypeName: "Black Soil (Regur)",
-    primaryCrops: ["Cotton", "Chilli", "Red Gram"],
-    irrigationType: "drip",
-    irrigationTypeName: "Drip Irrigation & Borewell",
-    preferredLanguage: "te",
-    annualIncomeSlab: "Below ₹2.5 Lakhs",
-    verifiedDocsCount: 2,
-    avatarUrl: "https://images.unsplash.com/photo-1544717305-2782549b5136?w=150&auto=format&fit=crop&q=80",
-  },
-  {
-    id: "farmer_02",
-    name: "Sunita Devi",
-    phone: "9812345678",
-    state: "Uttar Pradesh",
-    district: "Varanasi",
-    village: "Rajatalab",
-    lat: 25.2764,
-    lng: 82.8834,
-    landSizeAcres: 2.2,
-    soilType: "alluvial",
-    soilTypeName: "Alluvial Fertile Soil",
-    primaryCrops: ["Wheat", "Mustard", "Sugarcane"],
-    irrigationType: "borewell",
-    irrigationTypeName: "Tube Well / Borewell",
-    preferredLanguage: "hi",
-    annualIncomeSlab: "Below ₹1.5 Lakhs",
-    verifiedDocsCount: 1,
-    avatarUrl: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80",
-  },
-  {
-    id: "farmer_03",
-    name: "Murugan S.",
-    phone: "9845612345",
-    state: "Tamil Nadu",
-    district: "Thanjavur",
-    village: "Papanasam",
-    lat: 10.9255,
-    lng: 79.2778,
-    landSizeAcres: 4.8,
-    soilType: "wetland",
-    soilTypeName: "Wetland / Clay Alluvial",
-    primaryCrops: ["Paddy (Rice)", "Banana", "Pulses"],
-    irrigationType: "canal",
-    irrigationTypeName: "Kaveri Canal & Open Well",
-    preferredLanguage: "ta",
-    annualIncomeSlab: "Below ₹2.0 Lakhs",
-    verifiedDocsCount: 3,
-    avatarUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
-  },
-];
+/**
+ * Placeholder profile shown to visitors who are not signed in.
+ * It is NOT an account and cannot be used to authenticate; real profiles are
+ * loaded from MySQL via /api/auth/me after sign-in. (The old DEMO_FARMERS
+ * one-click logins were removed.)
+ */
+export const GUEST_FARMER: FarmerProfile = {
+  id: "guest",
+  name: "",
+  phone: "",
+  email: "",
+  state: "",
+  district: "",
+  village: "",
+  lat: 17.1472,
+  lng: 78.2882,
+  landSizeAcres: 0,
+  soilType: "",
+  soilTypeName: "",
+  primaryCrops: [],
+  irrigationType: "",
+  irrigationTypeName: "",
+  preferredLanguage: "en",
+  annualIncomeSlab: "",
+  verifiedDocsCount: 0,
+  avatarUrl: "https://images.unsplash.com/photo-1544717305-2782549b5136?w=150&auto=format&fit=crop&q=80",
+};
 
 export const SCHEMES_DATABASE: Scheme[] = [
   {

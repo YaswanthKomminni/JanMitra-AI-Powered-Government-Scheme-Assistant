@@ -17,36 +17,50 @@ def run_setup():
         print(f"[ERROR] JanMithra_setup.sql not found at: {sql_file}")
         return
 
-    print("\nThis script will execute JanMithra_setup.sql to create and populate")
-    print("the database and tables in your MySQL Server.")
-    
+    migrations_dir = os.path.abspath(os.path.join("database", "migrations"))
+    migrations = sorted(
+        os.path.join(migrations_dir, f) for f in os.listdir(migrations_dir) if f.endswith(".sql")
+    ) if os.path.isdir(migrations_dir) else []
+
+    print("\nThis script runs JanMithra_setup.sql (non-destructive: it never drops")
+    print("tables or deletes data) and then applies every migration in database/migrations.")
+    print("Tip: you can also run `npm run db:setup` from the frontend folder.")
+
     password = getpass.getpass("Enter MySQL root password: ")
-    
-    cmd = [
-        mysql_path,
-        "-u", "root",
-        f"-p{password}",
-        "-e", f"source {sql_file.replace(os.sep, '/')}"
-    ]
-    
+    # Pass the password through the environment instead of the command line.
+    env = dict(os.environ, MYSQL_PWD=password)
+
+    def run(sql_path, database=None):
+        cmd = [mysql_path, "-u", "root"]
+        if database:
+            cmd += ["-D", database]
+        cmd += ["-e", f"source {sql_path.replace(os.sep, '/')}"]
+        return subprocess.run(cmd, capture_output=True, text=True, env=env)
+
     print("\nExecuting setup script into MySQL...")
-    res = subprocess.run(cmd, capture_output=True, text=True)
-    
-    if res.returncode == 0:
-        print("\n[SUCCESS] JanMithra database and tables created successfully!")
-        print("Tables created:")
-        print(" - users (with login/signup credentials and farmer profiles)")
-        print(" - schemes (with government subsidy & eligibility metadata)")
-        print(" - document_verifications (OCR vision records)")
-        print(" - peer_success_stories (geospatial nearby farmers)")
-        print(" - chat_logs (conversational history)")
-        print("\nOutput from MySQL:")
-        print(res.stdout)
-    else:
+    res = run(sql_file)
+    if res.returncode != 0:
         print("\n[ERROR] Failed to execute setup script:")
         print(res.stderr)
-        print("\nYou can also open MySQL Workbench, open the SQL Editor for 'JanMithra',")
-        print("open 'JanMithra_setup.sql', and click the Execute (lightning) button.")
+        print("\nYou can also open MySQL Workbench, open 'JanMithra_setup.sql' and then each file in")
+        print("database/migrations/, and click the Execute (lightning) button for each.")
+        return
+
+    for m in migrations:
+        print(f"Applying migration {os.path.basename(m)} ...")
+        res = run(m, "JanMithra")
+        if res.returncode != 0:
+            print(f"\n[ERROR] Migration {os.path.basename(m)} failed:")
+            print(res.stderr)
+            return
+        print(res.stdout)
+
+    print("\n[SUCCESS] JanMithra database is set up and up to date.")
+    print("Tables: users, user_sessions, conversations, chat_logs (messages),")
+    print("        schemes, document_verifications, peer_success_stories, schema_migrations")
+    print("\nNo demo logins are created. Sign up from the app, or set a password for an")
+    print("existing farmer record with: npm run user:set-password -- <mobile number>")
+
 
 if __name__ == "__main__":
     run_setup()

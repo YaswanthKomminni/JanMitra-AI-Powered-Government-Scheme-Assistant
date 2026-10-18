@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import AuthBootstrap from "@/components/AuthBootstrap";
 
 export const metadata: Metadata = {
   title: "JanMithra - AI Agricultural & Government Scheme Assistant",
@@ -30,6 +31,7 @@ export default function RootLayout({
         />
       </head>
       <body className="antialiased bg-slate-50 text-slate-900 min-h-screen font-sans selection:bg-emerald-500 selection:text-white">
+        <AuthBootstrap />
         {children}
       </body>
     </html>

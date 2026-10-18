@@ -11,18 +11,20 @@ import {
   Volume2,
   FileCheck2,
   LogOut,
+  Loader2,
+  MessageSquareText,
 } from "lucide-react";
 import { useFarmerStore } from "@/store/useFarmerStore";
 import { SUPPORTED_LANGUAGES, SupportedLanguage, translations } from "@/lib/i18n";
-import { DEMO_FARMERS } from "@/lib/mockData";
 
 export default function Navbar() {
   const {
     language,
     setLanguage,
     currentFarmer,
-    setCurrentFarmer,
     isAuthenticated,
+    authStatus,
+    conversations,
     setAuthModalOpen,
     logout,
     activeTab,
@@ -129,8 +131,12 @@ export default function Navbar() {
               )}
             </div>
 
-            {/* Farmer Profile / Switcher */}
-            {isAuthenticated ? (
+            {/* Farmer Profile (signed in) / Sign-in button */}
+            {authStatus === "unknown" ? (
+              <div className="w-10 h-10 flex items-center justify-center" aria-label="Checking sign-in">
+                <Loader2 className="w-5 h-5 text-emerald-700 animate-spin" />
+              </div>
+            ) : isAuthenticated ? (
               <div className="relative">
                 <button
                   onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
@@ -146,7 +152,12 @@ export default function Navbar() {
                       {currentFarmer.name}
                     </p>
                     <p className="text-[10px] text-emerald-700 font-medium">
-                      {currentFarmer.landSizeAcres} {t.acres} • {currentFarmer.village.split(" ")[0]}
+                      {[
+                        currentFarmer.landSizeAcres ? `${currentFarmer.landSizeAcres} ${t.acres}` : "",
+                        currentFarmer.village.split(" ")[0],
+                      ]
+                        .filter(Boolean)
+                        .join(" • ") || `+91 ${currentFarmer.phone}`}
                     </p>
                   </div>
                   <ChevronDown className="w-4 h-4 text-emerald-800 hidden sm:block" />
@@ -162,58 +173,38 @@ export default function Navbar() {
                         {currentFarmer.name}
                       </p>
                       <p className="text-xs text-stone-600">
-                        +91 {currentFarmer.phone} • {currentFarmer.village}
+                        +91 {currentFarmer.phone}
+                        {currentFarmer.village ? ` • ${currentFarmer.village}` : ""}
                       </p>
-                      <div className="mt-2 flex items-center gap-2">
-                        <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-600 text-white">
-                          {currentFarmer.landSizeAcres} {t.acres}
-                        </span>
-                        <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-stone-200 text-stone-800">
-                          {currentFarmer.soilTypeName.split(" ")[0]}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="text-xs font-bold text-stone-500 uppercase px-2 mb-2">
-                      Switch Demo Farmer
-                    </div>
-                    {DEMO_FARMERS.map((f) => (
-                      <button
-                        key={f.id}
-                        onClick={() => {
-                          setCurrentFarmer(f);
-                          setProfileDropdownOpen(false);
-                        }}
-                        className={`w-full flex items-center gap-3 p-2 rounded-xl text-left text-xs transition mb-1 ${
-                          currentFarmer.id === f.id
-                            ? "bg-emerald-100/70 text-emerald-950 font-bold"
-                            : "hover:bg-stone-100 text-stone-700"
-                        }`}
-                      >
-                        <img
-                          src={f.avatarUrl}
-                          alt={f.name}
-                          className="w-7 h-7 rounded-full object-cover"
-                        />
-                        <div>
-                          <p className="font-bold">{f.name}</p>
-                          <p className="text-[10px] text-stone-500">
-                            {f.state} • {f.landSizeAcres} Acres • {f.primaryCrops[0]}
-                          </p>
+                      {currentFarmer.email && (
+                        <p className="text-xs text-stone-500 truncate">{currentFarmer.email}</p>
+                      )}
+                      {(currentFarmer.landSizeAcres > 0 || currentFarmer.soilTypeName) && (
+                        <div className="mt-2 flex items-center gap-2">
+                          {currentFarmer.landSizeAcres > 0 && (
+                            <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-600 text-white">
+                              {currentFarmer.landSizeAcres} {t.acres}
+                            </span>
+                          )}
+                          {currentFarmer.soilTypeName && (
+                            <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-stone-200 text-stone-800">
+                              {currentFarmer.soilTypeName.split(" ")[0]}
+                            </span>
+                          )}
                         </div>
-                      </button>
-                    ))}
+                      )}
+                    </div>
 
-                    <div className="border-t border-stone-100 mt-3 pt-2 space-y-1">
+                    <div className="border-t border-stone-100 pt-2 space-y-1">
                       <button
                         onClick={() => {
-                          setAuthModalOpen(true);
+                          setActiveTab("chat");
                           setProfileDropdownOpen(false);
                         }}
                         className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-50 rounded-xl transition"
                       >
-                        <UserCheck className="w-4 h-4" />
-                        Sign Up New Farmer / Login
+                        <MessageSquareText className="w-4 h-4" />
+                        My Conversations ({conversations.length})
                       </button>
                       <button
                         onClick={() => {
@@ -231,7 +222,7 @@ export default function Navbar() {
               </div>
             ) : (
               <button
-                onClick={() => setAuthModalOpen(true)}
+                onClick={() => setAuthModalOpen(true, "login")}
                 className="px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-sm shadow-md transition"
               >
                 {t.loginTitle}
@@ -240,8 +231,8 @@ export default function Navbar() {
           </div>
         </div>
 
-        {/* Mobile Sub-Navigation Bar (Only when authenticated) */}
-        {isAuthenticated && (
+        {/* Mobile Sub-Navigation Bar (chat asks guests to sign in) */}
+        {authStatus !== "unknown" && (
           <div className="flex sm:hidden items-center justify-around py-2 border-t border-emerald-100 text-xs font-bold">
             <button
               onClick={() => setActiveTab("dashboard")}

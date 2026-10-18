@@ -11,7 +11,7 @@ Aligned with the [JanMithra GitHub Repository](https://github.com/YaswanthKommin
 
 ### 1. Rural-First Accessibility & Tactile UX
 - **High-Contrast Palette:** Vivid Emerald Greens (`#059669`), warm subsidy Ambers (`#d97706`), and clean backgrounds.
-- **Large Touch Targets:** 48px+ touch buttons and a dedicated on-screen numeric keypad for OTP entry designed for one-handed outdoor use.
+- **Large Touch Targets:** 48px+ touch buttons and a dedicated on-screen numeric keypad for mobile-number entry, designed for one-handed outdoor use.
 - **Minimal Textual Density:** Visual badges, icons, and clear match percentages.
 
 ### 2. 6-Language Multilingual Support (i18n)
@@ -59,6 +59,10 @@ cd frontend
 npm install
 ```
 
+> **Database & accounts:** JanMithra now needs MySQL for sign-up, sign-in and saved conversations.
+> Copy `.env.example` to `.env.local`, then run `npm run db:setup` (fresh) or `npm run db:migrate` (existing DB).
+> See the root README section *Running JanMithra* for details.
+
 ### 2. Run the Local Development Server
 ```bash
 npm run dev
@@ -84,7 +88,7 @@ frontend/
 │   │   └── page.tsx             # Main orchestrator dashboard & view switcher
 │   ├── components/
 │   │   ├── Navbar.tsx           # Brand, language dropdown, helpline, farmer profile
-│   │   ├── AuthModal.tsx        # Mobile + OTP login with tactile keypad
+│   │   ├── AuthModal.tsx        # Sign-in / sign-up modal (shared AuthForm, mobile + password)
 │   │   ├── DashboardHeader.tsx  # GPS live status & high-contrast land profile badge
 │   │   ├── SchemeCard.tsx       # Match score, subsidy tag, documents checklist
 │   │   ├── SchemeDetailModal.tsx# Guidelines, eligibility, CSC center locator
