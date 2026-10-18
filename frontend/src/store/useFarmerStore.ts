@@ -11,6 +11,15 @@ import {
   MOCK_OCR_PRESETS,
 } from "@/lib/mockData";
 import { speakText, stopSpeaking } from "@/lib/speech";
+import { classifyBase64Image } from "@/lib/visionClassifier";
+
+export interface OutOfScopeError {
+  title: string;
+  message: string;
+  reason: string;
+  previewUrl: string;
+  suggestions: string[];
+}
 
 export interface ChatMessage {
   id: string;
@@ -44,6 +53,7 @@ interface FarmerState {
   // Document OCR Verification
   verificationScanning: boolean;
   verificationResult: MockOcrResult | null;
+  outOfScopeError: OutOfScopeError | null;
   selectedPresetKey: string | null;
 
   // Actions
@@ -58,6 +68,7 @@ interface FarmerState {
   setSelectedScheme: (scheme: Scheme | null) => void;
   setPeerContactModal: (peer: PeerSuccessStory | null) => void;
   setVerificationModalOpen: (open: boolean) => void;
+  clearOutOfScopeError: () => void;
   
   // Chat Actions
   sendChatMessage: (text: string, image?: string) => void;
@@ -112,7 +123,10 @@ export const useFarmerStore = create<FarmerState>((set, get) => ({
 
   verificationScanning: false,
   verificationResult: null,
+  outOfScopeError: null,
   selectedPresetKey: null,
+
+  clearOutOfScopeError: () => set({ outOfScopeError: null }),
 
   setLanguage: (lang) => {
     set({ language: lang });
@@ -203,7 +217,7 @@ export const useFarmerStore = create<FarmerState>((set, get) => ({
 
   setIsListening: (listening) => set({ isListening: listening }),
 
-  sendChatMessage: (text, image) => {
+  sendChatMessage: async (text, image) => {
     const userMsg: ChatMessage = {
       id: `msg_usr_${Date.now()}`,
       sender: "user",
@@ -216,6 +230,11 @@ export const useFarmerStore = create<FarmerState>((set, get) => ({
       chatMessages: [...state.chatMessages, userMsg],
     }));
 
+    let imageClassification: any = null;
+    if (image) {
+      imageClassification = await classifyBase64Image(image);
+    }
+
     // Synthesize Llama 3.3 multi-model reasoning response
     setTimeout(() => {
       const lower = text.toLowerCase();
@@ -225,27 +244,59 @@ export const useFarmerStore = create<FarmerState>((set, get) => ({
       const lang = get().language;
 
       if (image) {
-        if (lang === "te") {
-          replyText = `📸 మీ ఫోటోను Llama 3.2 Vision ద్వారా విశ్లేషించాము!
+        if (imageClassification && !imageClassification.isAgriRelated) {
+          // Strict Out of Scope message for non-agricultural image
+          if (lang === "te") {
+            replyText = `⚠️ పరిధి వెలుపల ఫోటో (Out of Scope):
+మీరు పంపిన చిత్రం వ్యవసాయం, పంటలు లేదా ప్రభుత్వ రైతు పథకాలకు సంబంధించినదిగా లేదు (${imageClassification.metrics.dominantDomain}).
+
+జనమిత్ర (JanMithra) ఏఐ కేవలం వ్యవసాయ సంబంధిత సలహాలు, పంటల వ్యాధి నిర్ధారణ మరియు ప్రభుత్వ సంక్షేమ పథకాల కోసం మాత్రమే పనిచేస్తుంది.
+దయచేసి:
+• పంట వ్యాధుల విశ్లేషణ కోసం పంట ఆకు లేదా చేను ఫోటోను పంపండి.
+• లేదా భూమి పట్టాదారు పాస్ పుస్తకం/పహానీ, సాయిల్ కార్డు లేదా రైతు ఆధార్ కార్డును సమర్పించండి.`;
+            chips = ["వ్యవసాయ పథకాల వివరాలు", "పంట తెగులు ఫోటో తీయండి", "పట్టాదారు పాస్ పుస్తకం స్కాన్"];
+          } else if (lang === "hi") {
+            replyText = `⚠️ कार्यक्षेत्र से बाहर (Out of Scope):
+यह तस्वीर कृषि, फसलों या सरकारी किसान योजनाओं से संबंधित नहीं लग रही है (${imageClassification.metrics.dominantDomain})।
+
+जनमित्रा (JanMithra) एआई केवल कृषि फसलों, कीट नियंत्रण और सरकारी योजनाओं के लिए समर्पित है।
+कृपया:
+• फसल रोग निदान के लिए किसी पौधे या पत्ती की तस्वीर भेजें।
+• या भूमि पट्टा/खसरा, सॉइल हेल्थ कार्ड, या किसान आधार कार्ड साझा करें।`;
+            chips = ["किसान योजनाओं की जानकारी", "फसल पत्ती की तस्वीर लें", "भूमि दस्तावेज़ स्कैन"];
+          } else {
+            replyText = `⚠️ Out of Scope:
+The uploaded photo does not appear to be related to agriculture, farming crops, or government welfare schemes (${imageClassification.metrics.dominantDomain}).
+
+JanMithra is an AI assistant dedicated exclusively to agriculture, crop diagnostics, and farmer schemes.
+Please provide:
+• A photo of a farm crop leaf, pest, or field for disease diagnosis.
+• An official agricultural document (Land Patta / Pahani / RoR, Soil Health Card, or Farmer ID).`;
+            chips = ["Explore Agri Schemes", "Take Crop Leaf Photo", "Scan Land Record"];
+          }
+        } else {
+          if (lang === "te") {
+            replyText = `📸 మీ ఫోటోను Llama 3.2 Vision ద్వారా విశ్లేషించాము!
 • గుర్తింపు: పత్తి చేను (Bt Cotton) - తెల్లదోమ తెగులు (Whitefly Infestation) గుర్తించబడింది (93% ఖచ్చితత్వం).
 • లక్షణాలు: ఆకులు ముడుచుకుపోవడం, పసుపు మచ్చలు మరియు జిగురు స్రావం.
 • పరిష్కారం: వేపనూనె (10,000 ppm) @ 2ml/లీటరు నీటిలో లేదా డయాఫెంథియురాన్ 50% WP @ 1గ్రాము/లీటరు కలిపి సాయంత్రం పిచికారీ చేయండి.
 • పథకం: PMFBY తెగుళ్ల నష్టపరిహారం కింద ఈ నష్టం కవర్ అవుతుంది.`;
-          chips = ["పిచికారీ సమయం ఎప్పుడు?", "సమీపంలోని డీలర్ వివరాలు", "PMFBY పంట బీమా క్లెయిమ్"];
-        } else if (lang === "hi") {
-          replyText = `📸 आपकी तस्वीर का Llama 3.2 Vision द्वारा विश्लेषण पूर्ण:
+            chips = ["పిచికారీ సమయం ఎప్పుడు?", "సమీపంలోని డీలర్ వివరాలు", "PMFBY పంట బీమా క్లెయిమ్"];
+          } else if (lang === "hi") {
+            replyText = `📸 आपकी तस्वीर का Llama 3.2 Vision द्वारा विश्लेषण पूर्ण:
 • पहचान: कपास (Cotton) - सफेद मक्खी (Whitefly Infestation) का प्रकोप (93% सटीकता).
 • लक्षण: पत्तियों का मुड़ना और चिपचिपा स्राव.
 • समाधान: नीम का तेल (10,000 ppm) @ 2 मिली/लीटर पानी, या डायफेंथियूरॉन 50% WP @ 1 ग्राम/लीटर का शाम को छिड़काव करें.
 • योजना: पीएम फसल बीमा योजना के तहत कीट क्षति सुरक्षा उपलब्ध है.`;
-          chips = ["दवा छिड़काव का समय", "नजदीकी कृषि केंद्र", "फसल बीमा क्लेम प्रक्रिया"];
-        } else {
-          replyText = `📸 Llama 3.2 Vision Inspection Complete:
+            chips = ["दवा छिड़काव का समय", "नजदीकी कृषि केंद्र", "फसल बीमा क्लेम प्रक्रिया"];
+          } else {
+            replyText = `📸 Llama 3.2 Vision Inspection Complete:
 • Visual Detection: Bt Cotton leaf with active Whitefly nymph colonies (93% AI Confidence).
 • Symptoms Identified: Upward leaf curling, chlorotic speckling, and honeydew secretions.
 • Recommended Treatment: Spray Neem Oil (10,000 ppm) @ 2ml/L water, or Diafenthiuron 50% WP @ 1g/L water during cooler evening hours.
 • Scheme Available: PMFBY Pest Attack Coverage & Integrated Pest Management Subsidy.`;
-          chips = ["Spray schedule & safety", "Find nearest Agri input store", "Claim PMFBY Pest Insurance", "Open Document Scanner"];
+            chips = ["Spray schedule & safety", "Find nearest Agri input store", "Claim PMFBY Pest Insurance", "Open Document Scanner"];
+          }
         }
       } else if (lower.includes("kusum") || lower.includes("solar") || lower.includes("pump")) {
         if (lang === "te") {
@@ -320,6 +371,7 @@ export const useFarmerStore = create<FarmerState>((set, get) => ({
       selectedPresetKey: presetKey,
       verificationScanning: true,
       verificationResult: null,
+      outOfScopeError: null,
     });
 
     // Simulate Llama 3.2 Vision OCR latency
@@ -327,6 +379,7 @@ export const useFarmerStore = create<FarmerState>((set, get) => ({
       set({
         verificationScanning: false,
         verificationResult: preset,
+        outOfScopeError: null,
       });
     }, 2200);
   },
@@ -335,8 +388,31 @@ export const useFarmerStore = create<FarmerState>((set, get) => ({
     set({
       verificationScanning: true,
       verificationResult: null,
+      outOfScopeError: null,
       selectedPresetKey: null,
     });
+
+    // 1. Strict Agricultural & Scheme Scope Check
+    const classification = await classifyBase64Image(fileBase64, fileName, category);
+
+    if (!classification.isAgriRelated) {
+      set({
+        verificationScanning: false,
+        verificationResult: null,
+        outOfScopeError: {
+          title: "Image Out of Scope",
+          message: classification.message,
+          reason: `Detected: ${classification.metrics.dominantDomain}. JanMithra is dedicated exclusively to agriculture, crop disease diagnostics, and government farmer schemes.`,
+          previewUrl: fileBase64,
+          suggestions: [
+            "Capture a clear photo of an affected farm crop or plant leaf for disease diagnosis.",
+            "Take a photo of an official Land Patta, RoR 1B, Soil Health Card, or Farmer ID.",
+            "Avoid everyday indoor items, clothes, or non-agricultural objects.",
+          ],
+        },
+      });
+      return false;
+    }
 
     try {
       const res = await fetch("/api/ocr/analyze", {
@@ -347,15 +423,35 @@ export const useFarmerStore = create<FarmerState>((set, get) => ({
           fileName,
           fileType,
           docCategory: category,
+          classification,
           userId: 1,
         }),
       });
 
       const data = await res.json();
+      if (data.isOutOfScope || !data.success) {
+        set({
+          verificationScanning: false,
+          verificationResult: null,
+          outOfScopeError: {
+            title: "Image Out of Scope",
+            message: data.message || "Image does not appear to be related to agriculture or government schemes.",
+            reason: data.reason || "The uploaded photo does not contain identifiable farm crops, soil, or official farmer documents.",
+            previewUrl: fileBase64,
+            suggestions: data.suggestions || [
+              "Capture a clear photo of an affected farm crop or plant leaf for disease diagnosis.",
+              "Take a photo of an official Land Patta, RoR 1B, Soil Health Card, or Farmer ID.",
+            ],
+          },
+        });
+        return false;
+      }
+
       if (data.success && data.detection) {
         set({
           verificationScanning: false,
           verificationResult: data.detection,
+          outOfScopeError: null,
         });
         return true;
       }
@@ -372,6 +468,7 @@ export const useFarmerStore = create<FarmerState>((set, get) => ({
         previewUrl: fileBase64,
         fileName,
       },
+      outOfScopeError: null,
     });
     return true;
   },
@@ -423,6 +520,7 @@ export const useFarmerStore = create<FarmerState>((set, get) => ({
     set({
       verificationScanning: false,
       verificationResult: null,
+      outOfScopeError: null,
       selectedPresetKey: null,
     });
   },

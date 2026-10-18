@@ -8,6 +8,7 @@ import {
   ScanLine,
   CheckCircle2,
   AlertCircle,
+  AlertTriangle,
   Sparkles,
   Camera,
   Layers,
@@ -33,6 +34,8 @@ export default function DocumentVerificationModal() {
     currentFarmer,
     verificationScanning,
     verificationResult,
+    outOfScopeError,
+    clearOutOfScopeError,
     selectedPresetKey,
     startMockVerification,
     analyzeUploadedFile,
@@ -114,6 +117,7 @@ export default function DocumentVerificationModal() {
           <button
             onClick={() => {
               setVerificationModalOpen(false);
+              clearOutOfScopeError();
               resetVerification();
             }}
             className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 transition text-white"
@@ -136,8 +140,112 @@ export default function DocumentVerificationModal() {
 
         {/* Content */}
         <div className="p-5 sm:p-6 overflow-y-auto space-y-5">
+          {/* Out of Scope Error State */}
+          {!verificationScanning && outOfScopeError && (
+            <div className="rounded-3xl border-2 border-amber-400 bg-gradient-to-b from-amber-50 to-orange-50/40 p-5 sm:p-7 space-y-5 animate-in fade-in shadow-xl">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-amber-200">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-700 border-2 border-amber-400/50 flex items-center justify-center shrink-0">
+                    <AlertTriangle className="w-6 h-6 text-amber-600 animate-bounce-subtle" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] uppercase font-black px-2 py-0.5 rounded-full bg-amber-200 text-amber-900 border border-amber-300">
+                        Out of Scope • పరిధి వెలుపల
+                      </span>
+                    </div>
+                    <h3 className="text-lg sm:text-xl font-black text-stone-900 mt-0.5">
+                      {t.outOfScopeTitle || outOfScopeError.title}
+                    </h3>
+                  </div>
+                </div>
+
+                <div className="px-3 py-1.5 rounded-xl bg-amber-100 border border-amber-300 text-xs font-bold text-amber-900">
+                  Status: Non-Agricultural (Rejected)
+                </div>
+              </div>
+
+              {/* Snapshot thumbnail & explanation */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
+                <div className="relative rounded-2xl overflow-hidden border-2 border-stone-300 aspect-[4/3] bg-stone-900 shadow-inner">
+                  <img
+                    src={outOfScopeError.previewUrl}
+                    alt="Captured photo"
+                    className="w-full h-full object-cover opacity-80"
+                  />
+                  <div className="absolute inset-0 bg-red-950/40 flex items-center justify-center">
+                    <span className="px-2.5 py-1 rounded-lg bg-red-600 text-white font-black text-xs uppercase shadow-md flex items-center gap-1">
+                      <X className="w-3.5 h-3.5" />
+                      Not Agricultural
+                    </span>
+                  </div>
+                </div>
+
+                <div className="sm:col-span-2 space-y-2.5 text-xs text-stone-700 leading-relaxed">
+                  <p className="font-extrabold text-stone-900 text-sm">
+                    {t.outOfScopeSubtitle || outOfScopeError.message}
+                  </p>
+                  <p className="text-stone-600 bg-white/90 p-3 rounded-xl border border-amber-200">
+                    {outOfScopeError.reason}
+                  </p>
+
+                  <div className="pt-1">
+                    <p className="font-black text-stone-800 uppercase tracking-wider text-[11px] mb-1.5">
+                      Accepted Agricultural Content:
+                    </p>
+                    <ul className="space-y-1 text-stone-600 list-disc list-inside">
+                      <li><strong>Crop leaves & pest symptoms:</strong> Cotton, Paddy, Chilli leaves for AI disease diagnosis.</li>
+                      <li><strong>Revenue land records:</strong> Land Patta, Pahani / RoR 1B passbooks for PM-KISAN & KUSUM.</li>
+                      <li><strong>Soil Health Cards:</strong> ICAR laboratory chemical tests for free fertilizer kits.</li>
+                      <li><strong>Farmer KYC:</strong> Aadhaar / Farmer ID card for DBT benefit linking.</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-wrap items-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    clearOutOfScopeError();
+                    setInputMode("camera");
+                  }}
+                  className="px-5 py-3 rounded-2xl bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs sm:text-sm shadow-md flex items-center gap-2 active:scale-95 transition"
+                >
+                  <Camera className="w-4 h-4 text-emerald-300" />
+                  <span>{t.retakeAgriPhoto || "Retake Photo with Live Camera"}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    clearOutOfScopeError();
+                    setInputMode("upload");
+                  }}
+                  className="px-4 py-3 rounded-2xl bg-white hover:bg-stone-100 text-stone-700 border border-stone-300 font-bold text-xs sm:text-sm transition flex items-center gap-2"
+                >
+                  <UploadCloud className="w-4 h-4 text-stone-500" />
+                  <span>Upload Document File</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    clearOutOfScopeError();
+                    handlePresetSelect("crop_disease");
+                  }}
+                  className="px-4 py-3 rounded-2xl bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 font-bold text-xs sm:text-sm transition flex items-center gap-1.5"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Test with Sample Crop Leaf</span>
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Category Selector Tabs */}
-          {!verificationResult && !verificationScanning && (
+          {!verificationResult && !verificationScanning && !outOfScopeError && (
             <div className="space-y-2">
               <label className="text-xs font-black text-stone-700 uppercase tracking-wider block">
                 1. Select Document Category (Optional):
@@ -166,7 +274,7 @@ export default function DocumentVerificationModal() {
           )}
 
           {/* Mode Switcher: Live Camera vs Upload File */}
-          {!verificationResult && !verificationScanning && (
+          {!verificationResult && !verificationScanning && !outOfScopeError && (
             <div className="flex items-center p-1.5 bg-stone-100 rounded-2xl border border-stone-200">
               <button
                 type="button"
@@ -206,7 +314,7 @@ export default function DocumentVerificationModal() {
           />
 
           {/* Live Camera Viewfinder */}
-          {!verificationResult && !verificationScanning && inputMode === "camera" && (
+          {!verificationResult && !verificationScanning && !outOfScopeError && inputMode === "camera" && (
             <LiveCameraCapture
               category={selectedCategory}
               onCapture={handleCameraCapture}
@@ -263,7 +371,7 @@ export default function DocumentVerificationModal() {
           )}
 
           {/* Preset Pickers for instant testing */}
-          {!verificationResult && !verificationScanning && (
+          {!verificationResult && !verificationScanning && !outOfScopeError && (
             <div className="pt-2">
               <p className="text-xs font-black text-stone-700 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
                 <Sparkles className="w-4 h-4 text-amber-500" />
@@ -706,12 +814,26 @@ export default function DocumentVerificationModal() {
             <button
               onClick={() => {
                 setVerificationModalOpen(false);
+                clearOutOfScopeError();
                 resetVerification();
               }}
               className="px-4 py-2.5 rounded-xl border border-stone-300 text-stone-700 font-bold text-xs sm:text-sm hover:bg-stone-100 transition"
             >
               Close
             </button>
+
+            {outOfScopeError && (
+              <button
+                onClick={() => {
+                  clearOutOfScopeError();
+                  setInputMode("camera");
+                }}
+                className="px-3.5 py-2.5 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-900 hover:bg-emerald-100 font-bold text-xs sm:text-sm transition flex items-center gap-1.5"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>Retry Live Camera</span>
+              </button>
+            )}
 
             {verificationResult && (
               <button

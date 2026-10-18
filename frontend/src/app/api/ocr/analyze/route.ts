@@ -18,6 +18,7 @@ export async function POST(request: Request) {
       fileType = "image/jpeg",
       docCategory = "auto_detect",
       userId = 1,
+      classification,
     } = body;
 
     if (!fileBase64) {
@@ -27,11 +28,59 @@ export async function POST(request: Request) {
       );
     }
 
-    // Determine document type from category, file name, or content heuristics
+    // 1. Strict Agricultural & Scheme Scope Enforcement:
+    // If image classification determined the photo is not agricultural, reject with Out of Scope.
+    if (classification && classification.isAgriRelated === false) {
+      return NextResponse.json({
+        success: false,
+        isOutOfScope: true,
+        scopeStatus: "out_of_scope",
+        message: "Out of Scope: Image does not appear to be related to agriculture or government schemes.",
+        reason: "The uploaded photo shows everyday indoor/outdoor objects rather than farming crops, soil, or official land documents.",
+        suggestions: [
+          "Capture a clear photo of an affected farm crop or plant leaf for disease diagnosis.",
+          "Capture an official land record (Pahani, Land Patta, Soil Health Card, or Farmer Aadhaar KYC).",
+          "Ensure good lighting and hold the camera steady."
+        ],
+      });
+    }
+
+    // Determine document type from category, file name, or classification
     const lowerName = fileName.toLowerCase();
+    const isGenericCameraName =
+      lowerName.includes("live_scan") ||
+      lowerName.includes("live_camera") ||
+      lowerName.includes("image") ||
+      lowerName.includes("photo") ||
+      lowerName.includes("camera") ||
+      lowerName.includes("blob") ||
+      lowerName.includes("upload");
+
+    const hasAgriKeyword = [
+      "patta", "pahani", "ror", "survey", "khata", "khasra", "soil", "icar", "shc",
+      "crop", "leaf", "pest", "disease", "cotton", "paddy", "chilli", "plant", "farm", "agri",
+      "aadhaar", "kisan", "farmer", "dbt"
+    ].some((kw) => lowerName.includes(kw));
+
+    if (!classification && docCategory === "auto_detect" && isGenericCameraName && !hasAgriKeyword) {
+      return NextResponse.json({
+        success: false,
+        isOutOfScope: true,
+        scopeStatus: "out_of_scope",
+        message: "Out of Scope: Image does not appear to be related to agriculture or government schemes.",
+        reason: "The uploaded photo does not contain identifiable farm crops, agricultural soil, or official land documents.",
+        suggestions: [
+          "Capture a clear photo of an affected farm crop or plant leaf for disease diagnosis.",
+          "Capture an official land record (Pahani, Land Patta, Soil Health Card, or Farmer Aadhaar KYC).",
+          "Ensure good lighting and hold the camera steady."
+        ],
+      });
+    }
+
     let detectedType: "land_record" | "soil_health_card" | "crop_disease" | "identity_card" = "land_record";
 
     if (
+      classification?.detectedType === "crop_disease" ||
       docCategory === "crop_disease" ||
       lowerName.includes("crop") ||
       lowerName.includes("leaf") ||
@@ -43,6 +92,7 @@ export async function POST(request: Request) {
     ) {
       detectedType = "crop_disease";
     } else if (
+      classification?.detectedType === "soil_health" ||
       docCategory === "soil_health" ||
       lowerName.includes("soil") ||
       lowerName.includes("shc") ||
@@ -52,6 +102,7 @@ export async function POST(request: Request) {
     ) {
       detectedType = "soil_health_card";
     } else if (
+      classification?.detectedType === "identity_card" ||
       docCategory === "identity_card" ||
       lowerName.includes("aadhaar") ||
       lowerName.includes("ration") ||

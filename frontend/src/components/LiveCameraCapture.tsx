@@ -12,6 +12,7 @@ import {
   Layers,
   ZoomIn,
 } from "lucide-react";
+import { classifyImagePixels } from "@/lib/visionClassifier";
 
 interface LiveCameraCaptureProps {
   onCapture: (base64Image: string) => void;
@@ -35,6 +36,7 @@ export default function LiveCameraCapture({
   const [cameraLoading, setCameraLoading] = useState(true);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [scopePreview, setScopePreview] = useState<{ isAgriRelated: boolean; message: string; domain: string } | null>(null);
   const [isFlashing, setIsFlashing] = useState(false);
 
   // Check available devices
@@ -150,12 +152,25 @@ export default function LiveCameraCapture({
     const base64 = canvas.toDataURL("image/jpeg", 0.92);
     setCapturedImage(base64);
 
+    try {
+      const imgData = ctx.getImageData(0, 0, width, height);
+      const result = classifyImagePixels(imgData.data, width, height, "live_scan.jpg", category);
+      setScopePreview({
+        isAgriRelated: result.isAgriRelated,
+        message: result.message,
+        domain: result.metrics.dominantDomain,
+      });
+    } catch {
+      // ignore
+    }
+
     // Stop active camera stream while reviewing
     stopStream();
   };
 
   const handleRetake = () => {
     setCapturedImage(null);
+    setScopePreview(null);
     startCamera();
   };
 
@@ -252,11 +267,28 @@ export default function LiveCameraCapture({
 
         {/* Captured Snapshot Review */}
         {capturedImage && (
-          <img
-            src={capturedImage}
-            alt="Captured from live camera"
-            className="w-full h-full object-contain bg-black"
-          />
+          <div className="relative w-full h-full flex items-center justify-center">
+            <img
+              src={capturedImage}
+              alt="Captured from live camera"
+              className="w-full h-full object-contain bg-black"
+            />
+            {scopePreview && (
+              <div className="absolute top-4 inset-x-4 flex justify-center pointer-events-none z-20">
+                {scopePreview.isAgriRelated ? (
+                  <span className="px-3.5 py-1.5 rounded-full bg-emerald-950/90 text-emerald-300 border border-emerald-500/50 text-xs font-black shadow-lg flex items-center gap-1.5 backdrop-blur-sm">
+                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+                    In Scope: {scopePreview.domain}
+                  </span>
+                ) : (
+                  <span className="px-3.5 py-1.5 rounded-full bg-amber-950/90 text-amber-300 border border-amber-500/50 text-xs font-black shadow-lg flex items-center gap-1.5 backdrop-blur-sm">
+                    <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+                    May Be Out of Scope: {scopePreview.domain}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
         )}
 
         {/* Scanning & Alignment Overlays (when live) */}
@@ -355,10 +387,14 @@ export default function LiveCameraCapture({
 
             <button
               onClick={handleConfirm}
-              className="flex-1 py-3 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm shadow-lg shadow-emerald-600/30 transition flex items-center justify-center gap-2 active:scale-95"
+              className={`flex-1 py-3 px-4 rounded-2xl font-black text-sm shadow-lg transition flex items-center justify-center gap-2 active:scale-95 ${
+                scopePreview && !scopePreview.isAgriRelated
+                  ? "bg-amber-600 hover:bg-amber-500 text-white shadow-amber-600/30"
+                  : "bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/30"
+              }`}
             >
               <Check className="w-4 h-4" />
-              <span>Use Photo & Scan</span>
+              <span>{scopePreview && !scopePreview.isAgriRelated ? "Check Scope & Scan" : "Use Photo & Scan"}</span>
             </button>
           </div>
         )}
