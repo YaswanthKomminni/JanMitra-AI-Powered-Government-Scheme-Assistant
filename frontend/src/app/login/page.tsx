@@ -42,7 +42,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("1234");
   const [showPassword, setShowPassword] = useState(false);
   const [otpStep, setOtpStep] = useState<"enter_phone" | "enter_otp">("enter_phone");
-  const [otpDigits, setOtpDigits] = useState(["5", "2", "8", "9"]);
+  const [otpDigits, setOtpDigits] = useState(["", "", "", ""]);
   const [showKeypad, setShowKeypad] = useState(false);
   const otpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -185,7 +185,7 @@ export default function LoginPage() {
   const handleSendOtp = () => {
     if (phone.length === 10) {
       setOtpStep("enter_otp");
-      setFeedback({ type: "success", message: "OTP sent to +91 " + phone + " (Demo OTP: 5289)" });
+      setFeedback({ type: "success", message: "OTP sent to +91 " + phone });
     } else {
       setFeedback({ type: "error", message: "Please enter a valid 10-digit mobile number." });
     }
@@ -492,7 +492,7 @@ export default function LoginPage() {
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <label className="text-xs font-black uppercase text-stone-700">
-                          Enter 4-Digit OTP (Demo: 5289)
+                          Enter 4-Digit OTP
                         </label>
                         <button
                           type="button"
