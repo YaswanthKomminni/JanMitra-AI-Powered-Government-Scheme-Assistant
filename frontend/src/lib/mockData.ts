@@ -55,10 +55,12 @@ export interface PeerSuccessStory {
 }
 
 export interface MockOcrResult {
-  docType: "land_record" | "soil_health_card" | "crop_disease";
+  docType: "land_record" | "soil_health_card" | "crop_disease" | "identity_card";
   title: string;
   previewUrl: string;
   confidenceScore: number;
+  fileName?: string;
+  detectionSummary?: string;
   extractedData: {
     ownerName?: string;
     surveyNumber?: string;
@@ -69,9 +71,24 @@ export interface MockOcrResult {
     phosphorusStatus?: string;
     potassiumStatus?: string;
     cropDetected?: string;
+    pestIdentified?: string;
+    infestationSeverity?: string;
     diseaseSymptoms?: string;
     recommendedAction?: string;
+    districtMandal?: string;
+    waterSource?: string;
+    citizenName?: string;
+    maskedIdNumber?: string;
+    dbtLinkedBank?: string;
   };
+  boundingBoxes?: Array<{
+    id: string;
+    label: string;
+    text: string;
+    box: { top: number; left: number; width: number; height: number };
+    confidence: number;
+  }>;
+  schemesUnlocked?: string[];
 }
 
 export const DEMO_FARMERS: FarmerProfile[] = [
@@ -280,19 +297,58 @@ export const MOCK_OCR_PRESETS: Record<string, MockOcrResult> = {
     title: "Telangana Dharani Land Patta Record",
     previewUrl: "https://images.unsplash.com/photo-1568667256549-094345857637?w=600&auto=format&fit=crop&q=80",
     confidenceScore: 0.96,
+    detectionSummary: "Official State Revenue Seal, Survey Khata, and Landholding acreage confirmed.",
     extractedData: {
       ownerName: "Ramesh Goud s/o Narayana Goud",
-      surveyNumber: "142/2A",
+      surveyNumber: "142/2A (Khata: 894)",
       landAreaAcres: 3.5,
       soilType: "Black Cotton Soil (Regur)",
       cropDetected: "Cotton (Kharif), Chilli",
+      districtMandal: "Rangareddy, Kothur Mandal",
+      waterSource: "Open Well & Borewell (Drip Connected)",
     },
+    boundingBoxes: [
+      {
+        id: "b1",
+        label: "Survey / Khata No",
+        text: "Survey No: 142/2A • Khata 894",
+        box: { top: 18, left: 14, width: 44, height: 12 },
+        confidence: 0.98,
+      },
+      {
+        id: "b2",
+        label: "Verified Area",
+        text: "3.50 Acres (3 Acres 20 Guntas)",
+        box: { top: 36, left: 14, width: 50, height: 13 },
+        confidence: 0.97,
+      },
+      {
+        id: "b3",
+        label: "Owner Name",
+        text: "Ramesh Goud s/o Narayana Goud",
+        box: { top: 54, left: 14, width: 62, height: 12 },
+        confidence: 0.96,
+      },
+      {
+        id: "b4",
+        label: "Revenue Seal",
+        text: "Tahsildar Digital Signature & QR Code",
+        box: { top: 72, left: 60, width: 32, height: 20 },
+        confidence: 0.99,
+      },
+    ],
+    schemesUnlocked: [
+      "PM-KUSUM 60% Solar Pump (Eligible for 5HP unit)",
+      "PM-KISAN ₹6,000 Annual Direct Benefit Transfer",
+      "PMFBY Comprehensive Crop Loss Insurance",
+    ],
   },
   soil_card: {
     docType: "soil_health_card",
     title: "Government Soil Health Card (ICAR Lab)",
     previewUrl: "https://images.unsplash.com/photo-1464226184884-fa280b87c399?w=600&auto=format&fit=crop&q=80",
     confidenceScore: 0.94,
+    detectionSummary: "12-parameter soil chemical profile analyzed. Macronutrients and micronutrients extracted.",
     extractedData: {
       soilPh: 6.8,
       nitrogenStatus: "Medium (280 kg/ha)",
@@ -300,16 +356,99 @@ export const MOCK_OCR_PRESETS: Record<string, MockOcrResult> = {
       potassiumStatus: "High (310 kg/ha) - Skip MOP",
       recommendedAction: "Apply 25kg Zinc Sulphate per acre + Neem Coated Urea in split doses.",
     },
+    boundingBoxes: [
+      {
+        id: "s1",
+        label: "Soil pH (Acidity/Alkalinity)",
+        text: "pH: 6.8 (Optimal Neutral Range)",
+        box: { top: 22, left: 16, width: 36, height: 11 },
+        confidence: 0.96,
+      },
+      {
+        id: "s2",
+        label: "Nitrogen & Phosphorus",
+        text: "N: 280 kg/ha (Med) • P: 14 kg/ha (Low)",
+        box: { top: 40, left: 16, width: 56, height: 14 },
+        confidence: 0.95,
+      },
+      {
+        id: "s3",
+        label: "Lab Recommendation",
+        text: "DAP 50kg + Zinc Sulphate 25kg / Acre",
+        box: { top: 68, left: 12, width: 75, height: 20 },
+        confidence: 0.93,
+      },
+    ],
+    schemesUnlocked: [
+      "National Soil Health Free Fertilizer Kit Subsidy",
+      "Paramparagat Krishi Vikas Yojana (PKVY) Organic Incentive",
+    ],
   },
   crop_disease: {
     docType: "crop_disease",
     title: "Cotton Leaf Pest Inspection (Camera)",
     previewUrl: "https://images.unsplash.com/photo-1599818816935-51786576b509?w=600&auto=format&fit=crop&q=80",
     confidenceScore: 0.92,
+    detectionSummary: "Computer Vision leaf inspection detected Whitefly pest infestation on Cotton leaves.",
     extractedData: {
       cropDetected: "Bt Cotton (Gossypium hirsutum)",
       diseaseSymptoms: "Curling leaves with honey-dew secretions. Whitefly nymph infestation detected.",
+      pestIdentified: "Whitefly (Bemisia tabaci) - Nymph Stage",
+      infestationSeverity: "Moderate (Action Threshold Exceeded)",
       recommendedAction: "Spray Neem Oil (10,000 ppm) @ 2ml/litre water, or Diafenthiuron 50% WP @ 1g/litre at evening hours.",
     },
+    boundingBoxes: [
+      {
+        id: "c1",
+        label: "Infected Leaf Margin",
+        text: "Curling and chlorotic yellowing",
+        box: { top: 20, left: 24, width: 48, height: 32 },
+        confidence: 0.94,
+      },
+      {
+        id: "c2",
+        label: "Whitefly Colony",
+        text: "Active Nymph Cluster Detected",
+        box: { top: 54, left: 32, width: 36, height: 28 },
+        confidence: 0.91,
+      },
+    ],
+    schemesUnlocked: [
+      "PMFBY Pest Attack Crop Compensation Coverage",
+      "Sub-Mission on Plant Protection & Integrated Pest Management Subsidy",
+    ],
+  },
+  aadhaar_kyc: {
+    docType: "identity_card",
+    title: "Farmer e-KYC Identity Verification",
+    previewUrl: "https://images.unsplash.com/photo-1544717305-2782549b5136?w=600&auto=format&fit=crop&q=80",
+    confidenceScore: 0.98,
+    detectionSummary: "Citizen Aadhaar / Ration Card e-KYC verified with Government DBT records.",
+    extractedData: {
+      citizenName: "Ramesh Goud",
+      maskedIdNumber: "•••• •••• 9842",
+      dbtLinkedBank: "State Bank of India (SBI) - A/C ending 4108",
+      stateDistrict: "Telangana, Rangareddy",
+    },
+    boundingBoxes: [
+      {
+        id: "i1",
+        label: "Citizen Name",
+        text: "Ramesh Goud",
+        box: { top: 30, left: 30, width: 45, height: 14 },
+        confidence: 0.99,
+      },
+      {
+        id: "i2",
+        label: "DBT Linked Account",
+        text: "Aadhaar Seeding Active (NPCI Verified)",
+        box: { top: 58, left: 20, width: 60, height: 16 },
+        confidence: 0.98,
+      },
+    ],
+    schemesUnlocked: [
+      "PM-KISAN DBT Direct Beneficiary Access",
+      "Kisan Credit Card (KCC) 4% Concessional Credit",
+    ],
   },
 };

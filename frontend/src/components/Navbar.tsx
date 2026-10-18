@@ -204,7 +204,17 @@ export default function Navbar() {
                       </button>
                     ))}
 
-                    <div className="border-t border-stone-100 mt-3 pt-2">
+                    <div className="border-t border-stone-100 mt-3 pt-2 space-y-1">
+                      <button
+                        onClick={() => {
+                          setAuthModalOpen(true);
+                          setProfileDropdownOpen(false);
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-50 rounded-xl transition"
+                      >
+                        <UserCheck className="w-4 h-4" />
+                        Sign Up New Farmer / Login
+                      </button>
                       <button
                         onClick={() => {
                           logout();
@@ -230,50 +240,52 @@ export default function Navbar() {
           </div>
         </div>
 
-        {/* Mobile Sub-Navigation Bar */}
-        <div className="flex sm:hidden items-center justify-around py-2 border-t border-emerald-100 text-xs font-bold">
-          <button
-            onClick={() => setActiveTab("dashboard")}
-            className={`px-3 py-1.5 rounded-lg transition ${
-              activeTab === "dashboard"
-                ? "bg-emerald-700 text-white"
-                : "text-stone-700 hover:bg-stone-100"
-            }`}
-          >
-            {t.tabs.dashboard}
-          </button>
-          <button
-            onClick={() => setActiveTab("schemes")}
-            className={`px-3 py-1.5 rounded-lg transition ${
-              activeTab === "schemes"
-                ? "bg-emerald-700 text-white"
-                : "text-stone-700 hover:bg-stone-100"
-            }`}
-          >
-            {t.tabs.schemes}
-          </button>
-          <button
-            onClick={() => setActiveTab("peers")}
-            className={`px-3 py-1.5 rounded-lg transition ${
-              activeTab === "peers"
-                ? "bg-emerald-700 text-white"
-                : "text-stone-700 hover:bg-stone-100"
-            }`}
-          >
-            {t.tabs.peers}
-          </button>
-          <button
-            onClick={() => setActiveTab("chat")}
-            className={`px-3 py-1.5 rounded-lg transition flex items-center gap-1 ${
-              activeTab === "chat"
-                ? "bg-emerald-700 text-white"
-                : "text-emerald-800 bg-emerald-100"
-            }`}
-          >
-            <Mic className="w-3.5 h-3.5" />
-            {t.tabs.chat}
-          </button>
-        </div>
+        {/* Mobile Sub-Navigation Bar (Only when authenticated) */}
+        {isAuthenticated && (
+          <div className="flex sm:hidden items-center justify-around py-2 border-t border-emerald-100 text-xs font-bold">
+            <button
+              onClick={() => setActiveTab("dashboard")}
+              className={`px-3 py-1.5 rounded-lg transition ${
+                activeTab === "dashboard"
+                  ? "bg-emerald-700 text-white"
+                  : "text-stone-700 hover:bg-stone-100"
+              }`}
+            >
+              {t.tabs.dashboard}
+            </button>
+            <button
+              onClick={() => setActiveTab("schemes")}
+              className={`px-3 py-1.5 rounded-lg transition ${
+                activeTab === "schemes"
+                  ? "bg-emerald-700 text-white"
+                  : "text-stone-700 hover:bg-stone-100"
+              }`}
+            >
+              {t.tabs.schemes}
+            </button>
+            <button
+              onClick={() => setActiveTab("peers")}
+              className={`px-3 py-1.5 rounded-lg transition ${
+                activeTab === "peers"
+                  ? "bg-emerald-700 text-white"
+                  : "text-stone-700 hover:bg-stone-100"
+              }`}
+            >
+              {t.tabs.peers}
+            </button>
+            <button
+              onClick={() => setActiveTab("chat")}
+              className={`px-3 py-1.5 rounded-lg transition flex items-center gap-1 ${
+                activeTab === "chat"
+                  ? "bg-emerald-700 text-white"
+                  : "text-emerald-800 bg-emerald-100"
+              }`}
+            >
+              <Mic className="w-3.5 h-3.5 text-emerald-600" />
+              <span>{t.tabs.chat}</span>
+            </button>
+          </div>
+        )}
       </div>
     </header>
   );

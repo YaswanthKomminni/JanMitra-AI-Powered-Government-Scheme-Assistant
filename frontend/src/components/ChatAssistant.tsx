@@ -14,6 +14,7 @@ import {
   User,
   HelpCircle,
   CheckCircle2,
+  X,
 } from "lucide-react";
 import { useFarmerStore } from "@/store/useFarmerStore";
 import { translations } from "@/lib/i18n";
@@ -36,11 +37,24 @@ export default function ChatAssistant() {
   } = useFarmerStore();
 
   const [inputVal, setInputVal] = useState("");
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [speechActive, setSpeechActive] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recognizerRef = useRef<any>(null);
+  const chatFileInputRef = useRef<HTMLInputElement>(null);
 
   const t = translations[language];
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        setSelectedImage(ev.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   // Auto-scroll to bottom of chat
   useEffect(() => {
@@ -101,9 +115,16 @@ export default function ChatAssistant() {
   };
 
   const handleSend = () => {
-    if (!inputVal.trim()) return;
-    sendChatMessage(inputVal.trim());
+    if (!inputVal.trim() && !selectedImage) return;
+    sendChatMessage(
+      inputVal.trim() || "Please inspect this attached crop/document photo using AI Vision",
+      selectedImage || undefined
+    );
     setInputVal("");
+    setSelectedImage(null);
+    if (chatFileInputRef.current) {
+      chatFileInputRef.current.value = "";
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -279,12 +300,72 @@ export default function ChatAssistant() {
 
       {/* Bottom Input Area */}
       <div className="p-3 sm:p-4 bg-white border-t border-stone-200">
+        {/* Selected Image Preview Strip */}
+        {selectedImage && (
+          <div className="mb-3 flex items-center justify-between p-2.5 rounded-2xl bg-emerald-50 border border-emerald-200 animate-in fade-in">
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <img
+                  src={selectedImage}
+                  alt="Attached"
+                  className="w-12 h-12 object-cover rounded-xl border border-emerald-400 shadow-sm"
+                />
+                <button
+                  onClick={() => {
+                    setSelectedImage(null);
+                    if (chatFileInputRef.current) chatFileInputRef.current.value = "";
+                  }}
+                  className="absolute -top-1.5 -right-1.5 p-0.5 bg-red-600 text-white rounded-full shadow hover:bg-red-700"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+              <div className="text-xs">
+                <p className="font-extrabold text-emerald-950 flex items-center gap-1">
+                  <ImageIcon className="w-3.5 h-3.5 text-emerald-700" />
+                  Crop / Document Image Attached
+                </p>
+                <p className="text-[11px] text-emerald-800 font-medium">
+                  Ready for Llama 3.2 Vision OCR inspection
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setSelectedImage(null);
+                if (chatFileInputRef.current) chatFileInputRef.current.value = "";
+              }}
+              className="text-xs font-bold text-stone-500 hover:text-stone-800 px-2 py-1 rounded-lg hover:bg-emerald-100"
+            >
+              Remove
+            </button>
+          </div>
+        )}
+
         <div className="flex items-center gap-2">
-          {/* Camera / Document Upload Button */}
+          {/* Hidden File Input for Image Attachment */}
+          <input
+            ref={chatFileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleImageSelect}
+          />
+
+          {/* Quick Attach Image Button */}
+          <button
+            onClick={() => chatFileInputRef.current?.click()}
+            className="p-3 sm:p-3.5 rounded-2xl bg-stone-100 hover:bg-emerald-50 hover:text-emerald-800 text-stone-700 transition active:scale-95 shrink-0"
+            title="Attach Photo for Vision Analysis"
+          >
+            <ImageIcon className="w-5 h-5 text-emerald-800" />
+          </button>
+
+          {/* Camera / Full Document OCR Modal Scanner */}
           <button
             onClick={() => setVerificationModalOpen(true)}
             className="p-3 sm:p-3.5 rounded-2xl bg-stone-100 hover:bg-stone-200 text-stone-700 transition active:scale-95 shrink-0"
-            title={t.uploadDoc}
+            title="Open Document Bounding Box Scanner"
           >
             <Camera className="w-5 h-5 text-stone-800" />
           </button>
@@ -313,7 +394,7 @@ export default function ChatAssistant() {
               value={inputVal}
               onChange={(e) => setInputVal(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={t.typePlaceholder}
+              placeholder={selectedImage ? "Add an optional question about this photo..." : t.typePlaceholder}
               className="w-full bg-transparent text-sm text-stone-900 placeholder:text-stone-400 focus:outline-none"
             />
           </div>
@@ -321,10 +402,10 @@ export default function ChatAssistant() {
           {/* Send Button */}
           <button
             onClick={handleSend}
-            disabled={!inputVal.trim()}
+            disabled={!inputVal.trim() && !selectedImage}
             className={`p-3 sm:p-3.5 rounded-2xl transition active:scale-95 shrink-0 ${
-              inputVal.trim()
-                ? "bg-emerald-700 hover:bg-emerald-800 text-white shadow-md"
+              inputVal.trim() || selectedImage
+                ? "bg-emerald-700 hover:bg-emerald-800 text-white shadow-md shadow-emerald-800/20"
                 : "bg-stone-100 text-stone-400 cursor-not-allowed"
             }`}
           >

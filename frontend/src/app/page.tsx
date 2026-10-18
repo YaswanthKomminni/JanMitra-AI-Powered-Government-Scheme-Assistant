@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Navbar from "@/components/Navbar";
 import AuthModal from "@/components/AuthModal";
+import AuthGate from "@/components/AuthGate";
 import DashboardHeader from "@/components/DashboardHeader";
 import SchemeCard from "@/components/SchemeCard";
 import PeerNetwork from "@/components/PeerNetwork";
@@ -33,11 +34,25 @@ export default function Home() {
     selectedCategoryFilter,
     setSelectedCategoryFilter,
     setVerificationModalOpen,
+    isAuthenticated,
   } = useFarmerStore();
 
   const t = translations[language];
 
-  // Filter schemes
+  // Protect account: If not logged in, show the login & registration gate!
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col font-sans pb-12">
+        <Navbar />
+        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8">
+          <AuthGate />
+        </main>
+        <AuthModal />
+      </div>
+    );
+  }
+
+  // Filter schemes when authenticated
   const filteredSchemes = SCHEMES_DATABASE.filter((scheme) => {
     if (selectedCategoryFilter === "all") return true;
     return scheme.category === selectedCategoryFilter;

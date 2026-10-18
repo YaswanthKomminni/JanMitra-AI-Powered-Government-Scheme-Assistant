@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   X,
   UploadCloud,
@@ -15,6 +15,10 @@ import {
   ArrowRight,
   ShieldCheck,
   RefreshCw,
+  Eye,
+  EyeOff,
+  Image as ImageIcon,
+  Check,
 } from "lucide-react";
 import { useFarmerStore } from "@/store/useFarmerStore";
 import { translations } from "@/lib/i18n";
@@ -30,31 +34,74 @@ export default function DocumentVerificationModal() {
     verificationResult,
     selectedPresetKey,
     startMockVerification,
+    analyzeUploadedFile,
     confirmExtractedData,
     resetVerification,
   } = useFarmerStore();
 
   const [dragActive, setDragActive] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<
+    "auto_detect" | "land_record" | "soil_health" | "crop_disease" | "identity_card"
+  >("auto_detect");
+  const [showBoundingBoxes, setShowBoundingBoxes] = useState(true);
+  const [hoveredBoxId, setHoveredBoxId] = useState<string | null>(null);
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+  const [uploadedFileSize, setUploadedFileSize] = useState<string | null>(null);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const t = translations[language];
 
   if (!verificationModalOpen) return null;
 
-  const handlePresetSelect = (key: string) => {
-    startMockVerification(key);
+  const handleProcessFile = (file: File) => {
+    if (!file) return;
+
+    setUploadedFileName(file.name);
+    setUploadedFileSize((file.size / 1024).toFixed(1) + " KB");
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const base64 = e.target?.result as string;
+      if (base64) {
+        await analyzeUploadedFile(base64, file.name, file.type, selectedCategory);
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragActive(false);
-    // Auto-trigger land patta mock scan on file drop
-    startMockVerification("land_patta");
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleProcessFile(e.dataTransfer.files[0]);
+    }
   };
 
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      handleProcessFile(e.target.files[0]);
+    }
+  };
+
+  const handlePresetSelect = (key: string) => {
+    setUploadedFileName(null);
+    setUploadedFileSize(null);
+    startMockVerification(key);
+  };
+
+  const categories = [
+    { id: "auto_detect", label: "Auto-Detect", icon: Sparkles },
+    { id: "land_record", label: "Land Patta / Pahani", icon: FileText },
+    { id: "soil_health", label: "Soil Health Card", icon: Activity },
+    { id: "crop_disease", label: "Crop Leaf / Pest", icon: Camera },
+    { id: "identity_card", label: "Farmer ID / Aadhaar", icon: ShieldCheck },
+  ];
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-      <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border-2 border-emerald-500/20 overflow-hidden flex flex-col max-h-[92vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/70 backdrop-blur-md animate-in fade-in">
+      <div className="bg-white w-full max-w-3xl rounded-3xl shadow-2xl border-2 border-emerald-500/20 overflow-hidden flex flex-col max-h-[94vh]">
         {/* Header */}
-        <div className="bg-gradient-to-r from-emerald-800 to-emerald-950 p-6 text-white relative">
+        <div className="bg-gradient-to-r from-emerald-800 via-emerald-900 to-emerald-950 p-5 sm:p-6 text-white relative">
           <button
             onClick={() => {
               setVerificationModalOpen(false);
@@ -64,90 +111,62 @@ export default function DocumentVerificationModal() {
           >
             <X className="w-5 h-5" />
           </button>
-          <div className="flex items-center gap-2 mb-2">
+          <div className="flex items-center gap-2 mb-1.5">
             <span className="p-1 rounded-lg bg-emerald-700/80">
               <ScanLine className="w-4 h-4 text-emerald-300" />
             </span>
-            <span className="text-xs uppercase font-extrabold tracking-wider text-emerald-200">
-              Llama 3.2 Vision OCR Engine
+            <span className="text-xs uppercase font-extrabold tracking-wider text-emerald-300">
+              Llama 3.2 Vision OCR & Spatial Entity Extraction
             </span>
           </div>
-          <h2 className="text-2xl font-black">{t.verifyDocsTitle}</h2>
-          <p className="text-xs text-emerald-100 mt-1 leading-relaxed">
+          <h2 className="text-xl sm:text-2xl font-black">{t.verifyDocsTitle}</h2>
+          <p className="text-xs text-emerald-100/90 mt-1 max-w-xl leading-relaxed">
             {t.verifyDocsSubtitle}
           </p>
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto space-y-6">
-          {/* Preset Pickers for instant testing */}
-          <div>
-            <p className="text-xs font-black text-stone-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              <Sparkles className="w-4 h-4 text-amber-500" />
-              <span>{t.sampleDocsPrompt}</span>
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-              <button
-                onClick={() => handlePresetSelect("land_patta")}
-                className={`p-3 rounded-2xl border-2 text-left transition flex flex-col justify-between ${
-                  selectedPresetKey === "land_patta"
-                    ? "border-emerald-600 bg-emerald-50 ring-2 ring-emerald-500/30"
-                    : "border-stone-200 hover:border-emerald-400 bg-stone-50"
-                }`}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xl">📜</span>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                    Land Patta
-                  </span>
-                </div>
-                <p className="text-xs font-extrabold text-stone-900 leading-tight">
-                  {t.sampleLandPatta}
-                </p>
-              </button>
-
-              <button
-                onClick={() => handlePresetSelect("soil_card")}
-                className={`p-3 rounded-2xl border-2 text-left transition flex flex-col justify-between ${
-                  selectedPresetKey === "soil_card"
-                    ? "border-emerald-600 bg-emerald-50 ring-2 ring-emerald-500/30"
-                    : "border-stone-200 hover:border-emerald-400 bg-stone-50"
-                }`}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xl">🧪</span>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
-                    Soil Card
-                  </span>
-                </div>
-                <p className="text-xs font-extrabold text-stone-900 leading-tight">
-                  {t.sampleSoilCard}
-                </p>
-              </button>
-
-              <button
-                onClick={() => handlePresetSelect("crop_disease")}
-                className={`p-3 rounded-2xl border-2 text-left transition flex flex-col justify-between ${
-                  selectedPresetKey === "crop_disease"
-                    ? "border-emerald-600 bg-emerald-50 ring-2 ring-emerald-500/30"
-                    : "border-stone-200 hover:border-emerald-400 bg-stone-50"
-                }`}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xl">🍃</span>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-100 text-cyan-800">
-                    Crop Pest
-                  </span>
-                </div>
-                <p className="text-xs font-extrabold text-stone-900 leading-tight">
-                  {t.sampleCropLeaf}
-                </p>
-              </button>
+        <div className="p-5 sm:p-6 overflow-y-auto space-y-5">
+          {/* Category Selector Tabs */}
+          {!verificationResult && !verificationScanning && (
+            <div className="space-y-2">
+              <label className="text-xs font-black text-stone-700 uppercase tracking-wider block">
+                1. Select Document Category (Optional):
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                {categories.map((cat) => {
+                  const Icon = cat.icon;
+                  const isSelected = selectedCategory === cat.id;
+                  return (
+                    <button
+                      key={cat.id}
+                      onClick={() => setSelectedCategory(cat.id as any)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                        isSelected
+                          ? "bg-emerald-800 text-white shadow-sm ring-2 ring-emerald-500/40"
+                          : "bg-stone-100 text-stone-700 hover:bg-stone-200"
+                      }`}
+                    >
+                      <Icon className="w-3.5 h-3.5" />
+                      <span>{cat.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* Drag & Drop File Zone or Active Document Viewer */}
-          {!verificationResult && !verificationScanning ? (
+          {/* Hidden File Input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,application/pdf"
+            className="hidden"
+            onChange={handleFileInputChange}
+          />
+
+          {/* Drag & Drop File Zone */}
+          {!verificationResult && !verificationScanning && (
             <div
               onDragOver={(e) => {
                 e.preventDefault();
@@ -155,55 +174,158 @@ export default function DocumentVerificationModal() {
               }}
               onDragLeave={() => setDragActive(false)}
               onDrop={handleDrop}
-              onClick={() => handlePresetSelect("land_patta")}
-              className={`border-3 border-dashed rounded-3xl p-8 text-center cursor-pointer transition flex flex-col items-center justify-center gap-3 ${
+              onClick={() => fileInputRef.current?.click()}
+              className={`border-3 border-dashed rounded-3xl p-6 sm:p-8 text-center cursor-pointer transition flex flex-col items-center justify-center gap-3.5 ${
                 dragActive
-                  ? "border-emerald-600 bg-emerald-50/70"
-                  : "border-stone-300 hover:border-emerald-500 bg-stone-50/50"
+                  ? "border-emerald-600 bg-emerald-50/80 scale-[1.01]"
+                  : "border-stone-300 hover:border-emerald-500 bg-stone-50/60 hover:bg-emerald-50/20"
               }`}
             >
-              <div className="w-16 h-16 rounded-2xl bg-emerald-100 flex items-center justify-center text-emerald-700 shadow-sm">
+              <div className="w-16 h-16 rounded-2xl bg-emerald-100 border-2 border-emerald-200 flex items-center justify-center text-emerald-800 shadow-sm">
                 <UploadCloud className="w-8 h-8" />
               </div>
               <div>
-                <p className="text-base font-extrabold text-stone-900">
+                <p className="text-base sm:text-lg font-black text-stone-900">
                   {t.dropzoneText}
                 </p>
-                <p className="text-xs text-stone-500 mt-1">
+                <p className="text-xs text-stone-500 mt-1 max-w-md">
                   {t.dropzoneSubtext}
                 </p>
               </div>
-              <div className="flex items-center gap-2 mt-2">
-                <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-800 bg-white px-3 py-1.5 rounded-full border border-emerald-300 shadow-sm">
+
+              <div className="flex flex-wrap items-center justify-center gap-2 mt-1">
+                <span className="inline-flex items-center gap-1.5 text-xs font-black text-emerald-900 bg-emerald-100/90 px-3.5 py-1.5 rounded-full border border-emerald-300">
                   <Camera className="w-3.5 h-3.5" />
-                  Mobile Camera Ready
+                  Camera Photo or Device File
+                </span>
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold text-stone-700 bg-white px-3 py-1.5 rounded-full border border-stone-200 shadow-sm">
+                  <FileText className="w-3.5 h-3.5 text-stone-500" />
+                  PDF & Images up to 10MB
                 </span>
               </div>
             </div>
-          ) : null}
+          )}
+
+          {/* Preset Pickers for instant testing */}
+          {!verificationResult && !verificationScanning && (
+            <div className="pt-2">
+              <p className="text-xs font-black text-stone-700 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4 text-amber-500" />
+                <span>{t.sampleDocsPrompt}</span>
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                <button
+                  onClick={() => handlePresetSelect("land_patta")}
+                  className={`p-3 rounded-2xl border-2 text-left transition flex flex-col justify-between ${
+                    selectedPresetKey === "land_patta"
+                      ? "border-emerald-600 bg-emerald-50 ring-2 ring-emerald-500/30"
+                      : "border-stone-200 hover:border-emerald-400 bg-stone-50"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xl">📜</span>
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800">
+                      Land Patta
+                    </span>
+                  </div>
+                  <p className="text-xs font-extrabold text-stone-900 leading-tight">
+                    3.5 Acres Patta
+                  </p>
+                  <span className="text-[10px] text-stone-500 mt-1">Rangareddy RoR</span>
+                </button>
+
+                <button
+                  onClick={() => handlePresetSelect("soil_card")}
+                  className={`p-3 rounded-2xl border-2 text-left transition flex flex-col justify-between ${
+                    selectedPresetKey === "soil_card"
+                      ? "border-emerald-600 bg-emerald-50 ring-2 ring-emerald-500/30"
+                      : "border-stone-200 hover:border-emerald-400 bg-stone-50"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xl">🧪</span>
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800">
+                      Soil Card
+                    </span>
+                  </div>
+                  <p className="text-xs font-extrabold text-stone-900 leading-tight">
+                    ICAR Soil Test
+                  </p>
+                  <span className="text-[10px] text-stone-500 mt-1">pH 6.8 & NPK</span>
+                </button>
+
+                <button
+                  onClick={() => handlePresetSelect("crop_disease")}
+                  className={`p-3 rounded-2xl border-2 text-left transition flex flex-col justify-between ${
+                    selectedPresetKey === "crop_disease"
+                      ? "border-emerald-600 bg-emerald-50 ring-2 ring-emerald-500/30"
+                      : "border-stone-200 hover:border-emerald-400 bg-stone-50"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xl">🍃</span>
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-cyan-100 text-cyan-800">
+                      Crop Pest
+                    </span>
+                  </div>
+                  <p className="text-xs font-extrabold text-stone-900 leading-tight">
+                    Cotton Leaf Photo
+                  </p>
+                  <span className="text-[10px] text-stone-500 mt-1">Whitefly Insect</span>
+                </button>
+
+                <button
+                  onClick={() => handlePresetSelect("aadhaar_kyc")}
+                  className={`p-3 rounded-2xl border-2 text-left transition flex flex-col justify-between ${
+                    selectedPresetKey === "aadhaar_kyc"
+                      ? "border-emerald-600 bg-emerald-50 ring-2 ring-emerald-500/30"
+                      : "border-stone-200 hover:border-emerald-400 bg-stone-50"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xl">🪪</span>
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-purple-100 text-purple-800">
+                      Citizen e-KYC
+                    </span>
+                  </div>
+                  <p className="text-xs font-extrabold text-stone-900 leading-tight">
+                    Aadhaar Card
+                  </p>
+                  <span className="text-[10px] text-stone-500 mt-1">DBT NPCI Seeding</span>
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Scanning Animation */}
           {verificationScanning && (
-            <div className="relative rounded-3xl overflow-hidden border-2 border-emerald-500 bg-stone-950 p-6 flex flex-col items-center justify-center min-h-[260px]">
-              {selectedPresetKey && (
+            <div className="relative rounded-3xl overflow-hidden border-2 border-emerald-500 bg-stone-950 p-6 flex flex-col items-center justify-center min-h-[300px]">
+              {selectedPresetKey && MOCK_OCR_PRESETS[selectedPresetKey] && (
                 <img
                   src={MOCK_OCR_PRESETS[selectedPresetKey]?.previewUrl}
                   alt="Scanning document"
-                  className="absolute inset-0 w-full h-full object-cover opacity-30 filter blur-[1px]"
+                  className="absolute inset-0 w-full h-full object-cover opacity-25 filter blur-[1px]"
                 />
               )}
 
               {/* Laser Scan Beam */}
-              <div className="absolute inset-x-0 h-1 bg-gradient-to-r from-transparent via-emerald-400 to-transparent shadow-[0_0_15px_#10b981] animate-scan-laser top-6"></div>
+              <div className="absolute inset-x-0 h-1.5 bg-gradient-to-r from-transparent via-emerald-400 to-transparent shadow-[0_0_20px_#10b981] animate-scan-laser top-6"></div>
 
               {/* Scanning status */}
-              <div className="relative z-10 text-center space-y-3 bg-stone-900/80 p-5 rounded-2xl backdrop-blur border border-emerald-500/30">
-                <RefreshCw className="w-8 h-8 text-emerald-400 animate-spin mx-auto" />
-                <p className="text-sm font-black text-white">
+              <div className="relative z-10 text-center space-y-3 bg-stone-900/90 p-6 rounded-2xl backdrop-blur-md border border-emerald-500/40 max-w-md shadow-2xl">
+                <RefreshCw className="w-10 h-10 text-emerald-400 animate-spin mx-auto" />
+                <h3 className="text-base font-black text-white">
                   {t.scanningProgress}
-                </p>
-                <div className="flex items-center justify-center gap-2 text-[11px] text-emerald-300 font-bold">
-                  <span>Bounding Box Extraction</span> • <span>Spatial OCR</span> • <span>Entity Normalization</span>
+                </h3>
+                {uploadedFileName && (
+                  <p className="text-xs text-stone-300 font-bold">
+                    Analyzing file: <span className="text-emerald-300">{uploadedFileName}</span> ({uploadedFileSize})
+                  </p>
+                )}
+                <div className="flex flex-wrap items-center justify-center gap-2 text-[11px] text-emerald-300 font-bold pt-1">
+                  <span className="px-2 py-0.5 rounded bg-emerald-950/60 border border-emerald-700/50">Spatial Bounding Boxes</span>
+                  <span className="px-2 py-0.5 rounded bg-emerald-950/60 border border-emerald-700/50">Entity Recognition</span>
+                  <span className="px-2 py-0.5 rounded bg-emerald-950/60 border border-emerald-700/50">MySQL Sync</span>
                 </div>
               </div>
             </div>
@@ -212,57 +334,161 @@ export default function DocumentVerificationModal() {
           {/* Verification Results Display */}
           {verificationResult && (
             <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
-              <div className="flex items-center justify-between p-3.5 rounded-2xl bg-emerald-50 border border-emerald-300">
-                <div className="flex items-center gap-2.5">
-                  <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+              {/* Top Banner */}
+              <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-2xl bg-emerald-50 border-2 border-emerald-300">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                    <CheckCircle2 className="w-6 h-6" />
+                  </div>
                   <div>
-                    <h4 className="text-sm font-black text-emerald-950">
+                    <h4 className="text-base font-black text-emerald-950">
                       {verificationResult.title}
                     </h4>
-                    <p className="text-[11px] text-emerald-700 font-bold">
-                      Confidence Score: {(verificationResult.confidenceScore * 100).toFixed(0)}% • Llama 3.2 Vision
+                    <p className="text-xs text-emerald-800 font-bold flex items-center gap-2">
+                      <span>Confidence Score: {(verificationResult.confidenceScore * 100).toFixed(0)}%</span>
+                      <span>•</span>
+                      <span>Verified in MySQL JanMithra</span>
                     </p>
                   </div>
                 </div>
 
-                <button
-                  onClick={resetVerification}
-                  className="text-xs font-bold text-stone-600 hover:text-stone-900 underline"
-                >
-                  Scan Another
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setShowBoundingBoxes(!showBoundingBoxes)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border ${
+                      showBoundingBoxes
+                        ? "bg-emerald-700 text-white border-emerald-800"
+                        : "bg-white text-stone-700 border-stone-300"
+                    }`}
+                  >
+                    {showBoundingBoxes ? (
+                      <>
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>Bounding Boxes: ON</span>
+                      </>
+                    ) : (
+                      <>
+                        <EyeOff className="w-3.5 h-3.5" />
+                        <span>Bounding Boxes: OFF</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={resetVerification}
+                    className="text-xs font-bold text-stone-600 hover:text-stone-900 px-3 py-1.5 rounded-xl border border-stone-300 bg-white hover:bg-stone-100"
+                  >
+                    Scan Another
+                  </button>
+                </div>
+              </div>
+
+              {/* Summary Description */}
+              {verificationResult.detectionSummary && (
+                <div className="p-3 rounded-xl bg-stone-100 border border-stone-200 text-xs font-bold text-stone-800 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-emerald-700 shrink-0" />
+                  <span>{verificationResult.detectionSummary}</span>
+                </div>
+              )}
+
+              {/* Visual Preview with Bounding Box Overlay */}
+              <div className="rounded-2xl border-2 border-stone-300 bg-stone-950 overflow-hidden relative group">
+                <div className="relative w-full max-h-[340px] flex items-center justify-center overflow-hidden">
+                  <img
+                    src={verificationResult.previewUrl}
+                    alt="Document visual analysis"
+                    className="w-full max-h-[340px] object-contain select-none"
+                  />
+
+                  {/* Spatial Bounding Boxes Overlay */}
+                  {showBoundingBoxes &&
+                    verificationResult.boundingBoxes?.map((bb) => {
+                      const isHovered = hoveredBoxId === bb.id;
+                      return (
+                        <div
+                          key={bb.id}
+                          style={{
+                            top: `${bb.box.top}%`,
+                            left: `${bb.box.left}%`,
+                            width: `${bb.box.width}%`,
+                            height: `${bb.box.height}%`,
+                          }}
+                          onMouseEnter={() => setHoveredBoxId(bb.id)}
+                          onMouseLeave={() => setHoveredBoxId(null)}
+                          className={`absolute border-2 transition-all cursor-pointer flex flex-col justify-between p-1 rounded-lg ${
+                            isHovered
+                              ? "border-emerald-400 bg-emerald-400/30 ring-4 ring-emerald-300/60 z-30 scale-[1.02]"
+                              : "border-emerald-400/80 bg-emerald-500/20 hover:bg-emerald-400/30 z-20"
+                          }`}
+                        >
+                          <span className="inline-block text-[10px] font-black uppercase tracking-tight bg-stone-950/90 text-emerald-300 px-2 py-0.5 rounded shadow w-fit truncate">
+                            {bb.label} ({(bb.confidence * 100).toFixed(0)}%)
+                          </span>
+                          <span className="text-[11px] text-white font-black drop-shadow-md bg-black/75 px-1.5 py-0.5 rounded truncate">
+                            {bb.text}
+                          </span>
+                        </div>
+                      );
+                    })}
+                </div>
+
+                <div className="p-2.5 bg-stone-900 border-t border-stone-800 text-[11px] text-stone-300 flex items-center justify-between font-bold px-4">
+                  <span className="flex items-center gap-1.5">
+                    <Layers className="w-3.5 h-3.5 text-emerald-400" />
+                    Interactive Vision Segmentation ({verificationResult.boundingBoxes?.length || 0} Entities Mapped)
+                  </span>
+                  <span className="text-stone-400">Hover or tap bounding box to inspect</span>
+                </div>
               </div>
 
               {/* Extracted Key-Value Parameters */}
-              <div className="bg-stone-50 rounded-2xl p-5 border border-stone-200">
+              <div className="bg-stone-50 rounded-2xl p-4 sm:p-5 border border-stone-200">
                 <p className="text-xs font-black text-stone-700 uppercase tracking-wider mb-3">
                   {t.detectedData}
                 </p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                   {verificationResult.extractedData.ownerName && (
-                    <div className="p-3 rounded-xl bg-white border border-stone-200">
-                      <span className="text-stone-400 font-bold block">Owner Name:</span>
+                    <div
+                      onMouseEnter={() => setHoveredBoxId("b3")}
+                      onMouseLeave={() => setHoveredBoxId(null)}
+                      className={`p-3 rounded-xl bg-white border transition ${
+                        hoveredBoxId === "b3" ? "border-emerald-600 ring-2 ring-emerald-400/30 bg-emerald-50/50" : "border-stone-200"
+                      }`}
+                    >
+                      <span className="text-stone-400 font-bold block">Owner / Farmer Name:</span>
                       <span className="font-extrabold text-stone-900 text-sm">
                         {verificationResult.extractedData.ownerName}
                       </span>
                     </div>
                   )}
 
-                  {verificationResult.extractedData.landAreaAcres && (
-                    <div className="p-3 rounded-xl bg-white border border-stone-200">
-                      <span className="text-stone-400 font-bold block">Verified Land Area:</span>
-                      <span className="font-extrabold text-emerald-800 text-sm">
-                        {verificationResult.extractedData.landAreaAcres} Acres
+                  {verificationResult.extractedData.surveyNumber && (
+                    <div
+                      onMouseEnter={() => setHoveredBoxId("b1")}
+                      onMouseLeave={() => setHoveredBoxId(null)}
+                      className={`p-3 rounded-xl bg-white border transition ${
+                        hoveredBoxId === "b1" ? "border-emerald-600 ring-2 ring-emerald-400/30 bg-emerald-50/50" : "border-stone-200"
+                      }`}
+                    >
+                      <span className="text-stone-400 font-bold block">Survey / Khata No:</span>
+                      <span className="font-extrabold text-stone-900 text-sm">
+                        {verificationResult.extractedData.surveyNumber}
                       </span>
                     </div>
                   )}
 
-                  {verificationResult.extractedData.surveyNumber && (
-                    <div className="p-3 rounded-xl bg-white border border-stone-200">
-                      <span className="text-stone-400 font-bold block">Survey / Khata No:</span>
-                      <span className="font-extrabold text-stone-900 text-sm">
-                        {verificationResult.extractedData.surveyNumber}
+                  {verificationResult.extractedData.landAreaAcres && (
+                    <div
+                      onMouseEnter={() => setHoveredBoxId("b2")}
+                      onMouseLeave={() => setHoveredBoxId(null)}
+                      className={`p-3 rounded-xl bg-white border transition ${
+                        hoveredBoxId === "b2" ? "border-emerald-600 ring-2 ring-emerald-400/30 bg-emerald-50/50" : "border-stone-200"
+                      }`}
+                    >
+                      <span className="text-stone-400 font-bold block">Verified Land Area:</span>
+                      <span className="font-black text-emerald-800 text-base">
+                        {verificationResult.extractedData.landAreaAcres} Acres
                       </span>
                     </div>
                   )}
@@ -277,7 +503,13 @@ export default function DocumentVerificationModal() {
                   )}
 
                   {verificationResult.extractedData.soilPh && (
-                    <div className="p-3 rounded-xl bg-white border border-stone-200">
+                    <div
+                      onMouseEnter={() => setHoveredBoxId("s1")}
+                      onMouseLeave={() => setHoveredBoxId(null)}
+                      className={`p-3 rounded-xl bg-white border transition ${
+                        hoveredBoxId === "s1" ? "border-emerald-600 ring-2 ring-emerald-400/30 bg-emerald-50/50" : "border-stone-200"
+                      }`}
+                    >
                       <span className="text-stone-400 font-bold block">Soil pH Value:</span>
                       <span className="font-extrabold text-cyan-800 text-sm">
                         pH {verificationResult.extractedData.soilPh} (Neutral Optimal)
@@ -286,10 +518,16 @@ export default function DocumentVerificationModal() {
                   )}
 
                   {verificationResult.extractedData.nitrogenStatus && (
-                    <div className="p-3 rounded-xl bg-white border border-stone-200">
-                      <span className="text-stone-400 font-bold block">Nitrogen (N):</span>
+                    <div
+                      onMouseEnter={() => setHoveredBoxId("s2")}
+                      onMouseLeave={() => setHoveredBoxId(null)}
+                      className={`p-3 rounded-xl bg-white border transition ${
+                        hoveredBoxId === "s2" ? "border-emerald-600 ring-2 ring-emerald-400/30 bg-emerald-50/50" : "border-stone-200"
+                      }`}
+                    >
+                      <span className="text-stone-400 font-bold block">Nitrogen & Phosphorus:</span>
                       <span className="font-extrabold text-stone-900 text-sm">
-                        {verificationResult.extractedData.nitrogenStatus}
+                        N: {verificationResult.extractedData.nitrogenStatus} • P: {verificationResult.extractedData.phosphorusStatus}
                       </span>
                     </div>
                   )}
@@ -303,45 +541,125 @@ export default function DocumentVerificationModal() {
                     </div>
                   )}
 
-                  {verificationResult.extractedData.diseaseSymptoms && (
-                    <div className="p-3 rounded-xl bg-white border border-stone-200 sm:col-span-2">
-                      <span className="text-stone-400 font-bold block">Diagnosis / Symptoms:</span>
+                  {verificationResult.extractedData.pestIdentified && (
+                    <div
+                      onMouseEnter={() => setHoveredBoxId("c2")}
+                      onMouseLeave={() => setHoveredBoxId(null)}
+                      className={`p-3 rounded-xl bg-white border transition ${
+                        hoveredBoxId === "c2" ? "border-emerald-600 ring-2 ring-emerald-400/30 bg-emerald-50/50" : "border-stone-200"
+                      }`}
+                    >
+                      <span className="text-stone-400 font-bold block">Identified Pest / Insect:</span>
                       <span className="font-extrabold text-red-700 text-sm">
+                        {verificationResult.extractedData.pestIdentified}
+                      </span>
+                    </div>
+                  )}
+
+                  {verificationResult.extractedData.diseaseSymptoms && (
+                    <div
+                      onMouseEnter={() => setHoveredBoxId("c1")}
+                      onMouseLeave={() => setHoveredBoxId(null)}
+                      className={`p-3 rounded-xl bg-white border sm:col-span-2 transition ${
+                        hoveredBoxId === "c1" ? "border-emerald-600 ring-2 ring-emerald-400/30 bg-emerald-50/50" : "border-stone-200"
+                      }`}
+                    >
+                      <span className="text-stone-400 font-bold block">Symptoms / Diagnosis:</span>
+                      <span className="font-extrabold text-stone-900 text-xs">
                         {verificationResult.extractedData.diseaseSymptoms}
                       </span>
                     </div>
                   )}
 
                   {verificationResult.extractedData.recommendedAction && (
-                    <div className="p-3 rounded-xl bg-emerald-100/60 border border-emerald-300 sm:col-span-2">
-                      <span className="text-emerald-900 font-bold block">Agronomist Recommendation:</span>
-                      <span className="font-bold text-emerald-950 text-xs">
+                    <div
+                      onMouseEnter={() => setHoveredBoxId("s3")}
+                      onMouseLeave={() => setHoveredBoxId(null)}
+                      className={`p-3.5 rounded-xl bg-emerald-100/70 border border-emerald-300 sm:col-span-2 transition ${
+                        hoveredBoxId === "s3" ? "ring-2 ring-emerald-500 bg-emerald-100" : ""
+                      }`}
+                    >
+                      <span className="text-emerald-950 font-black block text-xs">Agronomist Recommendation:</span>
+                      <span className="font-bold text-emerald-900 text-xs mt-1 block">
                         {verificationResult.extractedData.recommendedAction}
+                      </span>
+                    </div>
+                  )}
+
+                  {verificationResult.extractedData.citizenName && (
+                    <div
+                      onMouseEnter={() => setHoveredBoxId("i1")}
+                      onMouseLeave={() => setHoveredBoxId(null)}
+                      className={`p-3 rounded-xl bg-white border transition ${
+                        hoveredBoxId === "i1" ? "border-emerald-600 ring-2 ring-emerald-400/30 bg-emerald-50/50" : "border-stone-200"
+                      }`}
+                    >
+                      <span className="text-stone-400 font-bold block">Citizen Name:</span>
+                      <span className="font-extrabold text-stone-900 text-sm">
+                        {verificationResult.extractedData.citizenName}
+                      </span>
+                    </div>
+                  )}
+
+                  {verificationResult.extractedData.dbtLinkedBank && (
+                    <div
+                      onMouseEnter={() => setHoveredBoxId("i2")}
+                      onMouseLeave={() => setHoveredBoxId(null)}
+                      className={`p-3 rounded-xl bg-white border transition ${
+                        hoveredBoxId === "i2" ? "border-emerald-600 ring-2 ring-emerald-400/30 bg-emerald-50/50" : "border-stone-200"
+                      }`}
+                    >
+                      <span className="text-stone-400 font-bold block">DBT Seeding Bank:</span>
+                      <span className="font-extrabold text-emerald-800 text-sm">
+                        {verificationResult.extractedData.dbtLinkedBank}
                       </span>
                     </div>
                   )}
                 </div>
               </div>
+
+              {/* Unlocked Schemes Badge Section */}
+              {verificationResult.schemesUnlocked && verificationResult.schemesUnlocked.length > 0 && (
+                <div className="bg-emerald-900 text-white p-4 rounded-2xl space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-amber-300" />
+                    <span className="text-xs font-black uppercase tracking-wider text-emerald-200">
+                      Schemes Unlocked by this Document:
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {verificationResult.schemesUnlocked.map((sc, idx) => (
+                      <span
+                        key={idx}
+                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-800/90 border border-emerald-600/50 text-xs font-bold text-white shadow-sm"
+                      >
+                        <Check className="w-3.5 h-3.5 text-emerald-300" />
+                        {sc}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
 
         {/* Footer Actions */}
-        <div className="p-4 bg-stone-50 border-t border-stone-200 flex items-center justify-end gap-3">
+        <div className="p-4 bg-stone-50 border-t border-stone-200 flex items-center justify-between gap-3">
           <button
             onClick={() => {
               setVerificationModalOpen(false);
               resetVerification();
             }}
-            className="px-4 py-2.5 rounded-xl border border-stone-300 text-stone-700 font-bold text-sm hover:bg-stone-100 transition"
+            className="px-4 py-2.5 rounded-xl border border-stone-300 text-stone-700 font-bold text-xs sm:text-sm hover:bg-stone-100 transition"
           >
-            Cancel
+            Close
           </button>
 
           {verificationResult && (
             <button
               onClick={confirmExtractedData}
-              className="px-6 py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-black text-sm shadow-md flex items-center gap-2 active:scale-98 transition"
+              className="px-5 sm:px-7 py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs sm:text-sm shadow-md flex items-center gap-2 active:scale-98 transition"
             >
               <ShieldCheck className="w-4 h-4 text-emerald-300" />
               <span>{t.confirmAndUpdate}</span>
