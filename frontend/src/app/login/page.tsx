@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -24,6 +24,8 @@ import {
   BadgeCheck,
   PhoneCall,
   Wheat,
+  Database,
+  RefreshCw,
 } from "lucide-react";
 import { useFarmerStore } from "@/store/useFarmerStore";
 import { DEMO_FARMERS } from "@/lib/mockData";
@@ -63,6 +65,78 @@ export default function LoginPage() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  // Live Database Connection Status
+  const [dbStatus, setDbStatus] = useState<{
+    loading: boolean;
+    connected: boolean;
+    userCount?: number;
+    schemeCount?: number;
+    error?: string;
+  }>({ loading: true, connected: false });
+
+  const [dbPasswordInput, setDbPasswordInput] = useState("");
+  const [isUpdatingDb, setIsUpdatingDb] = useState(false);
+  const [showDbConfig, setShowDbConfig] = useState(false);
+
+  const checkDbStatus = async () => {
+    setDbStatus((prev) => ({ ...prev, loading: true }));
+    try {
+      const res = await fetch("/api/db-status");
+      const data = await res.json();
+      setDbStatus({
+        loading: false,
+        connected: Boolean(data.connected),
+        userCount: data.userCount,
+        schemeCount: data.schemeCount,
+        error: data.error,
+      });
+      if (!data.connected) {
+        setShowDbConfig(true);
+      }
+    } catch (e: any) {
+      setDbStatus({ loading: false, connected: false, error: e.message });
+    }
+  };
+
+  useEffect(() => {
+    checkDbStatus();
+  }, []);
+
+  const handleConnectDatabase = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsUpdatingDb(true);
+    try {
+      const res = await fetch("/api/db-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: dbPasswordInput }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setDbStatus({
+          loading: false,
+          connected: true,
+          userCount: data.userCount,
+          schemeCount: data.schemeCount,
+        });
+        setFeedback({
+          type: "success",
+          message: "Connected to MySQL JanMithra successfully! Farmer data will now be stored in the database.",
+        });
+        setShowDbConfig(false);
+      } else {
+        setFeedback({
+          type: "error",
+          message: data.message || "Failed to authenticate with MySQL.",
+        });
+      }
+    } catch (err: any) {
+      setFeedback({ type: "error", message: err.message });
+    } finally {
+      setIsUpdatingDb(false);
+    }
+  };
 
   const handleOtpChange = (index: number, val: string) => {
     const digit = val.replace(/\D/g, "").slice(-1);
@@ -165,6 +239,83 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-950 via-stone-900 to-emerald-900 flex flex-col justify-center py-8 px-4 sm:px-6 lg:px-8">
+      {/* Database Connectivity Banner */}
+      <div className="max-w-4xl w-full mx-auto mb-4 rounded-2xl border p-4 shadow-sm bg-white border-stone-200">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className={`p-2.5 rounded-xl ${dbStatus.connected ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>
+              <Database className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-extrabold text-sm text-stone-900">
+                  Backend MySQL: JanMithra Connection
+                </span>
+                {dbStatus.loading ? (
+                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-stone-100 text-stone-600">
+                    Checking...
+                  </span>
+                ) : dbStatus.connected ? (
+                  <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 flex items-center gap-1 border border-emerald-300">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
+                    Live Connected
+                  </span>
+                ) : (
+                  <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300">
+                    Password Needed
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-stone-600 mt-0.5">
+                {dbStatus.connected
+                  ? `Connected to MySQL localhost:3306 (JanMithra) • ${dbStatus.userCount || 3} Registered Farmers`
+                  : "MySQL connection requires your root password to authenticate and save signups."}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            {!dbStatus.connected && (
+              <button
+                type="button"
+                onClick={() => setShowDbConfig(!showDbConfig)}
+                className="text-xs font-bold px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white shadow-sm transition"
+              >
+                {showDbConfig ? "Hide DB Setup" : "Enter MySQL Password"}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={checkDbStatus}
+              className="p-1.5 rounded-lg border border-stone-200 hover:bg-stone-50 text-stone-600 transition"
+              title="Refresh connection status"
+            >
+              <RefreshCw className={`w-4 h-4 ${dbStatus.loading ? "animate-spin" : ""}`} />
+            </button>
+          </div>
+        </div>
+
+        {/* Collapsible Password Input */}
+        {showDbConfig && !dbStatus.connected && (
+          <form onSubmit={handleConnectDatabase} className="mt-3 pt-3 border-t border-amber-200 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            <input
+              type="password"
+              value={dbPasswordInput}
+              onChange={(e) => setDbPasswordInput(e.target.value)}
+              placeholder="Enter MySQL root password used in JanMithra"
+              className="text-xs px-3 py-2 rounded-lg border border-stone-300 flex-1 focus:outline-none focus:border-emerald-600"
+            />
+            <button
+              type="submit"
+              disabled={isUpdatingDb}
+              className="text-xs font-bold px-4 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white transition active:scale-95 disabled:opacity-50"
+            >
+              {isUpdatingDb ? "Testing Connection..." : "Save & Connect"}
+            </button>
+          </form>
+        )}
+      </div>
+
       {/* Container */}
       <div className="max-w-4xl w-full mx-auto grid grid-cols-1 md:grid-cols-12 bg-white rounded-3xl shadow-2xl border border-emerald-500/20 overflow-hidden">
         {/* Left Side: Brand & Benefits */}

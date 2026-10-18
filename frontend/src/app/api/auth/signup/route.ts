@@ -72,6 +72,18 @@ export async function POST(request: Request) {
       avatarUrl,
     ]);
 
+    if (!insertResult.success) {
+      console.error("[MySQL JanMithra Signup Failure]:", insertResult.error);
+      return NextResponse.json(
+        {
+          success: false,
+          message: `Database error: Could not save user to MySQL JanMithra (${insertResult.error}). Please verify your MySQL password in .env.local.`,
+          error: insertResult.error,
+        },
+        { status: 500 }
+      );
+    }
+
     let newUserId = (insertResult.data as any)?.insertId || Date.now();
 
     const createdFarmer = {
@@ -98,9 +110,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
-      message: "Farmer account successfully registered in JanMithra MySQL database!",
+      message: "Farmer account successfully registered and saved into JanMithra.users table in MySQL!",
       user: createdFarmer,
-      dbSaved: insertResult.success,
+      dbSaved: true,
     });
   } catch (error: any) {
     console.error("Signup error:", error);
