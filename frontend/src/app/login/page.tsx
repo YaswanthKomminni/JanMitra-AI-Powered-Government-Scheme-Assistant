@@ -326,7 +326,7 @@ export default function LoginPage() {
                 <Sprout className="w-7 h-7 text-emerald-200" />
               </div>
               <div>
-                <h1 className="text-2xl font-black tracking-tight leading-none">JanMitra</h1>
+                <h1 className="text-2xl font-black tracking-tight leading-none">JanMithra</h1>
                 <p className="text-xs text-emerald-200/90 font-bold mt-1">
                   AI Government Scheme Assistant
                 </p>

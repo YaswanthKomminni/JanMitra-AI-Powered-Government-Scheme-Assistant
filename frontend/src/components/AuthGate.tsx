@@ -296,7 +296,7 @@ export default function AuthGate() {
                 <Sprout className="w-7 h-7 text-emerald-200" />
               </div>
               <div>
-                <h2 className="text-2xl font-black tracking-tight leading-none">JanMitra</h2>
+                <h2 className="text-2xl font-black tracking-tight leading-none">JanMithra</h2>
                 <p className="text-xs text-emerald-200/90 font-bold mt-1">
                   AI Welfare & Agriculture Assistant
                 </p>

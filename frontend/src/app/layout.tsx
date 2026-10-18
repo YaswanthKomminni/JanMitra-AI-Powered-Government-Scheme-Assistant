@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "KrishiMitra (JanMitra) - AI Agricultural & Scheme Assistant",
+  title: "JanMithra - AI Agricultural & Government Scheme Assistant",
   description: "Accessible, multilingual, voice-first AI platform for Indian farmers to discover government schemes, inspect land records with vision OCR, and connect with nearby peer farmers.",
 };
 

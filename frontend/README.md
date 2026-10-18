@@ -1,9 +1,9 @@
-# KrishiMitra (JanMitra) Frontend
+# JanMithra Frontend
 
 > **Accessible, Multilingual, Mobile-First Agricultural Advisory & Scheme Discovery UI**  
 > Built for Indian farmers, smallholders, and rural communities.
 
-Aligned with the [JanMitra GitHub Repository](https://github.com/YaswanthKomminni/JanMitra-AI-Powered-Government-Scheme-Assistant) and Elsevier Base Paper *"AI-based agricultural chatbots for sustainable farming: A systematic review"*.
+Aligned with the [JanMithra GitHub Repository](https://github.com/YaswanthKomminni/JanMitra-AI-Powered-Government-Scheme-Assistant) and Elsevier Base Paper *"AI-based agricultural chatbots for sustainable farming: A systematic review"*.
 
 ---
 

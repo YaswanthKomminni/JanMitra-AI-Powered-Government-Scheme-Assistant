@@ -282,7 +282,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="text-left">
             <p className="font-black text-stone-800 text-sm">
-              KrishiMitra (JanMitra) • AI Agricultural Scheme Discovery
+              JanMithra • AI Agricultural & Government Scheme Discovery
             </p>
             <p className="text-stone-500 mt-0.5">
               Empowering Indian Farmers with Grounded RAG, Llama 3.3 Reasoning, and Llama 3.2 Vision OCR

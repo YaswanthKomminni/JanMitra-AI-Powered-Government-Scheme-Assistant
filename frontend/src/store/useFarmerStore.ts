@@ -82,7 +82,7 @@ const INITIAL_MESSAGES: ChatMessage[] = [
   {
     id: "msg_01",
     sender: "ai",
-    text: "Namaste Ramesh Ji! I am KrishiMitra AI. Based on your 3.5 Acres Black Soil in Kothur, you are 98% eligible for PM-KUSUM 60% Solar Pump subsidy. Your neighbor Rameshwar Reddy (3.8 km away) already saved ₹4,600/month with it! How can I assist your farm today?",
+    text: "Namaste Ramesh Ji! I am JanMithra AI. Based on your 3.5 Acres Black Soil in Kothur, you are 98% eligible for PM-KUSUM 60% Solar Pump subsidy. Your neighbor Rameshwar Reddy (3.8 km away) already saved ₹4,600/month with it! How can I assist your farm today?",
     timestamp: "10:30 AM",
     clarificationChips: [
       "How to apply for PM-KUSUM Solar Pump?",
