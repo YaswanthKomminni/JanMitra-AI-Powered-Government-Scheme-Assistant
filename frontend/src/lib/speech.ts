@@ -9,34 +9,101 @@ export const LANGUAGE_BCP47_MAP: Record<SupportedLanguage, string> = {
   bn: "bn-IN",
 };
 
-// Web Speech API - Text to Speech helper
+// Global audio element reference to track ongoing audio playback
+let currentAudioElement: HTMLAudioElement | null = null;
+
+// Clean text for speech synthesis (strip markdown, emojis, asterisks, bullets)
+export function sanitizeTextForSpeech(text: string): string {
+  return text
+    .replace(/[*_#`\[\]]/g, "")
+    .replace(/[🏛️📜📋✅⚠️•]/g, "")
+    .replace(/(\n|\r)+/g, ". ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Robust Native Spoken Voice Readout
+ * 1. Primary: Native Regional Voice via /api/tts streaming endpoint (guarantees authentic
+ *    native speaker accent in Telugu, Tamil, Hindi, Kannada, Bengali, and English across all devices).
+ * 2. Secondary Fallback: Browser Web Speech API (with strict language-matching voices).
+ */
 export function speakText(
   text: string,
   lang: SupportedLanguage = "en",
   onEnd?: () => void,
   onError?: (err: any) => void
 ): boolean {
+  if (typeof window === "undefined") return false;
+
+  // Stop any currently playing audio or speech
+  stopSpeaking();
+
+  const cleanText = sanitizeTextForSpeech(text);
+  if (!cleanText) return false;
+
+  // Primary: Play native regional spoken audio via /api/tts
+  try {
+    const audioUrl = `/api/tts?lang=${encodeURIComponent(lang)}&text=${encodeURIComponent(cleanText)}`;
+    const audio = new Audio(audioUrl);
+    currentAudioElement = audio;
+
+    audio.onended = () => {
+      currentAudioElement = null;
+      if (onEnd) onEnd();
+    };
+
+    audio.onerror = () => {
+      console.warn("Audio endpoint stream failed, attempting browser SpeechSynthesis fallback...");
+      currentAudioElement = null;
+      playWebSpeechSynthesisFallback(cleanText, lang, onEnd, onError);
+    };
+
+    const playPromise = audio.play();
+    if (playPromise !== undefined) {
+      playPromise.catch((e) => {
+        console.warn("Audio autoplay policy prevented direct play, falling back to Web Speech:", e);
+        playWebSpeechSynthesisFallback(cleanText, lang, onEnd, onError);
+      });
+    }
+
+    return true;
+  } catch (err) {
+    console.warn("Failed to initialize Audio, falling back to SpeechSynthesis:", err);
+    return playWebSpeechSynthesisFallback(cleanText, lang, onEnd, onError);
+  }
+}
+
+/**
+ * Fallback to Web Speech API
+ */
+function playWebSpeechSynthesisFallback(
+  cleanText: string,
+  lang: SupportedLanguage,
+  onEnd?: () => void,
+  onError?: (err: any) => void
+): boolean {
   if (typeof window === "undefined" || !("speechSynthesis" in window)) {
-    console.warn("SpeechSynthesis is not supported in this browser.");
+    if (onError) onError("SpeechSynthesis not supported");
     return false;
   }
 
-  window.speechSynthesis.cancel(); // Stop ongoing speech
-
-  const cleanText = text.replace(/[*_#`\[\]]/g, "").trim();
-  if (!cleanText) return false;
+  window.speechSynthesis.cancel();
 
   const utterance = new SpeechSynthesisUtterance(cleanText);
   const targetLang = LANGUAGE_BCP47_MAP[lang] || "en-IN";
   utterance.lang = targetLang;
-  utterance.rate = 0.95; // Slightly slower, clearer for rural advisory
+  utterance.rate = 0.95;
   utterance.pitch = 1.0;
 
-  // Try to find a voice matching the language
   const voices = window.speechSynthesis.getVoices();
   const matchedVoice = voices.find(
-    (v) => v.lang.toLowerCase() === targetLang.toLowerCase() || v.lang.startsWith(lang)
+    (v) =>
+      v.lang.toLowerCase() === targetLang.toLowerCase() ||
+      v.lang.toLowerCase().startsWith(lang) ||
+      v.name.toLowerCase().includes(lang)
   );
+
   if (matchedVoice) {
     utterance.voice = matchedVoice;
   }
@@ -55,8 +122,26 @@ export function speakText(
 }
 
 export function stopSpeaking() {
-  if (typeof window !== "undefined" && "speechSynthesis" in window) {
-    window.speechSynthesis.cancel();
+  if (typeof window !== "undefined") {
+    // 1. Stop audio element
+    if (currentAudioElement) {
+      try {
+        currentAudioElement.pause();
+        currentAudioElement.currentTime = 0;
+      } catch (e) {
+        // ignore
+      }
+      currentAudioElement = null;
+    }
+
+    // 2. Stop browser speech synthesis
+    if ("speechSynthesis" in window) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch (e) {
+        // ignore
+      }
+    }
   }
 }
 
