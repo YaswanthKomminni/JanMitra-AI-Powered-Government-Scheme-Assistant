@@ -12,11 +12,12 @@ export const LANGUAGE_BCP47_MAP: Record<SupportedLanguage, string> = {
 // Global audio element reference to track ongoing audio playback
 let currentAudioElement: HTMLAudioElement | null = null;
 
-// Clean text for speech synthesis (strip markdown, emojis, asterisks, bullets)
+// Clean text for speech synthesis (strip markdown, emojis, asterisks, bullets, technical symbols)
 export function sanitizeTextForSpeech(text: string): string {
   return text
-    .replace(/[*_#`\[\]]/g, "")
-    .replace(/[🏛️📜📋✅⚠️•]/g, "")
+    .replace(/[🌾🏛️📜📋✅⚠️💡•▪🎯👉🔹]/g, "")
+    .replace(/[*_#`~\[\]]/g, "")
+    .replace(/\(.*?\)/g, "")
     .replace(/(\n|\r)+/g, ". ")
     .replace(/\s+/g, " ")
     .trim();
