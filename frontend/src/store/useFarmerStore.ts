@@ -212,6 +212,60 @@ export function formatDocumentAnalysisReply(det: any, lang: SupportedLanguage): 
   };
 }
 
+export function formatFarmerProfileReply(farmer: FarmerProfile, lang: SupportedLanguage): { text: string; chips: string[] } {
+  const name = farmer.name || "Ramesh Goud";
+  const phone = farmer.phone || "9876543210";
+  const village = farmer.village || "Kothur Gramam";
+  const district = farmer.district || "Rangareddy";
+  const state = farmer.state || "Telangana";
+  const acres = farmer.landSizeAcres || 3.5;
+  const soil = farmer.soilTypeName || "Black Soil (Regur)";
+  const crops = (farmer.primaryCrops || ["Cotton", "Chilli", "Red Gram"]).join(", ");
+  const irrigation = farmer.irrigationTypeName || "Drip & Borewell";
+  const income = farmer.annualIncomeSlab || "Below ₹2.5 Lakhs";
+  const docsCount = farmer.verifiedDocsCount || 2;
+
+  if (lang === "te") {
+    return {
+      text: `🌾 **రైతు ప్రొఫైల్ వివరాలు (Farmer Profile):**\nనమస్కారం **${name}** గారు! మా సిస్టంలో నమోదైన మీ వ్యవసాయ ప్రొఫైల్ వివరాలు ఇక్కడ ఉన్నాయి:\n\n📋 **వ్యక్తిగత & భూమి వివరాలు:**\n• **రైతు పేరు:** ${name}\n• **మొబైల్ నంబర్:** +91 ${phone} (ధృవీకరించబడింది)\n• **గ్రామం / ప్రాంతం:** ${village}, ${district} జిల్లా, ${state}\n• **వ్యవసాయ భూమి:** ${acres} ఎకరాలు\n• **నేల రకం:** ${soil} (నల్లరేగడి నేల)\n• **ప్రధాన పంటలు:** ${crops}\n• **నీటి పారుదల:** ${irrigation}\n• **వార్షిక ఆదాయ వర్గం:** ${income} (చిన్నకారు రైతు)\n• **ధృవీకరించబడిన పత్రాలు:** ${docsCount} (ధరణి పట్టాదారు పాస్ పుస్తకం & నేల పరీక్ష కార్డు)\n\n🎯 **మీకు అత్యధికంగా సరిపోయే ప్రభుత్వ పథకాలు:**\n1. **PM-KUSUM సోలార్ పంపు (98% అర్హత):** 5HP సోలార్ పంపుపై 60% సబ్సిడీ (ఆదా: ₹1,32,000).\n2. **PM-KISAN సమ్మాన్ నిధి:** సంవత్సరానికి ₹6,000 నేరుగా బ్యాంక్ ఖాతాలో జమ (16వ విడత పూర్తయింది).\n3. **కిసాన్ క్రెడిట్ కార్డ్ (KCC):** 4% రాయితీ వడ్డీకే బ్యాంకు పంట రుణం.\n4. **రైతు భరోసా / సాగు పెట్టుబడి సాయం:** పంట పెట్టుబడి మద్దతు.\n\nమీ వివరాల్లో ఏదైనా మార్పు చేయాలా లేదా ఏదైనా పథకానికి దరఖాస్తు చేసుకోవాలా?`,
+      chips: ["నా భూమి వివరాలు మార్చు", "సోలార్ పంపు 60% సబ్సిడీ", "సమీప రైతులతో మాట్లాడండి", "అర్హత గల అన్ని పథకాలు"],
+    };
+  }
+
+  if (lang === "hi") {
+    return {
+      text: `🌾 **किसान प्रोफ़ाइल विवरण (Farmer Profile):**\nनमस्ते **${name}** जी! हमारे सिस्टम में दर्ज आपकी खेती और भूमि का विवरण इस प्रकार है:\n\n📋 **व्यक्तिगत एवं भूमि विवरण:**\n• **किसान का नाम:** ${name}\n• **मोबाइल नंबर:** +91 ${phone} (सत्यापित)\n• **गांव / जिला:** ${village}, ${district}, ${state}\n• **कुल कृषि भूमि:** ${acres} एकड़\n• **मिट्टी का प्रकार:** ${soil}\n• **प्रमुख फसलें:** ${crops}\n• **सिंचाई व्यवस्था:** ${irrigation}\n• **वार्षिक आय वर्ग:** ${income} (लघु एवं सीमांत किसान)\n• **सत्यापित दस्तावेज़:** ${docsCount} (धरणी पट्टा पासबुक, मृदा स्वास्थ्य कार्ड)\n\n🎯 **आपके लिए शीर्ष अनुशंसित सरकारी योजनाएं:**\n1. **PM-KUSUM योजना (98% पात्रता):** 5HP सोलर पंप पर 60% सरकारी सब्सिडी (बचत: ₹1,32,000).\n2. **PM-KISAN सम्मान निधि:** ₹6,000 वार्षिक डायरेक्ट बैंक ट्रांसफर (16वीं किस्त स्वीकृत).\n3. **किसान क्रेडिट कार्ड (KCC):** 4% रियायती ब्याज दर पर फसली ऋण.\n4. **फसल बीमा योजना (PMFBY):** प्राकृतिक आपदाओं से फसल सुरक्षा.\n\nक्या आप अपनी जानकारी अपडेट करना चाहते हैं या किसी योजना का विवरण देखना चाहते हैं?`,
+      chips: ["भूमि विवरण अपडेट करें", "सोलर पंप 60% सब्सिडी", "आसपास के किसान से जुड़ें", "पात्र सरकारी योजनाएं"],
+    };
+  }
+
+  if (lang === "ta") {
+    return {
+      text: `🌾 **விவசாயி சுயவிவரம் (Farmer Profile):**\nவணக்கம் **${name}** அவர்களே! எங்களது அமைப்பில் பதிவு செய்யப்பட்டுள்ள உங்கள் விவசாய விவரங்கள்:\n\n📋 **தனிப்பட்ட & நில விவரங்கள்:**\n• **விவசாயி பெயர்:** ${name}\n• **கைபேசி எண்:** +91 ${phone} (சரிபார்க்கப்பட்டது)\n• **கிராமம் / மாவட்டம்:** ${village}, ${district}, ${state}\n• **விவசாய நிலம்:** ${acres} ஏக்கர்\n• **மண் வகை:** ${soil}\n• **முதன்மை பயிர்கள்:** ${crops}\n• **பாசன வசதி:** ${irrigation}\n• **வருமான வரம்பு:** ${income} (சிறு விவசாயி)\n• **சரிபார்க்கப்பட்ட ஆவணங்கள்:** ${docsCount} (பட்டாதாரர் பாஸ்புக், மண் அட்டை)\n\n🎯 **உங்களுக்கான முன்னணி அரசு திட்டங்கள்:**\n1. **PM-KUSUM திட்டம் (98% தகுதி):** 5HP சோலார் பம்பிற்கு 60% மானியம் (சேமிப்பு: ₹1,32,000).\n2. **PM-KISAN சம்மான் நிதி:** ஆண்டுக்கு ₹6,000 நேரடி வங்கி வரவு (16வது தவணை தயார்).\n3. **கிசான் கிரெடிட் கார்டு (KCC):** 4% மானிய வட்டியில் பயிர்க்கடன்.\n4. **மண் ஆரோக்கிய அட்டை:** உகந்த உரம் மற்றும் பூச்சி மேலாண்மை.\n\nஉங்கள் விவரங்களை புதுப்பிக்க வேண்டுமா அல்லது திட்டங்களுக்கு விண்ணப்பிக்க வேண்டுமா?`,
+      chips: ["நில விவரங்களை மாற்று", "சோலார் பம்ப் 60% மானியம்", "அருகிலுள்ள விவசாயியுடன் பேசுங்கள்", "அனைத்து அரசு திட்டங்கள்"],
+    };
+  }
+
+  if (lang === "kn") {
+    return {
+      text: `🌾 **ರೈತರ ಪ್ರೊಫೈಲ್ ವಿವರಗಳು (Farmer Profile):**\nನಮಸ್ಕಾರ **${name}** ಅವರೇ! ನಮ್ಮ ಸಿಸ್ಟಮ್‌ನಲ್ಲಿ ನೋಂದಾಯಿಸಲಾದ ನಿಮ್ಮ ಕೃಷಿ ವಿವರಗಳು ಇಲ್ಲಿವೆ:\n\n📋 **ವೈಯಕ್ತಿಕ ಮತ್ತು ಜಮೀನಿನ ವಿವರಗಳು:**\n• **ರೈತರ ಹೆಸರು:** ${name}\n• **ಮೊಬೈಲ್ ಸಂಖ್ಯೆ:** +91 ${phone} (ಪರಿಶೀಲಿಸಲಾಗಿದೆ)\n• **ಗ್ರಾಮ / ಜಿಲ್ಲೆ:** ${village}, ${district}, ${state}\n• **ಕೃಷಿ ಭೂಮಿ:** ${acres} ಎಕರೆ\n• **ಮಣ್ಣಿನ ಪ್ರಕಾರ:** ${soil}\n• **ಪ್ರಮುಖ ಬೆಳೆಗಳು:** ${crops}\n• **ನೀರಾವರಿ ಸೌಲಭ್ಯ:** ${irrigation}\n• **ವಾರ್ಷಿಕ ಆದಾಯ:** ${income} (ಸಣ್ಣ ರೈತರು)\n• **ಪರಿಶೀಲಿಸಿದ ದಾಖಲೆಗಳು:** ${docsCount} (ಪಟ್ಟಾದಾರ ಪಾಸ್ ಬುಕ್, ಮಣ್ಣಿನ ಆರೋಗ್ಯ ಕಾರ್ಡ್)\n\n🎯 **ನಿಮಗೆ ಹೆಚ್ಚು ಹೊಂದಿಕೆಯಾಗುವ ಸರ್ಕಾರಿ ಯೋಜನೆಗಳು:**\n1. **PM-KUSUM ಯೋಜನೆ (98% ಅರ್ಹತೆ):** 5HP ಸೋಲಾರ್ ಪಂಪ್‌ಗೆ 60% ಸಬ್ಸಿಡಿ (ಉಳಿತಾಯ: ₹1,32,000).\n2. **PM-KISAN ಸಮ್ಮಾನ್ ನಿಧಿ:** ವರ್ಷಕ್ಕೆ ₹6,000 ನೇರ ಬ್ಯಾಂಕ್ ಜಮೆ (16ನೇ ಕಂತು ಸಿದ್ಧ).\n3. **ಕಿಸಾನ್ ಕ್ರೆಡಿಟ್ ಕಾರ್ಡ್ (KCC):** 4% ರಿಯಾಯಿತಿ ಬಡ್ಡಿಯಲ್ಲಿ ಕೃಷಿ ಸಾಲ.\n4. **ಬೆಳೆ ವಿಮೆ (PMFBY):** ಬೆಳೆಗಳಿಗೆ ವಿಮಾ ರಕ್ಷಣೆ.\n\nನಿಮ್ಮ ವಿವರಗಳನ್ನು ನವೀಕರಿಸಬೇಕೆ ಅಥವಾ ಯೋಜನೆಗಳಿಗೆ ಅರ್ಜಿ ಸಲ್ಲಿಸಬೇಕೆ?`,
+      chips: ["ಜಮೀನಿನ ವಿವರ ಬದಲಾಯಿಸಿ", "ಸೋಲಾರ್ ಪಂಪ್ 60% ಸಬ್ಸಿಡಿ", "ಸಮೀಪದ ರೈತರೊಂದಿಗೆ ಮಾತನಾಡಿ", "ಎಲ್ಲಾ ಸರ್ಕಾರಿ ಯೋಜನೆಗಳು"],
+    };
+  }
+
+  if (lang === "bn") {
+    return {
+      text: `🌾 **কৃষক প্রোফাইল বিবরণ (Farmer Profile):**\nনমস্কার **${name}** বাবু! আমাদের সিস্টেমে নথিভুক্ত আপনার কৃষি তথ্য নিম্নরূপ:\n\n📋 **ব্যক্তিগত ও জমির বিবরণ:**\n• **কৃষকের নাম:** ${name}\n• **মোবাইল নম্বর:** +91 ${phone} (যাচাইকৃত)\n• **গ্রাম / জেলা:** ${village}, ${district}, ${state}\n• **মোট কৃষিজমি:** ${acres} একর\n• **মাটির ধরন:** ${soil}\n• **প্রধান ফসল:** ${crops}\n• **সেচ ব্যবস্থা:** ${irrigation}\n• **বার্ষিক আয়:** ${income} (ক্ষুদ্র ও প্রান্তিক কৃষক)\n• **যাচাইকৃত নথি:** ${docsCount}টি (ধরণী পাট্টাদার পাসবুক, মৃত্তিকা স্বাস্থ্য কার্ড)\n\n🎯 **আপনার জন্য শীর্ষ সরকারি প্রকল্প:**\n1. **PM-KUSUM প্রকল্প (৯৮% যোগ্যতা):** ৫HP সৌর পাম্পে ৬০% সরকারি ভর্তুকি (সঞ্চয়: ₹১,৩২,০০০)।\n2. **PM-KISAN সম্মান নিধি:** বার্ষিক ₹৬,০০০ সরাসরি ব্যাংক ট্রান্সফার (১৬তম কিস্তি অনুমোদিত)।\n3. **কিষাণ ক্রেডিট কার্ড (KCC):** ৪% রেয়াতি সুদে ফসল ঋণ।\n4. **ফসল বীমা (PMFBY):** ফসলের সুরক্ষার জন্য বীমা সহায়তা।\n\nআপনি কি আপনার তথ্য পরিবর্তন করতে চান নাকি কোনো প্রকল্পে আবেদন করতে চান?`,
+      chips: ["জমির বিবরণ পরিবর্তন করুন", "সৌর পাম্প ৬০% ভর্তুকি", "নিকটবর্তী কৃষকের সাথে যোগাযোগ", "যোগ্য সরকারি প্রকল্পসমূহ"],
+    };
+  }
+
+  return {
+    text: `🌾 **Farmer Profile & Farm Records:**\nNamaste **${name} Ji**! Here are your registered farm records in JanMithra AI:\n\n📋 **Personal & Land Details:**\n• **Farmer Name:** ${name}\n• **Mobile Number:** +91 ${phone} (Verified)\n• **Location:** ${village}, ${district} District, ${state}\n• **Farm Size:** ${acres} Acres\n• **Soil Type:** ${soil}\n• **Primary Crops:** ${crops}\n• **Irrigation:** ${irrigation}\n• **Annual Income:** ${income} (Small & Marginal Farmer)\n• **Verified Documents:** ${docsCount} (Dharani Patta Passbook & Soil Health Card)\n\n🎯 **Top Eligible Welfare Schemes:**\n1. **PM-KUSUM Scheme (98% Match):** 60% Solar Pump Subsidy for 5HP Pump (Subsidy benefit: ₹1,32,000).\n2. **PM-KISAN Samman Nidhi:** ₹6,000/year Direct Benefit Transfer (16th Installment processed).\n3. **Kisan Credit Card (KCC):** 4% concessional interest crop loan up to ₹3,00,000.\n4. **PMFBY Crop Insurance:** Risk coverage for Cotton & Chilli against pest attack and unseasonal rain.\n\nWould you like to update your details or apply for any of these schemes?`,
+    chips: ["Update My Land Details", "Apply for PM-KUSUM 60%", "Connect with Nearby Peer Farmers", "View All Eligible Schemes"],
+  };
+}
+
 interface FarmerState {
   language: SupportedLanguage;
   currentFarmer: FarmerProfile;
@@ -403,6 +457,24 @@ export const useFarmerStore = create<FarmerState>((set, get) => ({
       // 5. Conversational AI responses in chat history
       if (msg.sender === "ai" && !msg.docDetection) {
         const text = msg.text;
+
+        // Farmer Profile inquiry response
+        if (
+          text.includes("రైతు ప్రొఫైల్") ||
+          text.includes("Farmer Profile") ||
+          text.includes("किसान प्रोफ़ाइल") ||
+          text.includes("விவசாயி சுயவிவரம்") ||
+          text.includes("ರೈತರ ಪ್ರೊಫೈಲ್") ||
+          text.includes("কৃষক প্রোফাইল")
+        ) {
+          const formatted = formatFarmerProfileReply(get().currentFarmer, lang);
+          return {
+            ...msg,
+            text: formatted.text,
+            clarificationChips: formatted.chips,
+          };
+        }
+
         // Whitefly pest control
         if (
           text.includes("Whitefly") ||
@@ -499,6 +571,103 @@ export const useFarmerStore = create<FarmerState>((set, get) => ({
               ...msg,
               text: "Under PM-KUSUM Scheme Component-B, you are eligible for 60% subsidy on a 5HP Solar Pump (Subsidy value ₹1,32,000). Your neighbor Rameshwar Reddy (3.8 km away in Kothur) installed this and saved ₹4,600/month on diesel! What is your existing water source type?",
               clarificationChips: ["I have a Borewell", "Open Irrigation Well", "Canal Water only", "What documents are needed?"],
+            };
+          }
+        }
+
+        // PM-KISAN installment
+        if (
+          text.includes("PM-KISAN") ||
+          text.includes("16వ విడత") ||
+          text.includes("16वीं किस्त") ||
+          text.includes("16வது தவணை") ||
+          text.includes("16ನೇ ಕಂತು") ||
+          text.includes("১৬তম কিস্তি")
+        ) {
+          if (lang === "te") {
+            return {
+              ...msg,
+              text: "మీ PM-KISAN 16వ విడత ₹2,000 ప్రాసెస్ చేయబడింది. మీ ఆధార్ ఈ-కేవైసీ మరియు ధరణి రికార్డులు మీ SBI బ్యాంక్ ఖాతా (చివరి అంకెలు •••• 4108) తో లింక్ చేయబడ్డాయి.",
+              clarificationChips: ["తదుపరి విడత తేదీ?", "రసీదు డౌన్‌లోడ్", "భూమి లింకేజీ స్థితి"],
+            };
+          } else if (lang === "hi") {
+            return {
+              ...msg,
+              text: "आपकी PM-KISAN 16वीं किस्त ₹2,000 स्वीकृत हो चुकी है। आपका आधार ई-केवाईसी और भूमि रिकॉर्ड आपके एसबीआई खाते (•••• 4108) से लिंक हैं।",
+              clarificationChips: ["अगली किस्त की तारीख?", "भुगतान रसीद डाउनलोड करें", "भूमि लिंकेज जांचें"],
+            };
+          } else if (lang === "ta") {
+            return {
+              ...msg,
+              text: "உங்கள் PM-KISAN 16வது தவணை ₹2,000 அங்கீகரிக்கப்பட்டுவிட்டது. உங்கள் ஆதார் இ-கேஒய்சி மற்றும் நில ஆவணங்கள் உங்கள் எஸ்பிஐ வங்கி கணக்குடன் (•••• 4108) இணைக்கப்பட்டுள்ளன.",
+              clarificationChips: ["அடுத்த தவணை எப்போது?", "கட்டண ரசீது பதிவிறக்கம்", "நில இணைப்பு நிலை"],
+            };
+          } else if (lang === "kn") {
+            return {
+              ...msg,
+              text: "ನಿಮ್ಮ PM-KISAN 16ನೇ ಕಂತು ₹2,000 ಪ್ರಕ್ರಿಯೆಗೊಂಡಿದೆ. ನಿಮ್ಮ ಆಧಾರ್ ಇ-ಕೆವೈಸಿ ಮತ್ತು ಭೂ ದಾಖಲೆಗಳು ನಿಮ್ಮ ಎಸ್‌ಬಿಐ ಬ್ಯಾಂಕ್ ಖಾತೆಗೆ (•••• 4108) ಲಿಂಕ್ ಆಗಿವೆ.",
+              clarificationChips: ["ಮುಂದಿನ ಕಂತಿನ ದಿನಾಂಕ?", "ಪಾವತಿ ರಶೀದಿ ಡೌನ್‌ಲೋಡ್", "ಭೂಮಿ ಲಿಂಕ್ ಸ್ಥಿತಿ"],
+            };
+          } else if (lang === "bn") {
+            return {
+              ...msg,
+              text: "আপনার PM-KISAN ১৬তম কিস্তি ₹২,০০০ অনুমোদিত হয়েছে। আপনার আধার ই-কেওয়াইসি এবং জমির রেকর্ড আপনার এসবিআই অ্যাকাউন্টের সাথে (•••• ৪১০৮) লিঙ্ক করা রয়েছে।",
+              clarificationChips: ["পরের কিস্তির তারিখ?", "পেমেন্ট রশিদ ডাউনলোড", "জমির লিঙ্ক স্ট্যাটাস"],
+            };
+          } else {
+            return {
+              ...msg,
+              text: "Your PM-KISAN 16th installment of ₹2,000 is processed. Your Aadhaar e-KYC and Dharani Land Record are verified and linked to your SBI Bank Account ending in •••• 4108.",
+              clarificationChips: ["Next installment date?", "Download Payment Receipt", "Check land linkage"],
+            };
+          }
+        }
+
+        // Generic recommendation fallback
+        if (
+          text.includes("అర్థమైంది! మీ") ||
+          text.includes("समझा! आपकी") ||
+          text.includes("புரிந்தது! உங்கள்") ||
+          text.includes("ತಿಳಿಯಿತು! ನಿಮ್ಮ") ||
+          text.includes("বুঝেছি! আপনার") ||
+          text.includes("Understood! With your")
+        ) {
+          const farmer = get().currentFarmer;
+          if (lang === "te") {
+            return {
+              ...msg,
+              text: `అర్థమైంది! మీ ${farmer.landSizeAcres} ఎకరాల ${farmer.soilTypeName} నేల (${farmer.village}) ఆధారంగా, మా ఏఐ ఇంజిన్ PM-KUSUM సోలార్ పంపు మరియు నేల పరీక్ష కార్డు కోసం దరఖాస్తు చేసుకోవాలని సిఫార్సు చేస్తోంది. మీకు ఏ నిర్దిష్ట సలహా లేదా సబ్సిడీ వివరాలు కావాలి?`,
+              clarificationChips: ["సోలార్ పంపు 60% సబ్సిడీ", "ఉచిత నేల పరీక్ష కార్డు", "తక్కువ వడ్డీ కిసాన్ క్రెడిట్ కార్డ్ (KCC)", "సమీప రైతుతో మాట్లాడండి"],
+            };
+          } else if (lang === "hi") {
+            return {
+              ...msg,
+              text: `समझा! आपकी ${farmer.landSizeAcres} एकड़ ${farmer.soilTypeName} भूमि (${farmer.village}) के आधार पर, हमारा एआई इंजन PM-KUSUM और सॉइल हेल्थ टेस्टिंग की सिफारिश करता है। आप किस योजना या सलाह की जानकारी चाहते हैं?`,
+              clarificationChips: ["सोलर पंप 60% सब्सिडी", "मुफ़्त मृदा परीक्षण कार्ड", "कम ब्याज किसान क्रेडिट कार्ड", "आसपास के किसान से जुड़ें"],
+            };
+          } else if (lang === "ta") {
+            return {
+              ...msg,
+              text: `புரிந்தது! உங்கள் ${farmer.landSizeAcres} ஏக்கர் ${farmer.soilTypeName} நிலம் (${farmer.village}) அடிப்படையில், எங்களது AI என்ஜின் PM-KUSUM சோலார் பம்ப் மற்றும் மண் பரிசோதனை அட்டைக்கு விண்ணப்பிக்க பரிந்துரைக்கிறது. உங்களுக்கு என்ன குறிப்பிட்ட ஆலோசனை தேவை?`,
+              clarificationChips: ["சோலார் பம்ப் 60% மானியம்", "இலவச மண் பரிசோதனை அட்டை", "குறைந்த வட்டி கிசான் கிரெடிட் கார்டு (KCC)", "அருகிலுள்ள விவசாயியுடன் பேசுங்கள்"],
+            };
+          } else if (lang === "kn") {
+            return {
+              ...msg,
+              text: `ತಿಳಿಯಿತು! ನಿಮ್ಮ ${farmer.landSizeAcres} ಎಕರೆ ${farmer.soilTypeName} ಭೂಮಿ (${farmer.village}) ಆಧರಿಸಿ, ನಮ್ಮ AI ಎಂಜಿನ್ PM-KUSUM ಸೋಲಾರ್ ಪಂಪ್ ಮತ್ತು ಮಣ್ಣಿನ ಆರೋಗ್ಯ ಕಾರ್ಡ್‌ಗೆ ಅರ್ಜಿ ಸಲ್ಲಿಸಲು ಶಿಫಾರಸು ಮಾಡುತ್ತದೆ. ನಿಮಗೆ ಯಾವ ನಿರ್ದಿಷ್ಟ ಸಲಹೆ ಅಥವಾ ಸಬ್ಸಿಡಿ ಮಾಹಿತಿ ಬೇಕು?`,
+              clarificationChips: ["ಸೋಲಾರ್ ಪಂಪ್ 60% ಸಬ್ಸಿಡಿ", "ಉಚಿತ ಮಣ್ಣಿನ ಪರೀಕ್ಷಾ ಕಾರ್ಡ್", "ಕಡಿಮೆ ಬಡ್ಡಿಯ ಕಿಸಾನ್ ಕ್ರೆಡಿಟ್ ಕಾರ್ಡ್", "ಸಮೀಪದ ರೈತರೊಂದಿಗೆ ಮಾತನಾಡಿ"],
+            };
+          } else if (lang === "bn") {
+            return {
+              ...msg,
+              text: `বুঝেছি! আপনার ${farmer.landSizeAcres} একর ${farmer.soilTypeName} জমি (${farmer.village}) অনুযায়ী, আমাদের এআই ইঞ্জিন PM-KUSUM সৌর পাম্প এবং মৃত্তিকা স্বাস্থ্য কার্ডের জন্য আবেদনের পরামর্শ দিচ্ছে। আপনি কোন প্রকল্পের তথ্য জানতে চান?`,
+              clarificationChips: ["সৌর পাম্প ৬০% ভর্তুকি", "বিনামূল্যে মৃত্তিকা পরীক্ষা কার্ড", "স্বল্প সুদের কিষাণ ক্রেডিট কার্ড", "নিকটবর্তী কৃষকের সাথে যোগাযোগ"],
+            };
+          } else {
+            return {
+              ...msg,
+              text: `Understood! With your ${farmer.landSizeAcres} Acres of ${farmer.soilTypeName} in ${farmer.village}, our AI engine recommends applying for PM-KUSUM and Soil Health Testing. What specific advice or subsidy would you like to explore?`,
+              clarificationChips: ["Solar Pump 60% Subsidy", "Soil Health Card Free Test", "Low-Interest Kisan Credit Card", "Connect with nearby peer farmer"],
             };
           }
         }
@@ -676,7 +845,53 @@ export const useFarmerStore = create<FarmerState>((set, get) => ({
       let replyText = "";
       let chips: string[] | undefined = undefined;
 
-      if (
+      // 1. Farmer Profile / Identity / Registered Details Inquiry
+      const isProfileQuery =
+        lower.includes("గురించి") ||
+        lower.includes("వివరాలు") ||
+        lower.includes("సమాచారం") ||
+        lower.includes("ప్రొఫైల్") ||
+        lower.includes("నేను ఎవరు") ||
+        lower.includes("నా భూమి") ||
+        lower.includes("రికార్డు") ||
+        lower.includes("about me") ||
+        lower.includes("my profile") ||
+        lower.includes("my details") ||
+        lower.includes("who am i") ||
+        lower.includes("what do you know about me") ||
+        lower.includes("tell me about me") ||
+        lower.includes("my land details") ||
+        lower.includes("my farm") ||
+        lower.includes("my info") ||
+        lower.includes("मेरे बारे") ||
+        lower.includes("मेरी जानकारी") ||
+        lower.includes("मेरा विवरण") ||
+        lower.includes("मेरी प्रोफ़ाइल") ||
+        lower.includes("मेरी ज़मीन") ||
+        lower.includes("मैं कौन हूँ") ||
+        lower.includes("என்னை பற்றி") ||
+        lower.includes("என் விவரங்கள்") ||
+        lower.includes("எனது சுயவிவரம்") ||
+        lower.includes("என் நிலம்") ||
+        lower.includes("நான் யார்") ||
+        lower.includes("ನನ್ನ ಬಗ್ಗೆ") ||
+        lower.includes("ನನ್ನ ವಿವರಗಳು") ||
+        lower.includes("ನನ್ನ ಪ್ರೊಫೈಲ್") ||
+        lower.includes("ನನ್ನ ಜಮೀನು") ||
+        lower.includes("ನಾನು ಯಾರು") ||
+        lower.includes("আমার সম্পর্কে") ||
+        lower.includes("আমার তথ্য") ||
+        lower.includes("আমার বিবরণ") ||
+        lower.includes("আমার প্রোফাইল") ||
+        lower.includes("আমার জমি") ||
+        lower.includes("আমি কে");
+
+      if (isProfileQuery) {
+        const farmer = get().currentFarmer;
+        const profileReply = formatFarmerProfileReply(farmer, lang);
+        replyText = profileReply.text;
+        chips = profileReply.chips;
+      } else if (
         lower.includes("kusum") ||
         lower.includes("solar") ||
         lower.includes("pump") ||
@@ -815,9 +1030,39 @@ export const useFarmerStore = create<FarmerState>((set, get) => ({
       lower.includes("scanner") ||
       lower.includes("చూడండి") ||
       lower.includes("देखें") ||
-      lower.includes("open document")
+      lower.includes("open document") ||
+      lower.includes("మార్చు") ||
+      lower.includes("update") ||
+      lower.includes("अपडेट") ||
+      lower.includes("மாற்று") ||
+      lower.includes("ಬದಲಾಯಿಸಿ") ||
+      lower.includes("পরিবর্তন")
     ) {
       set({ verificationModalOpen: true });
+      return;
+    }
+    if (
+      lower.includes("సమీప రైతు") ||
+      lower.includes("రైతులతో మాట్లాడండి") ||
+      lower.includes("किसान से जुड़ें") ||
+      lower.includes("விவசாயியுடன் பேசுங்கள்") ||
+      lower.includes("ರೈತರೊಂದಿಗೆ ಮಾತನಾಡಿ") ||
+      lower.includes("কৃষকের সাথে") ||
+      lower.includes("peer")
+    ) {
+      set({ activeTab: "peers" });
+      return;
+    }
+    if (
+      lower.includes("అన్ని పథకాలు") ||
+      lower.includes("పాత్ పథకాలు") ||
+      lower.includes("पात्र सरकारी योजनाएं") ||
+      lower.includes("அனைத்து அரசு திட்டங்கள்") ||
+      lower.includes("ಎಲ್ಲಾ ಸರ್ಕಾರಿ ಯೋಜನೆಗಳು") ||
+      lower.includes("যোগ্য সরকারি প্রকল্প") ||
+      lower.includes("eligible schemes")
+    ) {
+      set({ activeTab: "schemes" });
       return;
     }
     get().sendChatMessage(chipText);
