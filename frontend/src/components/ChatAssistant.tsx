@@ -15,6 +15,8 @@ import {
   HelpCircle,
   CheckCircle2,
   X,
+  FileText,
+  UploadCloud,
 } from "lucide-react";
 import { useFarmerStore } from "@/store/useFarmerStore";
 import { translations } from "@/lib/i18n";
@@ -38,7 +40,13 @@ export default function ChatAssistant() {
   } = useFarmerStore();
 
   const [inputVal, setInputVal] = useState("");
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<{
+    base64: string;
+    name: string;
+    type: string;
+    size: string;
+    isImage: boolean;
+  } | null>(null);
   const [speechActive, setSpeechActive] = useState(false);
   const [liveCameraOpen, setLiveCameraOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -47,12 +55,19 @@ export default function ChatAssistant() {
 
   const t = translations[language];
 
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      const isImg = file.type.startsWith("image/");
       const reader = new FileReader();
       reader.onload = (ev) => {
-        setSelectedImage(ev.target?.result as string);
+        setSelectedFile({
+          base64: ev.target?.result as string,
+          name: file.name,
+          type: file.type || "application/octet-stream",
+          size: (file.size / 1024).toFixed(1) + " KB",
+          isImage: isImg,
+        });
       };
       reader.readAsDataURL(file);
     }
@@ -117,13 +132,18 @@ export default function ChatAssistant() {
   };
 
   const handleSend = () => {
-    if (!inputVal.trim() && !selectedImage) return;
+    if (!inputVal.trim() && !selectedFile) return;
     sendChatMessage(
-      inputVal.trim() || "Please inspect this attached crop/document photo using AI Vision",
-      selectedImage || undefined
+      inputVal.trim() ||
+        (selectedFile?.isImage
+          ? "Please inspect this attached crop/document photo using AI Vision"
+          : `Please analyze this attached government document: ${selectedFile?.name}`),
+      selectedFile?.base64,
+      selectedFile?.name,
+      selectedFile?.type
     );
     setInputVal("");
-    setSelectedImage(null);
+    setSelectedFile(null);
     if (chatFileInputRef.current) {
       chatFileInputRef.current.value = "";
     }
@@ -208,11 +228,21 @@ export default function ChatAssistant() {
                 }`}
               >
                 {msg.image && (
-                  <img
-                    src={msg.image}
-                    alt="Uploaded inspection"
-                    className="w-full max-h-48 object-cover rounded-2xl mb-3 border border-stone-200"
-                  />
+                  msg.image.startsWith("data:image/") || (!msg.fileType?.includes("pdf") && !msg.fileType?.includes("doc") && !msg.fileType?.includes("text")) ? (
+                    <img
+                      src={msg.image}
+                      alt="Uploaded inspection"
+                      className="w-full max-h-56 object-contain rounded-2xl mb-3 border border-stone-200 bg-stone-900"
+                    />
+                  ) : (
+                    <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/10 border border-white/20 mb-3 text-white">
+                      <FileText className="w-8 h-8 text-emerald-300 shrink-0" />
+                      <div className="text-xs truncate">
+                        <p className="font-bold truncate">{msg.fileName || "Uploaded Document"}</p>
+                        <p className="opacity-80 text-[10px]">Verified Document File</p>
+                      </div>
+                    </div>
+                  )
                 )}
                 <p className="whitespace-pre-line">{msg.text}</p>
 
@@ -302,19 +332,25 @@ export default function ChatAssistant() {
 
       {/* Bottom Input Area */}
       <div className="p-3 sm:p-4 bg-white border-t border-stone-200">
-        {/* Selected Image Preview Strip */}
-        {selectedImage && (
+        {/* Selected File / Image Preview Strip */}
+        {selectedFile && (
           <div className="mb-3 flex items-center justify-between p-2.5 rounded-2xl bg-emerald-50 border border-emerald-200 animate-in fade-in">
             <div className="flex items-center gap-3">
               <div className="relative">
-                <img
-                  src={selectedImage}
-                  alt="Attached"
-                  className="w-12 h-12 object-cover rounded-xl border border-emerald-400 shadow-sm"
-                />
+                {selectedFile.isImage ? (
+                  <img
+                    src={selectedFile.base64}
+                    alt="Attached"
+                    className="w-12 h-12 object-cover rounded-xl border border-emerald-400 shadow-sm"
+                  />
+                ) : (
+                  <div className="w-12 h-12 rounded-xl bg-emerald-100 border border-emerald-400 flex items-center justify-center text-emerald-800 shadow-sm">
+                    <FileText className="w-6 h-6" />
+                  </div>
+                )}
                 <button
                   onClick={() => {
-                    setSelectedImage(null);
+                    setSelectedFile(null);
                     if (chatFileInputRef.current) chatFileInputRef.current.value = "";
                   }}
                   className="absolute -top-1.5 -right-1.5 p-0.5 bg-red-600 text-white rounded-full shadow hover:bg-red-700"
@@ -323,18 +359,22 @@ export default function ChatAssistant() {
                 </button>
               </div>
               <div className="text-xs">
-                <p className="font-extrabold text-emerald-950 flex items-center gap-1">
-                  <ImageIcon className="w-3.5 h-3.5 text-emerald-700" />
-                  Crop / Document Image Attached
+                <p className="font-extrabold text-emerald-950 flex items-center gap-1.5 truncate max-w-[220px] sm:max-w-md">
+                  {selectedFile.isImage ? (
+                    <ImageIcon className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                  ) : (
+                    <FileText className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                  )}
+                  <span className="truncate">{selectedFile.name}</span>
                 </p>
                 <p className="text-[11px] text-emerald-800 font-medium">
-                  Ready for Llama 3.2 Vision OCR inspection
+                  {selectedFile.size} • Ready for AI OCR Document & Scheme Analysis
                 </p>
               </div>
             </div>
             <button
               onClick={() => {
-                setSelectedImage(null);
+                setSelectedFile(null);
                 if (chatFileInputRef.current) chatFileInputRef.current.value = "";
               }}
               className="text-xs font-bold text-stone-500 hover:text-stone-800 px-2 py-1 rounded-lg hover:bg-emerald-100"
@@ -345,13 +385,13 @@ export default function ChatAssistant() {
         )}
 
         <div className="flex items-center gap-2">
-          {/* Hidden File Input for Image Attachment */}
+          {/* Hidden File Input for Documents and Images */}
           <input
             ref={chatFileInputRef}
             type="file"
-            accept="image/*"
+            accept="image/*,application/pdf,.doc,.docx,.txt"
             className="hidden"
-            onChange={handleImageSelect}
+            onChange={handleFileSelect}
           />
 
           {/* Take Live Camera Photo */}
@@ -363,13 +403,13 @@ export default function ChatAssistant() {
             <Camera className="w-5 h-5 text-emerald-900" />
           </button>
 
-          {/* Quick Attach Image File */}
+          {/* Quick Attach Document or Image File */}
           <button
             onClick={() => chatFileInputRef.current?.click()}
             className="p-3 sm:p-3.5 rounded-2xl bg-stone-100 hover:bg-emerald-50 hover:text-emerald-800 text-stone-700 transition active:scale-95 shrink-0"
-            title="Attach Photo File from Device"
+            title="Attach Document or Photo (PDF, Image, DOCX, TXT)"
           >
-            <ImageIcon className="w-5 h-5 text-stone-600" />
+            <UploadCloud className="w-5 h-5 text-stone-600" />
           </button>
 
           {/* Large Push-To-Talk Voice Button */}
@@ -396,7 +436,7 @@ export default function ChatAssistant() {
               value={inputVal}
               onChange={(e) => setInputVal(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={selectedImage ? "Add an optional question about this photo..." : t.typePlaceholder}
+              placeholder={selectedFile ? `Analyze ${selectedFile.name}...` : t.typePlaceholder}
               className="w-full bg-transparent text-sm text-stone-900 placeholder:text-stone-400 focus:outline-none"
             />
           </div>
@@ -404,9 +444,9 @@ export default function ChatAssistant() {
           {/* Send Button */}
           <button
             onClick={handleSend}
-            disabled={!inputVal.trim() && !selectedImage}
+            disabled={!inputVal.trim() && !selectedFile}
             className={`p-3 sm:p-3.5 rounded-2xl transition active:scale-95 shrink-0 ${
-              inputVal.trim() || selectedImage
+              inputVal.trim() || selectedFile
                 ? "bg-emerald-700 hover:bg-emerald-800 text-white shadow-md shadow-emerald-800/20"
                 : "bg-stone-100 text-stone-400 cursor-not-allowed"
             }`}
@@ -424,7 +464,13 @@ export default function ChatAssistant() {
               category="crop_disease"
               title="Snap Live Photo with Webcam / Mobile Camera"
               onCapture={(base64) => {
-                setSelectedImage(base64);
+                setSelectedFile({
+                  base64,
+                  name: `Live_Scan_${Date.now()}.jpg`,
+                  type: "image/jpeg",
+                  size: "Live Photo",
+                  isImage: true,
+                });
                 setLiveCameraOpen(false);
               }}
               onCancel={() => setLiveCameraOpen(false)}

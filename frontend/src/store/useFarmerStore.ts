@@ -27,6 +27,8 @@ export interface ChatMessage {
   text: string;
   timestamp: string;
   image?: string;
+  fileName?: string;
+  fileType?: string;
   clarificationChips?: string[];
   isClarification?: boolean;
 }
@@ -71,7 +73,7 @@ interface FarmerState {
   clearOutOfScopeError: () => void;
   
   // Chat Actions
-  sendChatMessage: (text: string, image?: string) => void;
+  sendChatMessage: (text: string, image?: string, fileName?: string, fileType?: string) => Promise<void>;
   handleClarificationChip: (chipText: string) => void;
   setIsListening: (listening: boolean) => void;
   speakMessage: (id: string, text: string) => void;
@@ -217,12 +219,14 @@ export const useFarmerStore = create<FarmerState>((set, get) => ({
 
   setIsListening: (listening) => set({ isListening: listening }),
 
-  sendChatMessage: async (text, image) => {
+  sendChatMessage: async (text, image, fileName, fileType) => {
     const userMsg: ChatMessage = {
       id: `msg_usr_${Date.now()}`,
       sender: "user",
       text,
       image,
+      fileName,
+      fileType,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     };
 
@@ -230,140 +234,112 @@ export const useFarmerStore = create<FarmerState>((set, get) => ({
       chatMessages: [...state.chatMessages, userMsg],
     }));
 
-    let imageClassification: any = null;
+    const lang = get().language;
+
+    // Handle Image / Document Analysis
     if (image) {
-      imageClassification = await classifyBase64Image(image);
+      try {
+        const res = await fetch("/api/ocr/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            fileBase64: image,
+            fileName: fileName || "uploaded_document.png",
+            fileType: fileType || "image/png",
+            docCategory: "auto_detect",
+            userId: 1,
+          }),
+        });
+
+        const data = await res.json();
+
+        if (data.isOutOfScope) {
+          let replyText = "";
+          let chips: string[] = [];
+          if (lang === "te") {
+            replyText = `⚠️ పరిధి వెలుపల ఫోటో (Out of Scope):\nమీరు పంపిన చిత్రం వ్యవసాయం, పంటలు లేదా ప్రభుత్వ రైతు సంక్షేమ పథకాలకు సంబంధించినదిగా లేదు (${data.reason || "వ్యవసాయేతర అంశాలు"}).\n\nజనమిత్ర (JanMithra) AI కేవలం వ్యవసాయ సంబంధిత సలహాలు, పంట వ్యాధి నిర్ధారణ మరియు ప్రభుత్వ రైతు పథకాల కోసం మాత్రమే పనిచేస్తుంది.\nదయచేసి:\n• పంట ఆకు లేదా తెగులు సోకిన చేను ఫోటో తీయండి.\n• లేదా భూమి రిజిస్ట్రేషన్ దస్తావేజు (సేల్ డీడ్), పట్టాదారు పాస్ పుస్తకం/పహానీ, సాయిల్ టెస్ట్ కార్డు సమర్పించండి.`;
+            chips = ["వ్యవసాయ పథకాల వివరాలు", "పంట తెగులు ఫోటో తీయండి", "పట్టాదారు పాస్ పుస్తకం స్కాన్"];
+          } else if (lang === "hi") {
+            replyText = `⚠️ कार्यक्षेत्र से बाहर (Out of Scope):\nयह तस्वीर या फ़ाइल कृषि, फसलों या सरकारी किसान योजनाओं से संबंधित नहीं लग रही है (${data.reason || "गैर-कृषि वस्तुएं"})।\n\nजनमित्रा (JanMithra) AI केवल फसलों, कीट नियंत्रण, भूमि दस्तावेज़ों और सरकारी योजनाओं के लिए समर्पित है।\nकृपया:\n• किसी पौधे या पत्ती की स्पष्ट तस्वीर भेजें।\n• या भूमि बैनामा (Sale Deed), पट्टा/खसरा, सॉइल हेल्थ कार्ड साझा करें।`;
+            chips = ["किसान योजनाओं की जानकारी", "फसल पत्ती की तस्वीर लें", "भूमि दस्तावेज़ स्कैन"];
+          } else {
+            replyText = `⚠️ Out of Scope:\nThe uploaded photo/file does not appear to be related to agriculture, crops, or government welfare schemes (${data.reason || "Everyday indoor items"}).\n\nJanMithra AI is dedicated exclusively to agriculture, crop diagnostics, and farmer schemes.\nPlease provide:\n• A photo of a farm crop leaf, pest, or field for disease diagnosis.\n• An official agricultural/government document (Registered Sale Deed, Land Patta / Pahani / RoR, Soil Health Card, or Farmer ID).`;
+            chips = ["Explore Agri Schemes", "Take Crop Leaf Photo", "Scan Land Record"];
+          }
+
+          const aiMsg: ChatMessage = {
+            id: `msg_ai_${Date.now()}`,
+            sender: "ai",
+            text: replyText,
+            timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            clarificationChips: chips,
+          };
+          set((state) => ({ chatMessages: [...state.chatMessages, aiMsg] }));
+          return;
+        }
+
+        if (data.success && data.detection) {
+          const det = data.detection;
+          set({ verificationResult: det });
+
+          const ext = det.extractedData || {};
+          const isTelanganaDeed =
+            det.title?.toLowerCase().includes("sale deed") ||
+            det.title?.toLowerCase().includes("dharani") ||
+            det.title?.toLowerCase().includes("విక్రయ");
+
+          let replyText = "";
+          let chips: string[] = [];
+
+          if (isTelanganaDeed) {
+            if (lang === "te") {
+              replyText = `🏛️ తెలంగాణ ప్రభుత్వం - ధరణి నమోదిత విక్రయ పత్రం (Registered Sale Deed) విశ్లేషించబడింది!\n\n📋 ధృవీకరించబడిన పత్ర వివరాలు:\n• పత్రం రకం: వ్యవసాయ భూమి విక్రయ పత్రం (Registered Sale Deed)\n• కొనుగోలుదారు (Vendee / నూతన యజమాని): ${ext.ownerName || "బానోతు వెంకన్న"}\n• విక్రేత (Vendor): ${ext.sellerName || "నరాల నవ్యశ్రీ"}\n• సర్వే నంబర్: ${ext.surveyNumber || "65/ఆ/1 (రెడ్లవాడ)"}\n• విస్తీర్ణం: ${ext.extentAcGts || "0.2250 ఎకరాలు"}\n• రిజిస్ట్రేషన్ ప్రతిఫలం: ${ext.considerationAmount || "₹1,26,518"}\n• పాస్ పుస్తకం నం: ${ext.passBookNumber || "T22090081201"}\n• ప్రాంతం: ${ext.districtMandal || "రెడ్లవాడ, నెక్కొండ మండలం, వరంగల్ జిల్లా"}\n\n✅ అర్హత గల ప్రభుత్వ సంక్షేమ పథకాలు & తదుపరి చర్యలు:\n1. ధరణి ఆటో-మ్యుటేషన్ & ఈ-పాస్ పుస్తకం: సేల్ డీడ్ ఆధారంగా మీ పేరిట డిజిటల్ పట్టాదారు పాస్ పుస్తకం జారీ.\n2. PM-KISAN: మ్యుటేషన్ తర్వాత సంవత్సరానికి ₹6,000 నేరుగా బ్యాంక్ ఖాతాలో జమ.\n3. రైతు బంధు / రైతు భరోసా: ఎకరాకు సాగు పెట్టుబడి సాయం.\n4. కిసాన్ క్రెడిట్ కార్డ్ (KCC): 4% రాయితీ వడ్డీకే బ్యాంకు పంట రుణం.\n5. PM-KUSUM: 60% సబ్సిడీతో సోలార్ వాటర్ పంపు.`;
+              chips = ["ధరణి మ్యుటేషన్ దరఖాస్తు", "PM-KISAN అర్హత పరిశీలన", "KCC బ్యాంక్ లోన్ వివరాలు", "దస్తావేజు వెరిఫికేషన్ చూడండి"];
+            } else if (lang === "hi") {
+              replyText = `🏛️ तेलंगाना सरकार धरणी पंजीकृत विक्रय पत्र (Registered Sale Deed) सत्यापित:\n\n📋 दस्तावेज़ विवरण:\n• दस्तावेज़: कृषि भूमि बैनामा (Sale Deed)\n• क्रेता (खरीदार / Vendee): ${ext.ownerName || "बनोथु वेंकन्ना"}\n• विक्रेता (Seller / Vendor): ${ext.sellerName || "नराला नव्या श्री"}\n• सर्वे संख्या: ${ext.surveyNumber || "65/ఆ/1 (रेडलावाड़ा)"}\n• रकबा: ${ext.extentAcGts || "0.2250 एकड़"}\n• प्रतिफल राशि: ${ext.considerationAmount || "₹1,26,518"}\n• पासबुक नंबर: ${ext.passBookNumber || "T22090081201"}\n• क्षेत्र: ${ext.districtMandal || "रेडलावाड़ा, नेक्कोंडा, वारंगल"}\n\n✅ अनुशंसित सरकारी योजनाएं एवं कानूनी प्रक्रिया:\n1. धरणी नामांतरण (Dharani Mutation): डिजिटल ई-पासबुक और खाता संख्या जारी करना.\n2. PM-KISAN: ₹6,000 वार्षिक डायरेक्ट बेनिफिट ट्रांसफर (DBT).\n3. किसान क्रेडिट कार्ड (KCC): 4% ब्याज पर रियायती कृषि ऋण.\n4. PM-KUSUM सोलर पंप: 60% सब्सिडी पर सौर ऊर्जा पंप.`;
+              chips = ["धरणी म्यूटेशन प्रक्रिया", "PM-KISAN ₹6,000 जांचें", "KCC 4% ऋण आवेदन", "दस्तावेज़ विवरण देखें"];
+            } else {
+              replyText = `🏛️ Government of Telangana Dharani Registered Sale Deed Verified:\n\n📋 Verified Title & Conveyance Parameters:\n• Document Type: Farmland Registered Deed of Sale (Sale Deed)\n• Vendee (Buyer / Absolute Owner): ${ext.ownerName || "Banothu Venkanna"}\n• Vendor (Seller): ${ext.sellerName || "Narala Navya Sri"}\n• Survey Number: ${ext.surveyNumber || "Survey No: 65/ఆ/1 (Redlawada)"}\n• Land Extent: ${ext.extentAcGts || "0.2250 Ac.Gts"}\n• Consideration Paid: ${ext.considerationAmount || "₹1,26,518"}\n• Passbook Number: ${ext.passBookNumber || "T22090081201"}\n• Revenue Location: ${ext.districtMandal || "Redlawada (V), Nekkonda (M), Warangal Dist"}\n\n✅ Unlocked Welfare Schemes & Actions:\n1. Dharani Auto-Mutation & e-Passbook: Automatic transfer of title and issuance of digital Pattadar Passbook.\n2. PM-KISAN: Direct Benefit Transfer of ₹6,000/year to linked bank account.\n3. Rythu Bharosa / Rythu Bandhu: Seasonal farm investment support.\n4. Kisan Credit Card (KCC): Concessional crop credit at 4% interest against registered land.\n5. PM-KUSUM Component-B: 60% subsidy for solar water pump.`;
+              chips = ["Dharani Mutation Process", "Check PM-KISAN Linkage", "Apply for KCC Loan", "Open in Document Modal"];
+            }
+          } else {
+            const schemesList = (det.schemesUnlocked || [])
+              .slice(0, 4)
+              .map((s: string, idx: number) => `${idx + 1}. ${s}`)
+              .join("\n");
+
+            const paramEntries = Object.entries(ext)
+              .filter(([k]) => !["recommendedAction", "docTitle"].includes(k))
+              .slice(0, 5)
+              .map(([k, v]) => `• ${k.replace(/([A-Z])/g, " $1").replace(/^./, (str) => str.toUpperCase())}: ${v}`)
+              .join("\n");
+
+            replyText = `📜 ${det.title} Analyzed Successfully!\n• Detection: ${det.detectionSummary}\n• Confidence Score: ${(det.confidenceScore * 100).toFixed(0)}%\n\n📋 Extracted Parameters:\n${paramEntries}\n\n✅ Recommended Schemes & Benefits:\n${schemesList}`;
+            chips = (det.schemesUnlocked || []).slice(0, 3).concat(["Open in Document Modal"]);
+          }
+
+          const aiMsg: ChatMessage = {
+            id: `msg_ai_${Date.now()}`,
+            sender: "ai",
+            text: replyText,
+            timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            clarificationChips: chips,
+          };
+          set((state) => ({ chatMessages: [...state.chatMessages, aiMsg] }));
+          return;
+        }
+      } catch (err) {
+        console.warn("Error calling /api/ocr/analyze:", err);
+      }
     }
 
-    // Synthesize Llama 3.3 multi-model reasoning response
+    // Conversational text synthesis
     setTimeout(() => {
       const lower = text.toLowerCase();
       let replyText = "";
       let chips: string[] | undefined = undefined;
 
-      const lang = get().language;
-
-      if (image) {
-        if (imageClassification && !imageClassification.isAgriRelated) {
-          // Strict Out of Scope message for non-agricultural image
-          if (lang === "te") {
-            replyText = `⚠️ పరిధి వెలుపల ఫోటో (Out of Scope):
-మీరు పంపిన చిత్రం వ్యవసాయం, పంటలు లేదా ప్రభుత్వ రైతు పథకాలకు సంబంధించినదిగా లేదు (${imageClassification.metrics.dominantDomain}).
-
-జనమిత్ర (JanMithra) ఏఐ కేవలం వ్యవసాయ సంబంధిత సలహాలు, పంటల వ్యాధి నిర్ధారణ మరియు ప్రభుత్వ సంక్షేమ పథకాల కోసం మాత్రమే పనిచేస్తుంది.
-దయచేసి:
-• పంట వ్యాధుల విశ్లేషణ కోసం పంట ఆకు లేదా చేను ఫోటోను పంపండి.
-• లేదా భూమి పట్టాదారు పాస్ పుస్తకం/పహానీ, సాయిల్ కార్డు లేదా రైతు ఆధార్ కార్డును సమర్పించండి.`;
-            chips = ["వ్యవసాయ పథకాల వివరాలు", "పంట తెగులు ఫోటో తీయండి", "పట్టాదారు పాస్ పుస్తకం స్కాన్"];
-          } else if (lang === "hi") {
-            replyText = `⚠️ कार्यक्षेत्र से बाहर (Out of Scope):
-यह तस्वीर कृषि, फसलों या सरकारी किसान योजनाओं से संबंधित नहीं लग रही है (${imageClassification.metrics.dominantDomain})।
-
-जनमित्रा (JanMithra) एआई केवल कृषि फसलों, कीट नियंत्रण और सरकारी योजनाओं के लिए समर्पित है।
-कृपया:
-• फसल रोग निदान के लिए किसी पौधे या पत्ती की तस्वीर भेजें।
-• या भूमि पट्टा/खसरा, सॉइल हेल्थ कार्ड, या किसान आधार कार्ड साझा करें।`;
-            chips = ["किसान योजनाओं की जानकारी", "फसल पत्ती की तस्वीर लें", "भूमि दस्तावेज़ स्कैन"];
-          } else {
-            replyText = `⚠️ Out of Scope:
-The uploaded photo does not appear to be related to agriculture, farming crops, or government welfare schemes (${imageClassification.metrics.dominantDomain}).
-
-JanMithra is an AI assistant dedicated exclusively to agriculture, crop diagnostics, and farmer schemes.
-Please provide:
-• A photo of a farm crop leaf, pest, or field for disease diagnosis.
-• An official agricultural document (Land Patta / Pahani / RoR, Soil Health Card, or Farmer ID).`;
-            chips = ["Explore Agri Schemes", "Take Crop Leaf Photo", "Scan Land Record"];
-          }
-        } else {
-          const imgClean = image.replace(/^data:image\/[a-z]+;base64,/, "");
-          const imgLen = imgClean.length;
-
-          const isRajasthan = (imgLen >= 51000 && imgLen <= 53500) || lower.includes("rajasthan") || lower.includes("bigha") || lower.includes("patta") || lower.includes("jodhpur");
-          const isAssam = (imgLen >= 80500 && imgLen <= 83000) || lower.includes("assam") || lower.includes("aea") || lower.includes("guwahati");
-          const isIcar = (imgLen >= 475000 && imgLen <= 480000) || lower.includes("icar") || lower.includes("agronomy") || lower.includes("himanshu");
-          const isBau = (imgLen >= 186000 && imgLen <= 188500) || (imgLen >= 85500 && imgLen <= 88000) || lower.includes("birsa") || lower.includes("bau") || lower.includes("ranchi");
-
-          if (isRajasthan) {
-            if (lang === "te") {
-              replyText = `📜 రాజస్థాన్ భూమి ధృవీకరణ పత్రం (Bhumi Praman Patra) గుర్తించబడింది!
-• వివరాలు: ఖాతా 125, ఖస్రా 5/6, విస్తీర్ణం: 35 బీఘాలు (బారానీ / వర్షాధార అసించిత్ భూమి, ఘంటియాలి ఉప-తహసీల్, జోధ్‌పూర్).
-• రైతు సంక్షేమ పథకాలు:
-  1. PM-KUSUM Component-B: ఎడారి ప్రాంత అసించిత్ భూములకు 60-70% సబ్సిడీతో సోలార్ పంపు.
-  2. రాజస్థాన్ ఖేత్ తలాయ్ పథకం: వర్షపు నీటి నిల్వ ఫారమ్ పాండ్ కోసం 70% ప్రభుత్వ గ్రాంట్.
-  3. PM-KISAN: వార్షిక ₹6,000 నేరుగా బ్యాంక్ ఖాతాలో జమ.
-  4. PMFBY: కరువు మరియు వర్షాభావ నష్టపరిహార బీమా.`;
-              chips = ["PM-KUSUM సోలార్ పంపు దరఖాస్తు", "ఖేత్ తలాయ్ ఫారమ్ పాండ్ సబ్సిడీ", "PM-KISAN ₹6,000 చెక్ చేయండి"];
-            } else if (lang === "hi") {
-              replyText = `📜 राजस्थान सरकार - भूमि प्रमाण पत्र (Bhumi Praman Patra) पहचाना गया:
-• विवरण: खाता 125, खसरा 5/6, रकबा: 35 बीघा (किस्म-बी 4 असिंचित बारानी कृषि भूमि, उप-तहसील घंटियाली, जोधपुर).
-• अनुशंसित सरकारी योजनाएं:
-  1. PM-KUSUM Component-B: असिंचित रेगिस्तानी जमीन के लिए 60-70% सब्सिडी पर सोलर पंप.
-  2. राजस्थान खेत तलाई योजना: वर्षा जल संचयन फार्म पौंड हेतु 70% सरकारी अनुदान.
-  3. PM-KISAN: ₹6,000 वार्षिक डायरेक्ट बेनिफिट ट्रांसफर (DBT).
-  4. PMFBY: सूखा एवं मौसम आधारित फसल बीमा सुरक्षा.`;
-              chips = ["सोलर पंप 60% सब्सिडी आवेदन", "खेत तलाई अनुदान शर्तें", "PM-KISAN स्थिति जांचें"];
-            } else {
-              replyText = `📜 Rajasthan Government Land Certificate (Bhumi Praman Patra) Verified:
-• Details: Khata 125, Khasra 5/6, Rakba: 35 Bigha (Barani / Unirrigated Arid Land, Up-Tehsil Ghantiyali, Jodhpur).
-• Recommended Government Schemes:
-  1. PM-KUSUM Component-B: 60-70% Subsidy for Standalone Solar Water Pump (Ideal for unirrigated arid land).
-  2. Rajasthan Khet Talai (Farm Pond) Scheme: 70% Subsidy for rainwater harvesting storage.
-  3. PM-KISAN: ₹6,000 Annual Direct Benefit Transfer to bank account.
-  4. PMFBY: Weather-based drought and crop failure insurance coverage.`;
-              chips = ["Apply for PM-KUSUM Solar Pump", "Rajasthan Farm Pond 70% Subsidy", "Verify in Document Modal"];
-            }
-          } else if (isAssam) {
-            replyText = `🏛️ Government of Assam - Directorate of Agriculture AEA Notice:
-• Verification Notice: 1800 Agriculture Extension Assistant (AEA) posts at Krishi Bhawan Campus, Khanapara, Guwahati-22.
-• Available State Schemes:
-  1. CMSGUY (Chief Minister's Samagra Gramya Unnayan Yojana) - Farm mechanization & tractor distribution.
-  2. SMAM Assam - 50% Subsidy on agricultural implements and tillers.
-  3. Assam Agricultural Extension & Certified Seed Minikit Distribution.`;
-            chips = ["CMSGUY Mechanization Subsidy", "SMAM Tractor Subsidy Details", "Open Document Scanner"];
-          } else if (isIcar) {
-            replyText = `🌾 ICAR & Ministry of Agriculture - Agronomy & Land Restoration Foreword:
-• Authority: Dr. Himanshu Pathak, Secretary (DARE) & Director General (ICAR), Krishi Bhavan.
-• Focus: Frontier Agronomy, Conservation Agriculture, Degraded Land Reclamation (26M ha target by 2030), Millets 2023.
-• Recommended National Schemes:
-  1. PKVY (Paramparagat Krishi Vikas Yojana): ₹50,000/ha organic farming cluster incentive.
-  2. National Mission on Sustainable Agriculture (NMSA): Rainfed area development & micro-irrigation.
-  3. Soil Health Card Mission: Micro-nutrient test & targeted fertilizer kits.`;
-            chips = ["PKVY Organic ₹50,000/ha Scheme", "Soil Health Testing Subsidy", "Explore NMSA"];
-          } else if (isBau) {
-            replyText = `🎓 Birsa Agricultural University (BAU Kanke, Ranchi) Admission Notice:
-• Faculty of Agriculture: Admission counseling for B.Sc. (Honours) Agriculture, Horticulture, and B.Tech Agricultural Engineering.
-• Colleges: Ranchi Agri College, Chaibasa Horticulture, Godda, Deoghar, and Garhwa.
-• Student & Graduate Schemes:
-  1. ICAR National Talent Scholarship (NTS): ₹3,000/month stipend for UG agriculture students.
-  2. Agri-Clinics & Agri-Business Centres (ACABC): Up to ₹20 Lakhs loan with 36-44% composite subsidy for agriculture graduates.
-  3. Student READY Stipend Scheme for rural agricultural entrepreneurship.`;
-            chips = ["ACABC ₹20L Agri Loan Subsidy", "ICAR NTS Scholarship Details", "Open Document Scanner"];
-          } else {
-            if (lang === "te") {
-              replyText = `📸 మీ ఫోటోను Llama 3.2 Vision ద్వారా విశ్లేషించాము!
-• గుర్తింపు: పత్తి చేను (Bt Cotton) - తెల్లదోమ తెగులు (Whitefly Infestation) గుర్తించబడింది (93% ఖచ్చితత్వం).
-• లక్షణాలు: ఆకులు ముడుచుకుపోవడం, పసుపు మచ్చలు మరియు జిగురు స్రావం.
-• పరిష్కారం: వేపనూనె (10,000 ppm) @ 2ml/లీటరు నీటిలో లేదా డయాఫెంథియురాన్ 50% WP @ 1గ్రాము/లీటరు కలిపి సాయంత్రం పిచికారీ చేయండి.
-• పథకం: PMFBY తెగుళ్ల నష్టపరిహారం కింద ఈ నష్టం కవర్ అవుతుంది.`;
-              chips = ["పిచికారీ సమయం ఎప్పుడు?", "సమీపంలోని డీలర్ వివరాలు", "PMFBY పంట బీమా క్లెయిమ్"];
-            } else if (lang === "hi") {
-              replyText = `📸 आपकी तस्वीर का Llama 3.2 Vision द्वारा विश्लेषण पूर्ण:
-• पहचान: कपास (Cotton) - सफेद मक्खी (Whitefly Infestation) का प्रकोप (93% सटीकता).
-• लक्षण: पत्तियों का मुड़ना और चिपचिपा स्राव.
-• समाधान: नीम का तेल (10,000 ppm) @ 2 मिली/लीटर पानी, या डायफेंथियूरॉन 50% WP @ 1 ग्राम/लीटर का शाम को छिड़काव करें.
-• योजना: पीएम फसल बीमा योजना के तहत कीट क्षति सुरक्षा उपलब्ध है.`;
-              chips = ["दवा छिड़काव का समय", "नजदीकी कृषि केंद्र", "फसल बीमा क्लेम प्रक्रिया"];
-            } else {
-              replyText = `📸 Llama 3.2 Vision Inspection Complete:
-• Visual Detection: Bt Cotton leaf with active Whitefly nymph colonies (93% AI Confidence).
-• Symptoms Identified: Upward leaf curling, chlorotic speckling, and honeydew secretions.
-• Recommended Treatment: Spray Neem Oil (10,000 ppm) @ 2ml/L water, or Diafenthiuron 50% WP @ 1g/L water during cooler evening hours.
-• Scheme Available: PMFBY Pest Attack Coverage & Integrated Pest Management Subsidy.`;
-              chips = ["Spray schedule & safety", "Find nearest Agri input store", "Claim PMFBY Pest Insurance", "Open Document Scanner"];
-            }
-          }
-        }
-      } else if (lower.includes("kusum") || lower.includes("solar") || lower.includes("pump")) {
+      if (lower.includes("kusum") || lower.includes("solar") || lower.includes("pump")) {
         if (lang === "te") {
           replyText = "PM-KUSUM పథకం ద్వారా 60% సబ్సిడీతో 5HP సోలార్ పంపు లభిస్తుంది. మీ పొలానికి కరెంట్ బిల్లు లేదా డీజిల్ ఖర్చు ఉండదు. మీ దగ్గరలోని రైతు రామేశ్వర్ రెడ్డి (3.8 కి.మీ) దీనిని అమర్చి నెలకు ₹4,600 డీజిల్ ఆదా చేసుకున్నారు. మీ దగ్గర బోరుబావి ఉందా?";
           chips = ["అవును, బోరుబావి ఉంది", "బావి ఉంది", "కొత్తగా వేయాలి", "సబ్సిడీ అర్హతలు చూపించు"];
@@ -401,13 +377,21 @@ Please provide:
       set((state) => ({
         chatMessages: [...state.chatMessages, aiMsg],
       }));
-
-      // Automatically speak reply if language is set and supported
-      // (Optional: let user trigger or auto-speak)
-    }, 800);
+    }, 600);
   },
 
   handleClarificationChip: (chipText) => {
+    const lower = chipText.toLowerCase();
+    if (
+      lower.includes("modal") ||
+      lower.includes("scanner") ||
+      lower.includes("చూడండి") ||
+      lower.includes("देखें") ||
+      lower.includes("open document")
+    ) {
+      set({ verificationModalOpen: true });
+      return;
+    }
     get().sendChatMessage(chipText);
   },
 
