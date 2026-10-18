@@ -372,91 +372,185 @@ export default function DocumentVerificationModal() {
 
           {/* Preset Pickers for instant testing */}
           {!verificationResult && !verificationScanning && !outOfScopeError && (
-            <div className="pt-2">
-              <p className="text-xs font-black text-stone-700 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
-                <Sparkles className="w-4 h-4 text-amber-500" />
-                <span>{t.sampleDocsPrompt}</span>
-              </p>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                <button
-                  onClick={() => handlePresetSelect("land_patta")}
-                  className={`p-3 rounded-2xl border-2 text-left transition flex flex-col justify-between ${
-                    selectedPresetKey === "land_patta"
-                      ? "border-emerald-600 bg-emerald-50 ring-2 ring-emerald-500/30"
-                      : "border-stone-200 hover:border-emerald-400 bg-stone-50"
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xl">📜</span>
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800">
-                      Land Patta
-                    </span>
-                  </div>
-                  <p className="text-xs font-extrabold text-stone-900 leading-tight">
-                    3.5 Acres Patta
-                  </p>
-                  <span className="text-[10px] text-stone-500 mt-1">Rangareddy RoR</span>
-                </button>
+            <div className="pt-2 space-y-3">
+              <div>
+                <p className="text-xs font-black text-stone-700 uppercase tracking-wider mb-2 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4 text-emerald-600" />
+                    <span>Your Saved Folder Documents (WhatsApp Scans)</span>
+                  </span>
+                  <span className="text-[10px] text-emerald-800 bg-emerald-100 font-extrabold px-2 py-0.5 rounded-full">
+                    Auto-Detected
+                  </span>
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                  <button
+                    onClick={() => handlePresetSelect("rajasthan_land_cert")}
+                    className={`p-3 rounded-2xl border-2 text-left transition flex flex-col justify-between ${
+                      selectedPresetKey === "rajasthan_land_cert"
+                        ? "border-emerald-600 bg-emerald-50 ring-2 ring-emerald-500/30 shadow-sm"
+                        : "border-stone-200 hover:border-emerald-400 bg-stone-50"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xl">🏜️</span>
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-900">
+                        Rajasthan Patta
+                      </span>
+                    </div>
+                    <p className="text-xs font-extrabold text-stone-900 leading-tight">
+                      35 Bigha Barani
+                    </p>
+                    <span className="text-[10px] text-stone-500 mt-1">Jodhpur (Ghantiyali)</span>
+                  </button>
 
-                <button
-                  onClick={() => handlePresetSelect("soil_card")}
-                  className={`p-3 rounded-2xl border-2 text-left transition flex flex-col justify-between ${
-                    selectedPresetKey === "soil_card"
-                      ? "border-emerald-600 bg-emerald-50 ring-2 ring-emerald-500/30"
-                      : "border-stone-200 hover:border-emerald-400 bg-stone-50"
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xl">🧪</span>
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800">
-                      Soil Card
-                    </span>
-                  </div>
-                  <p className="text-xs font-extrabold text-stone-900 leading-tight">
-                    ICAR Soil Test
-                  </p>
-                  <span className="text-[10px] text-stone-500 mt-1">pH 6.8 & NPK</span>
-                </button>
+                  <button
+                    onClick={() => handlePresetSelect("assam_aea_notice")}
+                    className={`p-3 rounded-2xl border-2 text-left transition flex flex-col justify-between ${
+                      selectedPresetKey === "assam_aea_notice"
+                        ? "border-emerald-600 bg-emerald-50 ring-2 ring-emerald-500/30 shadow-sm"
+                        : "border-stone-200 hover:border-emerald-400 bg-stone-50"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xl">🏛️</span>
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800">
+                        Assam Agri
+                      </span>
+                    </div>
+                    <p className="text-xs font-extrabold text-stone-900 leading-tight">
+                      1800 AEA Posts
+                    </p>
+                    <span className="text-[10px] text-stone-500 mt-1">Krishi Bhawan Guwahati</span>
+                  </button>
 
-                <button
-                  onClick={() => handlePresetSelect("crop_disease")}
-                  className={`p-3 rounded-2xl border-2 text-left transition flex flex-col justify-between ${
-                    selectedPresetKey === "crop_disease"
-                      ? "border-emerald-600 bg-emerald-50 ring-2 ring-emerald-500/30"
-                      : "border-stone-200 hover:border-emerald-400 bg-stone-50"
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xl">🍃</span>
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-cyan-100 text-cyan-800">
-                      Crop Pest
-                    </span>
-                  </div>
-                  <p className="text-xs font-extrabold text-stone-900 leading-tight">
-                    Cotton Leaf Photo
-                  </p>
-                  <span className="text-[10px] text-stone-500 mt-1">Whitefly Insect</span>
-                </button>
+                  <button
+                    onClick={() => handlePresetSelect("icar_agronomy")}
+                    className={`p-3 rounded-2xl border-2 text-left transition flex flex-col justify-between ${
+                      selectedPresetKey === "icar_agronomy"
+                        ? "border-emerald-600 bg-emerald-50 ring-2 ring-emerald-500/30 shadow-sm"
+                        : "border-stone-200 hover:border-emerald-400 bg-stone-50"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xl">🌾</span>
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-cyan-100 text-cyan-800">
+                        ICAR Foreword
+                      </span>
+                    </div>
+                    <p className="text-xs font-extrabold text-stone-900 leading-tight">
+                      Agronomy & Soil
+                    </p>
+                    <span className="text-[10px] text-stone-500 mt-1">DG Dr. Himanshu Pathak</span>
+                  </button>
 
-                <button
-                  onClick={() => handlePresetSelect("aadhaar_kyc")}
-                  className={`p-3 rounded-2xl border-2 text-left transition flex flex-col justify-between ${
-                    selectedPresetKey === "aadhaar_kyc"
-                      ? "border-emerald-600 bg-emerald-50 ring-2 ring-emerald-500/30"
-                      : "border-stone-200 hover:border-emerald-400 bg-stone-50"
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xl">🪪</span>
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-purple-100 text-purple-800">
-                      Citizen e-KYC
-                    </span>
-                  </div>
-                  <p className="text-xs font-extrabold text-stone-900 leading-tight">
-                    Aadhaar Card
-                  </p>
-                  <span className="text-[10px] text-stone-500 mt-1">DBT NPCI Seeding</span>
-                </button>
+                  <button
+                    onClick={() => handlePresetSelect("bau_ranchi_admission")}
+                    className={`p-3 rounded-2xl border-2 text-left transition flex flex-col justify-between ${
+                      selectedPresetKey === "bau_ranchi_admission"
+                        ? "border-emerald-600 bg-emerald-50 ring-2 ring-emerald-500/30 shadow-sm"
+                        : "border-stone-200 hover:border-emerald-400 bg-stone-50"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xl">🎓</span>
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-purple-100 text-purple-800">
+                        BAU Ranchi
+                      </span>
+                    </div>
+                    <p className="text-xs font-extrabold text-stone-900 leading-tight">
+                      B.Sc. Agriculture
+                    </p>
+                    <span className="text-[10px] text-stone-500 mt-1">Faculty Admission 2023</span>
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-[11px] font-bold text-stone-500 uppercase tracking-wider mb-2">
+                  Additional Standard Presets:
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                  <button
+                    onClick={() => handlePresetSelect("land_patta")}
+                    className={`p-3 rounded-2xl border-2 text-left transition flex flex-col justify-between ${
+                      selectedPresetKey === "land_patta"
+                        ? "border-emerald-600 bg-emerald-50 ring-2 ring-emerald-500/30"
+                        : "border-stone-200 hover:border-emerald-400 bg-stone-50"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-lg">📜</span>
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                        Land Patta
+                      </span>
+                    </div>
+                    <p className="text-xs font-extrabold text-stone-900 leading-tight">
+                      3.5 Acres Patta
+                    </p>
+                    <span className="text-[10px] text-stone-500 mt-0.5">Rangareddy RoR</span>
+                  </button>
+
+                  <button
+                    onClick={() => handlePresetSelect("soil_card")}
+                    className={`p-3 rounded-2xl border-2 text-left transition flex flex-col justify-between ${
+                      selectedPresetKey === "soil_card"
+                        ? "border-emerald-600 bg-emerald-50 ring-2 ring-emerald-500/30"
+                        : "border-stone-200 hover:border-emerald-400 bg-stone-50"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-lg">🧪</span>
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">
+                        Soil Card
+                      </span>
+                    </div>
+                    <p className="text-xs font-extrabold text-stone-900 leading-tight">
+                      ICAR Soil Test
+                    </p>
+                    <span className="text-[10px] text-stone-500 mt-0.5">pH 6.8 & NPK</span>
+                  </button>
+
+                  <button
+                    onClick={() => handlePresetSelect("crop_disease")}
+                    className={`p-3 rounded-2xl border-2 text-left transition flex flex-col justify-between ${
+                      selectedPresetKey === "crop_disease"
+                        ? "border-emerald-600 bg-emerald-50 ring-2 ring-emerald-500/30"
+                        : "border-stone-200 hover:border-emerald-400 bg-stone-50"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-lg">🍃</span>
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-cyan-100 text-cyan-800">
+                        Crop Pest
+                      </span>
+                    </div>
+                    <p className="text-xs font-extrabold text-stone-900 leading-tight">
+                      Cotton Leaf Photo
+                    </p>
+                    <span className="text-[10px] text-stone-500 mt-0.5">Whitefly Insect</span>
+                  </button>
+
+                  <button
+                    onClick={() => handlePresetSelect("aadhaar_kyc")}
+                    className={`p-3 rounded-2xl border-2 text-left transition flex flex-col justify-between ${
+                      selectedPresetKey === "aadhaar_kyc"
+                        ? "border-emerald-600 bg-emerald-50 ring-2 ring-emerald-500/30"
+                        : "border-stone-200 hover:border-emerald-400 bg-stone-50"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-lg">🪪</span>
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-purple-100 text-purple-800">
+                        Citizen e-KYC
+                      </span>
+                    </div>
+                    <p className="text-xs font-extrabold text-stone-900 leading-tight">
+                      Aadhaar Card
+                    </p>
+                    <span className="text-[10px] text-stone-500 mt-0.5">DBT NPCI Seeding</span>
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -776,6 +870,159 @@ export default function DocumentVerificationModal() {
                       <span className="text-stone-400 font-bold block">DBT Seeding Bank:</span>
                       <span className="font-extrabold text-emerald-800 text-sm">
                         {verificationResult.extractedData.dbtLinkedBank}
+                      </span>
+                    </div>
+                  )}
+
+                  {verificationResult.extractedData.districtMandal && (
+                    <div className="p-3 rounded-xl bg-white border border-stone-200">
+                      <span className="text-stone-400 font-bold block">District & Jurisdiction:</span>
+                      <span className="font-extrabold text-stone-900 text-sm">
+                        {verificationResult.extractedData.districtMandal}
+                      </span>
+                    </div>
+                  )}
+
+                  {verificationResult.extractedData.waterSource && (
+                    <div
+                      onMouseEnter={() => setHoveredBoxId("r4")}
+                      onMouseLeave={() => setHoveredBoxId(null)}
+                      className={`p-3 rounded-xl bg-white border transition ${
+                        hoveredBoxId === "r4" ? "border-emerald-600 ring-2 ring-emerald-400/30 bg-emerald-50/50" : "border-stone-200"
+                      }`}
+                    >
+                      <span className="text-stone-400 font-bold block">Water Source / Irrigation:</span>
+                      <span className="font-extrabold text-stone-900 text-sm">
+                        {verificationResult.extractedData.waterSource}
+                      </span>
+                    </div>
+                  )}
+
+                  {verificationResult.extractedData.revenueStatus && (
+                    <div className="p-3 rounded-xl bg-white border border-stone-200">
+                      <span className="text-stone-400 font-bold block">Revenue Verification:</span>
+                      <span className="font-extrabold text-emerald-800 text-sm">
+                        {verificationResult.extractedData.revenueStatus}
+                      </span>
+                    </div>
+                  )}
+
+                  {verificationResult.extractedData.organization && (
+                    <div
+                      onMouseEnter={() => setHoveredBoxId("a1")}
+                      onMouseLeave={() => setHoveredBoxId(null)}
+                      className={`p-3 rounded-xl bg-white border transition ${
+                        hoveredBoxId === "a1" ? "border-emerald-600 ring-2 ring-emerald-400/30 bg-emerald-50/50" : "border-stone-200"
+                      }`}
+                    >
+                      <span className="text-stone-400 font-bold block">Issuing Authority:</span>
+                      <span className="font-extrabold text-stone-900 text-sm">
+                        {verificationResult.extractedData.organization}
+                      </span>
+                    </div>
+                  )}
+
+                  {verificationResult.extractedData.noticeSubject && (
+                    <div
+                      onMouseEnter={() => setHoveredBoxId("a2")}
+                      onMouseLeave={() => setHoveredBoxId(null)}
+                      className={`p-3 rounded-xl bg-white border sm:col-span-2 transition ${
+                        hoveredBoxId === "a2" ? "border-emerald-600 ring-2 ring-emerald-400/30 bg-emerald-50/50" : "border-stone-200"
+                      }`}
+                    >
+                      <span className="text-stone-400 font-bold block">Notice Subject / Cadre:</span>
+                      <span className="font-extrabold text-stone-900 text-xs">
+                        {verificationResult.extractedData.noticeSubject}
+                      </span>
+                    </div>
+                  )}
+
+                  {verificationResult.extractedData.venue && (
+                    <div
+                      onMouseEnter={() => setHoveredBoxId("a3")}
+                      onMouseLeave={() => setHoveredBoxId(null)}
+                      className={`p-3 rounded-xl bg-white border transition ${
+                        hoveredBoxId === "a3" ? "border-emerald-600 ring-2 ring-emerald-400/30 bg-emerald-50/50" : "border-stone-200"
+                      }`}
+                    >
+                      <span className="text-stone-400 font-bold block">Verification Venue:</span>
+                      <span className="font-extrabold text-stone-900 text-xs">
+                        {verificationResult.extractedData.venue}
+                      </span>
+                    </div>
+                  )}
+
+                  {verificationResult.extractedData.dates && (
+                    <div
+                      onMouseEnter={() => setHoveredBoxId("a4")}
+                      onMouseLeave={() => setHoveredBoxId(null)}
+                      className={`p-3 rounded-xl bg-white border transition ${
+                        hoveredBoxId === "a4" ? "border-emerald-600 ring-2 ring-emerald-400/30 bg-emerald-50/50" : "border-stone-200"
+                      }`}
+                    >
+                      <span className="text-stone-400 font-bold block">Schedule / Dates:</span>
+                      <span className="font-extrabold text-stone-900 text-xs">
+                        {verificationResult.extractedData.dates}
+                      </span>
+                    </div>
+                  )}
+
+                  {verificationResult.extractedData.authority && (
+                    <div
+                      onMouseEnter={() => setHoveredBoxId("i2")}
+                      onMouseLeave={() => setHoveredBoxId(null)}
+                      className={`p-3 rounded-xl bg-white border transition ${
+                        hoveredBoxId === "i2" ? "border-emerald-600 ring-2 ring-emerald-400/30 bg-emerald-50/50" : "border-stone-200"
+                      }`}
+                    >
+                      <span className="text-stone-400 font-bold block">Designation / Authority:</span>
+                      <span className="font-extrabold text-stone-900 text-sm">
+                        {verificationResult.extractedData.authority}
+                      </span>
+                    </div>
+                  )}
+
+                  {verificationResult.extractedData.institution && (
+                    <div
+                      onMouseEnter={() => setHoveredBoxId("b1")}
+                      onMouseLeave={() => setHoveredBoxId(null)}
+                      className={`p-3 rounded-xl bg-white border transition ${
+                        hoveredBoxId === "b1" ? "border-emerald-600 ring-2 ring-emerald-400/30 bg-emerald-50/50" : "border-stone-200"
+                      }`}
+                    >
+                      <span className="text-stone-400 font-bold block">University / Institution:</span>
+                      <span className="font-extrabold text-stone-900 text-sm">
+                        {verificationResult.extractedData.institution}
+                      </span>
+                    </div>
+                  )}
+
+                  {verificationResult.extractedData.admissionDegree && (
+                    <div
+                      onMouseEnter={() => setHoveredBoxId("b2")}
+                      onMouseLeave={() => setHoveredBoxId(null)}
+                      className={`p-3 rounded-xl bg-white border transition ${
+                        hoveredBoxId === "b2" ? "border-emerald-600 ring-2 ring-emerald-400/30 bg-emerald-50/50" : "border-stone-200"
+                      }`}
+                    >
+                      <span className="text-stone-400 font-bold block">Admissions Program:</span>
+                      <span className="font-extrabold text-stone-900 text-xs">
+                        {verificationResult.extractedData.admissionDegree}
+                      </span>
+                    </div>
+                  )}
+
+                  {verificationResult.extractedData.affiliatedColleges && (
+                    <div
+                      onMouseEnter={() => setHoveredBoxId("b3")}
+                      onMouseLeave={() => setHoveredBoxId(null)}
+                      className={`p-3 rounded-xl bg-white border sm:col-span-2 transition ${
+                        hoveredBoxId === "b3" ? "border-emerald-600 ring-2 ring-emerald-400/30 bg-emerald-50/50" : "border-stone-200"
+                      }`}
+                    >
+                      <span className="text-stone-400 font-bold block">Participating Colleges:</span>
+                      <span className="font-extrabold text-stone-900 text-xs">
+                        {verificationResult.extractedData.affiliatedColleges}
                       </span>
                     </div>
                   )}

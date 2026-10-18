@@ -81,6 +81,19 @@ export interface MockOcrResult {
     maskedIdNumber?: string;
     dbtLinkedBank?: string;
     stateDistrict?: string;
+    revenueStatus?: string;
+    organization?: string;
+    noticeSubject?: string;
+    dates?: string;
+    venue?: string;
+    authority?: string;
+    department?: string;
+    keyInitiative?: string;
+    institution?: string;
+    facultyDepartment?: string;
+    admissionDegree?: string;
+    affiliatedColleges?: string;
+    [key: string]: any;
   };
   boundingBoxes?: Array<{
     id: string;
@@ -450,6 +463,223 @@ export const MOCK_OCR_PRESETS: Record<string, MockOcrResult> = {
     schemesUnlocked: [
       "PM-KISAN DBT Direct Beneficiary Access",
       "Kisan Credit Card (KCC) 4% Concessional Credit",
+    ],
+  },
+  rajasthan_land_cert: {
+    docType: "land_record",
+    title: "राजस्थान सरकार - भूमि प्रमाण पत्र (Bhumi Praman Patra)",
+    previewUrl: "/documents/rajasthan_land_certificate.jpg",
+    confidenceScore: 0.98,
+    fileName: "rajasthan_land_certificate.jpg",
+    detectionSummary: "Official State Revenue Seal, Up-Tehsil Ghantiyali, Jodhpur. Khata 125, Khasra 5/6 (35 Bigha Barani Land) confirmed.",
+    extractedData: {
+      ownerName: "प्रार्थी खातेदार (APHPM3517J)",
+      surveyNumber: "Khata: 125 • Khasra: 5/6 (हिस्सा 11/6300)",
+      landAreaAcres: 14.5,
+      soilType: "Arid Sandy Loam / Barani (वर्षा आधारित बारानी)",
+      districtMandal: "Jodhpur (Ghantiyali, Bap Tehsil), Rajasthan",
+      waterSource: "Barani / Unirrigated (असिंचित - No pond or canal connection)",
+      revenueStatus: "Certified Khatedar (Not a Trespasser / गैर अतिक्रमी), Revenue 2020/190",
+      recommendedAction: "Eligible for Solar Water Pump & Rainwater Farm Pond harvesting under State & Central subsidies.",
+    },
+    boundingBoxes: [
+      {
+        id: "r1",
+        label: "State Govt & Up-Tehsil",
+        text: "राजस्थान सरकार • उप-तहसील घंटियाली, जोधपुर",
+        box: { top: 7, left: 28, width: 44, height: 11 },
+        confidence: 0.99,
+      },
+      {
+        id: "r2",
+        label: "Khata & Khasra No.",
+        text: "खाता संख्या: 125 • खसरा नंबर: 5/6",
+        box: { top: 48, left: 11, width: 52, height: 6 },
+        confidence: 0.98,
+      },
+      {
+        id: "r3",
+        label: "Verified Rakba",
+        text: "रकबा: 35 बीघा (किस्म-बी 4 कृषि भूमि)",
+        box: { top: 48, left: 45, width: 44, height: 6 },
+        confidence: 0.97,
+      },
+      {
+        id: "r4",
+        label: "Irrigation Status",
+        text: "असिंचित / बारानी (कोई तालाब या जरिया नहीं)",
+        box: { top: 62, left: 11, width: 68, height: 5 },
+        confidence: 0.96,
+      },
+      {
+        id: "r5",
+        label: "Official Revenue Seal & Sign",
+        text: "उप तहसीलदार घंटियाली (भू-अ) जिला जोधपुर",
+        box: { top: 80, left: 36, width: 48, height: 16 },
+        confidence: 0.99,
+      },
+    ],
+    schemesUnlocked: [
+      "PM-KUSUM Component-B (60-70% Solar Pump Subsidy for Barani Desert Land)",
+      "PM-KISAN ₹6,000 Annual Direct Benefit Transfer",
+      "Rajasthan Khet Talai (Farm Pond) 70% Subsidy Scheme for Barani Land",
+      "PMFBY Weather-Based Drought Crop Insurance",
+    ],
+  },
+  assam_aea_notice: {
+    docType: "land_record",
+    title: "Government of Assam - Directorate of Agriculture AEA Notice",
+    previewUrl: "/documents/assam_agri_extension_notice.jpg",
+    confidenceScore: 0.97,
+    fileName: "assam_agri_extension_notice.jpg",
+    detectionSummary: "Official Assam Directorate of Agriculture verification notice for 1800 Agriculture Extension Assistant posts at Krishi Bhawan, Khanapara.",
+    extractedData: {
+      organization: "Directorate of Agriculture, Government of Assam",
+      noticeSubject: "Document Verification for Agriculture Extension Assistant (AEA - 1800 Posts)",
+      venue: "Playground within Agriculture Campus, Krishi Bhawan, Khanapara, Guwahati-22",
+      dates: "08th and 09th November, 2025 (10:00 AM to 04:00 PM)",
+      districtMandal: "Khanapara, Guwahati, Kamrup Metropolitan, Assam",
+      recommendedAction: "Carry original Class 10 admit card, HSSLC Science pass certificate, Employment Exchange registration, and caste certificate.",
+    },
+    boundingBoxes: [
+      {
+        id: "a1",
+        label: "State Agriculture Department",
+        text: "GOVERNMENT OF ASSAM • DIRECTORATE OF AGRICULTURE",
+        box: { top: 14, left: 18, width: 64, height: 8 },
+        confidence: 0.99,
+      },
+      {
+        id: "a2",
+        label: "Cadre & Posts",
+        text: "Agriculture Extension Assistant (AEA) - 1800 Posts",
+        box: { top: 29, left: 12, width: 78, height: 9 },
+        confidence: 0.98,
+      },
+      {
+        id: "a3",
+        label: "Venue & Campus",
+        text: "Krishi Bhawan, Khanapara, Guwahati-22",
+        box: { top: 64, left: 12, width: 80, height: 8 },
+        confidence: 0.97,
+      },
+      {
+        id: "a4",
+        label: "Document Verification Dates",
+        text: "08th and 09th November, 2025 (10:00 AM - 04:00 PM)",
+        box: { top: 60, left: 12, width: 80, height: 5 },
+        confidence: 0.96,
+      },
+    ],
+    schemesUnlocked: [
+      "Chief Minister's Samagra Gramya Unnayan Yojana (CMSGUY Assam Farm Mechanization)",
+      "Sub-Mission on Agricultural Mechanization (SMAM Assam - 50% Subsidy)",
+      "Assam Agriculture Extension Services & Free Certified Seed Distribution",
+    ],
+  },
+  icar_agronomy: {
+    docType: "soil_health_card",
+    title: "ICAR & Ministry of Agriculture - Agronomy & Land Restoration",
+    previewUrl: "/documents/icar_agronomy_foreword.jpg",
+    confidenceScore: 0.98,
+    fileName: "icar_agronomy_foreword.jpg",
+    detectionSummary: "Official ICAR & Ministry of Agriculture foreword by DG Dr. Himanshu Pathak on Agronomy, Soil Health, Degraded Land Restoration (26M ha by 2030), and Millets.",
+    extractedData: {
+      authority: "Dr. Himanshu Pathak, Secretary (DARE) & Director General (ICAR)",
+      department: "Ministry of Agriculture and Farmers Welfare, Krishi Bhavan, New Delhi",
+      keyInitiative: "Agronomic Interventions, Degraded Land Restoration (26M ha by 2030), Millets 2023",
+      soilType: "Degraded & Rice-Fallow Land Reclamation / Conservation Agriculture",
+      districtMandal: "Krishi Bhavan, New Delhi (All-India Mandate)",
+      recommendedAction: "Adopt conservation agriculture, precision water & nutrient management, organic farming, and solar energy for sustainable food production.",
+    },
+    boundingBoxes: [
+      {
+        id: "i1",
+        label: "Ministry & Council",
+        text: "ICAR • Ministry of Agriculture & Farmers Welfare, Krishi Bhavan",
+        box: { top: 8, left: 40, width: 56, height: 14 },
+        confidence: 0.99,
+      },
+      {
+        id: "i2",
+        label: "Director General ICAR",
+        text: "Dr. Himanshu Pathak, Secretary (DARE) & DG (ICAR)",
+        box: { top: 17, left: 9, width: 26, height: 9 },
+        confidence: 0.98,
+      },
+      {
+        id: "i3",
+        label: "Mission Focus",
+        text: "Degraded Land Restoration (26M ha) & Frontier Agronomy",
+        box: { top: 52, left: 10, width: 80, height: 18 },
+        confidence: 0.97,
+      },
+      {
+        id: "i4",
+        label: "Official Signature",
+        text: "Signed (Himanshu Pathak) • 3rd November 2023",
+        box: { top: 83, left: 68, width: 28, height: 10 },
+        confidence: 0.99,
+      },
+    ],
+    schemesUnlocked: [
+      "National Mission on Sustainable Agriculture (NMSA Rainfed Area Development)",
+      "Paramparagat Krishi Vikas Yojana (PKVY ₹50,000/ha Organic Cluster Scheme)",
+      "Shree Anna Mission - High Value Millet Cultivation & Seed Minikits",
+      "Soil Health Card Micronutrient Management Subsidy",
+    ],
+  },
+  bau_ranchi_admission: {
+    docType: "land_record",
+    title: "Birsa Agricultural University - B.Sc. Agriculture Admission",
+    previewUrl: "/documents/bau_ranchi_admission_notice.jpg",
+    confidenceScore: 0.97,
+    fileName: "bau_ranchi_admission_notice.jpg",
+    detectionSummary: "Official Birsa Agricultural University (BAU Kanke, Ranchi) document checklist and counseling schedule for B.Sc. (Honours) Agriculture, Horticulture, and Agricultural Engineering.",
+    extractedData: {
+      institution: "Birsa Agricultural University (BAU), Kanke, Ranchi",
+      facultyDepartment: "Faculty of Agriculture, Kanke, Ranchi",
+      admissionDegree: "B.Sc. (Hon's) Agriculture / Horticulture / B.Tech (Ag. Engg.)",
+      affiliatedColleges: "Ranchi Agri College, College of Ag. Engg., Chaibasa Horticulture, Godda, Deoghar, Garhwa",
+      districtMandal: "Kanke, Ranchi, Jharkhand",
+      dates: "Reporting: 06.09.2023 to 12.09.2023 (10:30 AM to 05:00 PM)",
+      recommendedAction: "Submit original JCECE Allotment Letter, Admit Card, Academic mark sheets, Residential & Caste Certificate, and Aadhaar card.",
+    },
+    boundingBoxes: [
+      {
+        id: "b1",
+        label: "University & Faculty",
+        text: "FACULTY OF AGRICULTURE • BIRSA AGRICULTURAL UNIVERSITY, KANKE, RANCHI",
+        box: { top: 3, left: 24, width: 56, height: 8 },
+        confidence: 0.99,
+      },
+      {
+        id: "b2",
+        label: "Eligible Degrees",
+        text: "B.Sc. (Hon's) Agriculture / Horticulture / B.Tech (Ag. Engg.)",
+        box: { top: 14, left: 10, width: 80, height: 6 },
+        confidence: 0.98,
+      },
+      {
+        id: "b3",
+        label: "Participating Colleges Table",
+        text: "Ranchi, Chaibasa, Godda, Deoghar & Garhwa Agriculture Colleges",
+        box: { top: 50, left: 9, width: 82, height: 32 },
+        confidence: 0.97,
+      },
+      {
+        id: "b4",
+        label: "Dean & Registrar Authority",
+        text: "Dean & Assistant Registrar, Faculty of Agriculture, BAU Kanke",
+        box: { top: 83, left: 8, width: 86, height: 14 },
+        confidence: 0.99,
+      },
+    ],
+    schemesUnlocked: [
+      "ICAR National Talent Scholarship (NTS - ₹3,000/month for UG Agriculture)",
+      "Agri-Clinics & Agri-Business Centres (ACABC - up to ₹20 Lakhs Loan with 36-44% Subsidy)",
+      "Student READY Stipend Scheme (Rural Entrepreneurship Awareness Development)",
+      "Birsa Harit Gram Yojana (Jharkhand Horticulture Orchard Incentive)",
     ],
   },
 };
