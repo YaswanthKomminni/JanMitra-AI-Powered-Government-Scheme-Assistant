@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import AuthBootstrap from "@/components/AuthBootstrap";
+import ThemeProvider from "@/components/ThemeProvider";
 
 export const metadata: Metadata = {
   title: "JanMithra - AI Agricultural & Government Scheme Assistant",
@@ -12,7 +13,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: "#065f46",
+  themeColor: "#FF6115",
 };
 
 export default function RootLayout({
@@ -21,18 +22,20 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" data-theme="neon-porcelain" suppressHydrationWarning>
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap"
-          rel="stylesheet"
+        {/* Apply the last-used theme before first paint (defaults to Neon Porcelain). */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var t=localStorage.getItem("janmitra:theme:last");var ok=["neon-porcelain","quantum-blue","clay-brown","signal-violet","forest-graphite"];document.documentElement.setAttribute("data-theme",ok.indexOf(t)>-1?t:"neon-porcelain")}catch(e){document.documentElement.setAttribute("data-theme","neon-porcelain")}`,
+          }}
         />
       </head>
-      <body className="antialiased bg-slate-50 text-slate-900 min-h-screen font-sans selection:bg-emerald-500 selection:text-white">
-        <AuthBootstrap />
-        {children}
+      <body className="antialiased min-h-screen font-sans">
+        <ThemeProvider>
+          <AuthBootstrap />
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );

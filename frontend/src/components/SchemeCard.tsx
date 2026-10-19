@@ -1,15 +1,7 @@
 "use client";
 
 import React from "react";
-import {
-  CheckCircle2,
-  FileText,
-  ArrowRight,
-  Sparkles,
-  ShieldCheck,
-  ExternalLink,
-  ChevronRight,
-} from "lucide-react";
+import { Gift, FileText, Sparkles, ShieldCheck, ChevronRight } from "lucide-react";
 import { Scheme } from "@/lib/mockData";
 import { useFarmerStore } from "@/store/useFarmerStore";
 import { translations } from "@/lib/i18n";
@@ -18,116 +10,95 @@ interface SchemeCardProps {
   scheme: Scheme;
 }
 
-export default function SchemeCard({ scheme }: SchemeCardProps) {
-  const {
-    language,
-    setSelectedScheme,
-    setVerificationModalOpen,
-  } = useFarmerStore();
+const chip =
+  "inline-flex items-center h-6 px-2.5 rounded-full text-xs font-medium whitespace-nowrap";
 
+export default function SchemeCard({ scheme }: SchemeCardProps) {
+  const { language, setSelectedScheme, setVerificationModalOpen } = useFarmerStore();
   const t = translations[language];
 
-  const getMatchScoreColor = (score: number) => {
-    if (score >= 95) return "bg-emerald-600 text-white ring-4 ring-emerald-200";
-    if (score >= 90) return "bg-emerald-500 text-white ring-4 ring-emerald-100";
-    return "bg-amber-500 text-white ring-4 ring-amber-100";
-  };
-
   return (
-    <div className="bg-white rounded-3xl border-2 border-emerald-100 hover:border-emerald-400 p-6 shadow-md hover:shadow-xl transition-all flex flex-col justify-between group">
-      <div>
-        {/* Top Badges: Match Score & Category */}
-        <div className="flex items-center justify-between gap-3 mb-4">
-          <div className="flex items-center gap-2">
-            <span
-              className={`px-3 py-1 rounded-full text-xs font-black tracking-wide flex items-center gap-1 shadow-sm ${getMatchScoreColor(
-                scheme.matchScore
-              )}`}
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>{scheme.matchScore}% {t.matchScore}</span>
-            </span>
-
-            <span className="px-3 py-1 rounded-full text-xs font-bold bg-stone-100 text-stone-700 border border-stone-200">
-              {scheme.categoryName}
-            </span>
-          </div>
-
-          <span className="text-xs font-bold text-stone-500 tracking-wider">
-            {scheme.code}
+    <article className="group flex h-full flex-col rounded-[18px] border border-jm-border bg-jm-surface p-5 sm:p-6 shadow-[0_1px_2px_rgb(0_0_0/0.04)] transition hover:border-jm-primary/40 hover:shadow-[0_4px_14px_rgb(0_0_0/0.06)]">
+      {/* Header: match score, category, code */}
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+        <div className="flex flex-wrap items-center gap-2 min-w-0">
+          <span className={`${chip} gap-1 bg-jm-soft border border-jm-primary/25 text-jm-text`}>
+            <Sparkles className="w-3 h-3 text-jm-primary" />
+            {scheme.matchScore}% {t.matchScore}
+          </span>
+          <span className={`${chip} bg-jm-muted border border-jm-border text-jm-text2 max-w-full truncate`}>
+            {scheme.categoryName}
           </span>
         </div>
+        {scheme.code && (
+          <span className="text-xs font-medium text-jm-text2 whitespace-nowrap">{scheme.code}</span>
+        )}
+      </div>
 
-        {/* Scheme Name */}
-        <h3 className="text-xl font-extrabold text-stone-900 group-hover:text-emerald-900 transition-colors leading-snug">
-          {scheme.name}
-        </h3>
-        <p className="text-xs text-stone-500 font-medium mt-1">
-          {scheme.department}
-        </p>
+      {/* Title + department */}
+      <h3 className="mt-3 text-xl sm:text-[22px] lg:text-[23px] font-semibold leading-[1.3] text-jm-text break-words">
+        {scheme.name}
+      </h3>
+      <p className="mt-1 text-sm text-jm-text2">{scheme.department}</p>
 
-        {/* Subsidy Highlight Box (High Contrast Warm Amber) */}
-        <div className="mt-4 p-3.5 rounded-2xl bg-amber-50 border-2 border-amber-300/80 flex items-start gap-3">
-          <div className="p-2 rounded-xl bg-amber-500 text-white shrink-0 mt-0.5 shadow-sm">
-            <CheckCircle2 className="w-5 h-5" />
-          </div>
-          <div>
-            <p className="text-[11px] font-extrabold uppercase tracking-wider text-amber-800">
-              {t.subsidyAmount}
-            </p>
-            <p className="text-base font-black text-amber-950">
-              {scheme.subsidyAmount}
-            </p>
-          </div>
-        </div>
-
-        {/* Description */}
-        <p className="text-sm text-stone-700 font-normal mt-4 line-clamp-2 leading-relaxed">
-          {scheme.description}
-        </p>
-
-        {/* Required Documents Pills */}
-        <div className="mt-4 pt-3 border-t border-stone-100">
-          <p className="text-xs font-bold text-stone-600 mb-2 flex items-center gap-1">
-            <FileText className="w-3.5 h-3.5 text-stone-500" />
-            {t.documentsRequired}:
-          </p>
-          <div className="flex flex-wrap gap-1.5">
-            {scheme.documentsRequired.slice(0, 3).map((doc, idx) => (
-              <span
-                key={idx}
-                className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200"
-              >
-                {doc}
-              </span>
-            ))}
-            {scheme.documentsRequired.length > 3 && (
-              <span className="px-2 py-1 rounded-lg text-[11px] font-semibold bg-stone-100 text-stone-600">
-                +{scheme.documentsRequired.length - 3} more
-              </span>
-            )}
-          </div>
+      {/* Benefit panel */}
+      <div className="mt-4 flex items-center gap-3 rounded-xl border border-jm-primary/20 bg-jm-soft px-3.5 py-3">
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-jm-surface border border-jm-primary/20">
+          <Gift className="h-4 w-4 text-jm-primary" />
+        </span>
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-jm-text2">{t.subsidyAmount}</p>
+          <p className="text-[15px] font-semibold leading-snug text-jm-text break-words">{scheme.subsidyAmount}</p>
         </div>
       </div>
 
-      {/* Action Buttons */}
-      <div className="mt-6 pt-4 border-t border-stone-100 flex items-center gap-3">
+      {/* Description grows so documents and actions line up across cards */}
+      <p className="mt-4 flex-1 text-[15px] leading-relaxed text-jm-text2 line-clamp-3">
+        {scheme.description}
+      </p>
+
+      {/* Required documents */}
+      <div className="mt-4 border-t border-jm-border pt-4">
+        <p className="mb-2 flex items-center gap-1.5 text-[13px] font-medium text-jm-text">
+          <FileText className="h-3.5 w-3.5 text-jm-text2" />
+          {t.documentsRequired}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {scheme.documentsRequired.slice(0, 3).map((doc, idx) => (
+            <span
+              key={idx}
+              className="inline-flex max-w-full items-center rounded-md border border-jm-border bg-jm-muted px-2.5 py-1 text-xs leading-snug text-jm-text"
+            >
+              <span className="truncate">{doc}</span>
+            </span>
+          ))}
+          {scheme.documentsRequired.length > 3 && (
+            <span className="inline-flex items-center rounded-md px-2 py-1 text-xs text-jm-text2">
+              +{scheme.documentsRequired.length - 3} more
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="mt-5 flex items-center gap-3">
         <button
           onClick={() => setVerificationModalOpen(true)}
-          className="flex-1 py-3.5 px-4 rounded-2xl bg-emerald-700 hover:bg-emerald-800 text-white font-black text-sm shadow-md shadow-emerald-700/20 active:scale-98 transition flex items-center justify-center gap-2"
+          className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-jm-primary px-4 text-sm font-semibold text-jm-onprimary transition hover:bg-jm-hover active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <ShieldCheck className="w-4 h-4 text-emerald-300" />
-          <span>{t.verifyAndApply}</span>
+          <ShieldCheck className="h-4 w-4 shrink-0" />
+          <span className="truncate">{t.verifyAndApply}</span>
         </button>
 
         <button
           onClick={() => setSelectedScheme(scheme)}
-          className="p-3.5 rounded-2xl bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold text-xs transition active:scale-95"
+          className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border border-jm-border bg-jm-surface text-jm-text transition hover:bg-jm-muted active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50"
           title={t.viewDetails}
+          aria-label={t.viewDetails}
         >
-          <ChevronRight className="w-5 h-5 text-stone-700" />
+          <ChevronRight className="h-5 w-5" />
         </button>
       </div>
-    </div>
+    </article>
   );
 }

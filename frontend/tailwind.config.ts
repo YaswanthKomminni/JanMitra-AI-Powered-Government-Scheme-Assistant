@@ -9,34 +9,18 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        krishi: {
-          50: "#f0fdf4",
-          100: "#dcfce7",
-          200: "#bbf7d0",
-          300: "#86efac",
-          400: "#4ade80",
-          500: "#22c55e",
-          600: "#16a34a",
-          700: "#15803d",
-          800: "#166534",
-          900: "#14532d",
-          950: "#052e16",
-        },
-        amberGold: {
-          50: "#fffbeb",
-          100: "#fef3c7",
-          500: "#f59e0b",
-          600: "#d97706",
-          700: "#b45309",
-        },
-        earth: {
-          100: "#f5ede4",
-          500: "#8d5b4c",
-          700: "#603813",
-        }
+        // Existing component classes are re-pointed at the active theme's tokens.
+        krishi: { 50: "rgb(var(--soft) / <alpha-value>)", 100: "rgb(var(--soft) / <alpha-value>)", 200: "rgb(var(--border) / <alpha-value>)", 300: "rgb(var(--primary) / <alpha-value>)", 400: "rgb(var(--primary) / <alpha-value>)", 500: "rgb(var(--primary) / <alpha-value>)", 600: "rgb(var(--primary) / <alpha-value>)", 700: "rgb(var(--primary) / <alpha-value>)", 800: "rgb(var(--primary-hover) / <alpha-value>)", 900: "rgb(var(--text) / <alpha-value>)", 950: "rgb(var(--text) / <alpha-value>)" },
+        emerald: { 50: "rgb(var(--soft) / <alpha-value>)", 100: "rgb(var(--soft) / <alpha-value>)", 200: "rgb(var(--border) / <alpha-value>)", 300: "rgb(var(--primary) / <alpha-value>)", 400: "rgb(var(--primary) / <alpha-value>)", 500: "rgb(var(--primary) / <alpha-value>)", 600: "rgb(var(--primary) / <alpha-value>)", 700: "rgb(var(--primary) / <alpha-value>)", 800: "rgb(var(--primary-hover) / <alpha-value>)", 900: "rgb(var(--text) / <alpha-value>)", 950: "rgb(var(--text) / <alpha-value>)" },
+        stone: { 50: "rgb(var(--bg) / <alpha-value>)", 100: "rgb(var(--muted) / <alpha-value>)", 200: "rgb(var(--border) / <alpha-value>)", 300: "rgb(var(--border) / <alpha-value>)", 400: "rgb(var(--text-2) / <alpha-value>)", 500: "rgb(var(--text-2) / <alpha-value>)", 600: "rgb(var(--text-2) / <alpha-value>)", 700: "rgb(var(--text) / <alpha-value>)", 800: "rgb(var(--text) / <alpha-value>)", 900: "rgb(var(--text) / <alpha-value>)", 950: "rgb(var(--text) / <alpha-value>)" },
+        slate: { 50: "rgb(var(--bg) / <alpha-value>)", 100: "rgb(var(--muted) / <alpha-value>)", 200: "rgb(var(--border) / <alpha-value>)", 300: "rgb(var(--border) / <alpha-value>)", 400: "rgb(var(--text-2) / <alpha-value>)", 500: "rgb(var(--text-2) / <alpha-value>)", 600: "rgb(var(--text-2) / <alpha-value>)", 700: "rgb(var(--text) / <alpha-value>)", 800: "rgb(var(--text) / <alpha-value>)", 900: "rgb(var(--text) / <alpha-value>)" },
+        amberGold: { 50: "rgb(var(--soft) / <alpha-value>)", 100: "rgb(var(--soft) / <alpha-value>)", 500: "rgb(var(--primary) / <alpha-value>)", 600: "rgb(var(--primary) / <alpha-value>)", 700: "rgb(var(--text) / <alpha-value>)" },
+        earth: { 100: "rgb(var(--soft) / <alpha-value>)", 500: "rgb(var(--text-2) / <alpha-value>)", 700: "rgb(var(--text) / <alpha-value>)" },
+        jm: { hover: "rgb(var(--primary-hover) / <alpha-value>)", primary: "rgb(var(--primary) / <alpha-value>)", onprimary: "rgb(var(--on-primary) / <alpha-value>)", bg: "rgb(var(--bg) / <alpha-value>)", surface: "rgb(var(--surface) / <alpha-value>)", muted: "rgb(var(--muted) / <alpha-value>)", text: "rgb(var(--text) / <alpha-value>)", text2: "rgb(var(--text-2) / <alpha-value>)", border: "rgb(var(--border) / <alpha-value>)", soft: "rgb(var(--soft) / <alpha-value>)" },
       },
+      fontWeight: { extrabold: "700", black: "700" },
       fontFamily: {
-        sans: ["system-ui", "-apple-system", "Segoe UI", "Roboto", "Helvetica", "Arial", "sans-serif"],
+        sans: ["Segoe UI", "Segoe UI Variable", "-apple-system", "BlinkMacSystemFont", "Helvetica Neue", "Arial", "sans-serif"],
       },
       animation: {
         "scan-laser": "scan 2s ease-in-out infinite alternate",

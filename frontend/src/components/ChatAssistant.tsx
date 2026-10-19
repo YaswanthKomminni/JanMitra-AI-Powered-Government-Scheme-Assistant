@@ -672,14 +672,14 @@ export default function ChatAssistant({ variant = "full" }: { variant?: "full" |
 
   return (
     <div
-      className={`bg-white rounded-3xl border-2 border-emerald-100 shadow-xl overflow-hidden flex relative ${
+      className={`bg-white rounded-2xl border border-stone-200 overflow-hidden flex relative ${
         isFull ? "h-[78vh] min-h-[560px] max-h-[860px]" : "h-[650px] max-h-[80vh]"
       }`}
     >
       {/* Conversation history (full view, signed in) */}
       {isFull && isAuthenticated && (
         <>
-          <div className="hidden md:block w-72 shrink-0">
+          <div className="hidden w-72 shrink-0">
             <ConversationSidebar />
           </div>
           {historyOpen && (
@@ -704,13 +704,13 @@ export default function ChatAssistant({ variant = "full" }: { variant?: "full" |
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-md animate-in fade-in">
           <div className="w-full max-w-xl">
             <LiveCameraCapture
-              category="auto_detect"
+              category="crop_disease"
               title="Snap Live Photo with Webcam / Mobile Camera"
               onCapture={async (base64) => {
                 const fileName = `Live_Scan_${Date.now()}.jpg`;
                 let classification: any = null;
                 try {
-                  classification = await classifyBase64Image(base64, fileName, "auto_detect");
+                  classification = await classifyBase64Image(base64, fileName, "crop_disease");
                 } catch (e) {
                   console.warn("[chat] Live scan classification error:", e);
                 }

@@ -53,7 +53,6 @@ export function classifyImagePixels(
   let soilCount = 0;
   let documentPaperCount = 0;
   let highContrastTextEdges = 0;
-  let humanSkinCount = 0;
 
   // Step across pixels for fast analysis (<5ms)
   const step = Math.max(1, Math.floor(Math.sqrt((width * height) / 10000)));
@@ -92,6 +91,7 @@ export function classifyImagePixels(
       }
 
       // 3. Document / Paper Background & Ink Detection:
+      // Real paper has high luminance and very low saturation (white, off-white, cream, or light stamp paper)
       const lum = 0.299 * r + 0.587 * g + 0.114 * b;
       const maxC = Math.max(r, g, b);
       const minC = Math.min(r, g, b);
@@ -105,21 +105,6 @@ export function classifyImagePixels(
       } else if (isInk) {
         highContrastTextEdges++;
       }
-
-      // 4. Human Skin Tone Detection (Kovak et al. standard RGB human skin model):
-      const isSkin =
-        r > 95 &&
-        g > 40 &&
-        b > 20 &&
-        maxC - minC > 15 &&
-        Math.abs(r - g) > 15 &&
-        r > g &&
-        r > b &&
-        r > 1.15 * g &&
-        g > b;
-      if (isSkin) {
-        humanSkinCount++;
-      }
     }
   }
 
@@ -127,31 +112,44 @@ export function classifyImagePixels(
   const soilRatio = totalSampled > 0 ? soilCount / totalSampled : 0;
   const docRatio = totalSampled > 0 ? documentPaperCount / totalSampled : 0;
   const textDensity = totalSampled > 0 ? highContrastTextEdges / totalSampled : 0;
-  const skinRatio = totalSampled > 0 ? humanSkinCount / totalSampled : 0;
 
-  // STRICT RULE 1: Human Selfies, Faces, and Portraits are ALWAYS OUT OF SCOPE!
-  if (skinRatio >= 0.016) {
+  // Decision Logic:
+  // 1. Crop / Plant / Foliage / Pest Leaf
+  if (greenRatio >= 0.08 || (userSelectedCategory === "crop_disease" && greenRatio >= 0.05)) {
     return {
-      isAgriRelated: false,
-      detectedType: "out_of_scope",
-      confidence: 0.98,
-      message: "Out of Scope: Image appears to show a person or indoor selfie rather than agricultural crops, soil, or official government documents.",
+      isAgriRelated: true,
+      detectedType: "crop_disease",
+      confidence: Math.min(0.98, Math.max(0.75, 0.65 + greenRatio * 1.5)),
+      message: "Valid agricultural crop/leaf detected for pest and disease analysis.",
       metrics: {
         greenVegetationRatio: Math.round(greenRatio * 100),
         soilToneRatio: Math.round(soilRatio * 100),
         documentPaperRatio: Math.round(docRatio * 100),
-        dominantDomain: "Person / Indoor Selfie (Out of Scope)",
+        dominantDomain: "Crops & Foliage",
       },
     };
   }
 
-  // 2. Official Agricultural & Government Document (Paper + Ink Layout, Document File, or Keywords)
-  const isDocumentVisual =
-    (docRatio >= 0.22 && textDensity >= 0.005) ||
-    (docRatio >= 0.35 && textDensity >= 0.002) ||
-    (docRatio >= 0.18 && textDensity >= 0.015);
+  // 2. Soil / Farmland Earth Sample
+  if (soilRatio >= 0.22 || (userSelectedCategory === "soil_health" && soilRatio >= 0.15)) {
+    return {
+      isAgriRelated: true,
+      detectedType: "soil_health",
+      confidence: Math.min(0.96, Math.max(0.72, 0.6 + soilRatio * 1.2)),
+      message: "Agricultural soil sample detected for soil nutrient & health evaluation.",
+      metrics: {
+        greenVegetationRatio: Math.round(greenRatio * 100),
+        soilToneRatio: Math.round(soilRatio * 100),
+        documentPaperRatio: Math.round(docRatio * 100),
+        dominantDomain: "Soil & Nutrient Profile",
+      },
+    };
+  }
 
-  if (isDocumentFile || isDocumentVisual || (hasAgriKeyword && (docRatio >= 0.15 || textDensity >= 0.004))) {
+  // 3. Official Agricultural & Government Document (Document File, Paper + Ink Layout, or Agricultural Keywords)
+  const isDocumentVisual = (docRatio >= 0.40 && textDensity >= 0.008) || (docRatio >= 0.28 && textDensity >= 0.012);
+
+  if (isDocumentFile || isDocumentVisual || (hasAgriKeyword && (docRatio >= 0.20 || textDensity >= 0.005))) {
     let docType: "land_record" | "soil_health" | "identity_card" = "land_record";
     if (
       userSelectedCategory === "soil_health" ||
@@ -174,38 +172,6 @@ export function classifyImagePixels(
         soilToneRatio: Math.round(soilRatio * 100),
         documentPaperRatio: Math.round(docRatio * 100),
         dominantDomain: "Government & Land Revenue Document",
-      },
-    };
-  }
-
-  // 3. Crop / Plant / Foliage / Pest Leaf
-  if (greenRatio >= 0.10 || (userSelectedCategory === "crop_disease" && greenRatio >= 0.06)) {
-    return {
-      isAgriRelated: true,
-      detectedType: "crop_disease",
-      confidence: Math.min(0.98, Math.max(0.75, 0.65 + greenRatio * 1.5)),
-      message: "Valid agricultural crop/leaf detected for pest and disease analysis.",
-      metrics: {
-        greenVegetationRatio: Math.round(greenRatio * 100),
-        soilToneRatio: Math.round(soilRatio * 100),
-        documentPaperRatio: Math.round(docRatio * 100),
-        dominantDomain: "Crops & Foliage",
-      },
-    };
-  }
-
-  // 4. Soil / Farmland Earth Sample
-  if (soilRatio >= 0.22 || (userSelectedCategory === "soil_health" && soilRatio >= 0.15)) {
-    return {
-      isAgriRelated: true,
-      detectedType: "soil_health",
-      confidence: Math.min(0.96, Math.max(0.72, 0.6 + soilRatio * 1.2)),
-      message: "Agricultural soil sample detected for soil nutrient & health evaluation.",
-      metrics: {
-        greenVegetationRatio: Math.round(greenRatio * 100),
-        soilToneRatio: Math.round(soilRatio * 100),
-        documentPaperRatio: Math.round(docRatio * 100),
-        dominantDomain: "Soil & Nutrient Profile",
       },
     };
   }

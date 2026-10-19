@@ -141,7 +141,12 @@ export default function LiveCameraCapture({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Keep natural left-to-right reading orientation for documents and crop leaves
+    // Mirror image if using front selfie camera
+    if (facingMode === "user") {
+      ctx.translate(width, 0);
+      ctx.scale(-1, 1);
+    }
+
     ctx.drawImage(video, 0, 0, width, height);
 
     const base64 = canvas.toDataURL("image/jpeg", 0.92);

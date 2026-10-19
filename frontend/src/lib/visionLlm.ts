@@ -217,65 +217,6 @@ async function callGroqVision(fileBase64: string, apiKey: string): Promise<Visio
 }
 
 /**
- * Call OpenAI Vision API (gpt-4o-mini / gpt-4o).
- */
-async function callOpenAiVision(fileBase64: string, apiKey: string): Promise<VisionAnalysisResult | null> {
-  try {
-    const url = "https://api.openai.com/v1/chat/completions";
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "text",
-                text: "Determine if this image is strictly related to Indian agriculture, crops, soil, or government welfare land records. If not, reject with { isAgriRelated: false, scopeStatus: 'out_of_scope', reason: '...', suggestions: [...] }. If yes, return { isAgriRelated: true, scopeStatus: 'in_scope', docType: 'crop_disease'|'soil_health_card'|'land_record'|'identity_card', title: '...', detectionSummary: '...', extractedData: {...}, schemesUnlocked: [...], suggestions: [...] }. Return JSON only.",
-              },
-              {
-                type: "image_url",
-                image_url: { url: fileBase64 },
-              },
-            ],
-          },
-        ],
-        temperature: 0.1,
-        response_format: { type: "json_object" },
-      }),
-      signal: AbortSignal.timeout(25000),
-    });
-
-    if (!res.ok) return null;
-    const data = await res.json();
-    const content = data?.choices?.[0]?.message?.content;
-    if (!content) return null;
-
-    const parsed = JSON.parse(content);
-    return {
-      isAgriRelated: parsed.isAgriRelated ?? true,
-      scopeStatus: parsed.scopeStatus ?? (parsed.isAgriRelated ? "in_scope" : "out_of_scope"),
-      docType: parsed.docType,
-      title: parsed.title,
-      confidenceScore: parsed.confidenceScore || 0.95,
-      detectionSummary: parsed.detectionSummary || "",
-      reason: parsed.reason,
-      extractedData: parsed.extractedData || {},
-      schemesUnlocked: parsed.schemesUnlocked || [],
-      suggestions: parsed.suggestions || [],
-    };
-  } catch (e) {
-    console.warn("[OpenAI Vision notice]:", (e as Error).message);
-    return null;
-  }
-}
-
-/**
  * Main Vision Analysis Entrypoint.
  *
  * 1. Checks if Cloud Vision LLM keys (Gemini, Groq, OpenAI) are available and calls them.
@@ -305,14 +246,7 @@ export async function analyzeImageIntelligently(opts: {
     if (groqResult) return groqResult;
   }
 
-  // 3. Try OpenAI Vision LLM if OPENAI_API_KEY is present
-  const openAiKey = process.env.OPENAI_API_KEY;
-  if (openAiKey) {
-    const openAiResult = await callOpenAiVision(fileBase64, openAiKey);
-    if (openAiResult) return openAiResult;
-  }
-
-  // 4. High-Accuracy Local Vision & OCR Analysis
+  // 3. High-Accuracy Local Vision & OCR Analysis
   const localDetected = await analyzeDocumentComprehensive(fileBase64, fileName, fileType, classification);
 
   // If local engine flagged out-of-scope

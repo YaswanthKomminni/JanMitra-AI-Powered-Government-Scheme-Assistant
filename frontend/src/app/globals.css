@@ -2,51 +2,83 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ---------- Typography (same across all themes) ---------- */
 :root {
-  --foreground-rgb: 15, 23, 42;
-  --background-rgb: 248, 250, 252;
+  --font-family-primary: "Segoe UI", "Segoe UI Variable", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+}
+html, body, button, input, textarea, select, optgroup { font-family: var(--font-family-primary); }
+button, input, textarea, select { font-size: inherit; line-height: inherit; letter-spacing: inherit; }
+body { font-size: 15px; line-height: 1.5; overflow-x: clip; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+h1, h2, h3, h4 { text-wrap: balance; }
+
+/* ---------- Theme tokens (space-separated RGB channels so Tailwind alpha works) ---------- */
+:root, [data-theme="neon-porcelain"] {
+  --primary: 255 97 21; --on-primary: 255 255 255;
+  --bg: 255 252 244; --surface: 255 255 255; --muted: 245 241 232;
+  --text: 32 32 30; --text-2: 119 116 110; --border: 233 228 218; --soft: 255 240 231;
+  --primary-hover: 232 82 8; --danger: 220 38 38; --success: 22 163 74; color-scheme: light;
+}
+[data-theme="quantum-blue"] {
+  --primary: 182 255 46; --on-primary: 20 23 12;
+  --bg: 35 38 47; --surface: 44 48 59; --muted: 52 56 68;
+  --text: 245 246 248; --text-2: 182 187 197; --border: 59 64 76; --soft: 52 61 50;
+  --primary-hover: 160 235 28; --danger: 248 113 113; --success: 74 222 128; color-scheme: dark;
+}
+[data-theme="clay-brown"] {
+  --primary: 107 37 42; --on-primary: 255 255 255;
+  --bg: 255 241 166; --surface: 255 248 209; --muted: 245 230 160;
+  --text: 51 32 31; --text-2: 118 93 88; --border: 231 215 141; --soft: 245 230 160;
+  --primary-hover: 88 28 33; --danger: 185 28 28; --success: 21 128 61; color-scheme: light;
+}
+[data-theme="signal-violet"] {
+  --primary: 122 53 255; --on-primary: 255 255 255;
+  --bg: 240 242 245; --surface: 255 255 255; --muted: 232 235 240;
+  --text: 34 35 42; --text-2: 104 108 120; --border: 220 224 231; --soft: 237 229 255;
+  --primary-hover: 101 36 230; --danger: 220 38 38; --success: 22 163 74; color-scheme: light;
+}
+[data-theme="forest-graphite"] {
+  --primary: 183 255 114; --on-primary: 15 26 18;
+  --bg: 24 37 29; --surface: 34 49 40; --muted: 43 59 45;
+  --text: 240 245 239; --text-2: 179 192 181; --border: 52 70 58; --soft: 43 59 45;
+  --primary-hover: 160 238 90; --danger: 248 113 113; --success: 134 239 172; color-scheme: dark;
 }
 
 body {
-  color: rgb(var(--foreground-rgb));
-  background: rgb(var(--background-rgb));
-  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  color: rgb(var(--text));
+  background: rgb(var(--bg));
   -webkit-tap-highlight-color: transparent;
-  user-select: none;
+}
+html { transition: background-color 200ms ease; }
+body, header, aside, main, section, button, input, textarea, select, a, div {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-duration: 180ms;
+  transition-timing-function: ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
 }
 
-/* Accessible high-contrast focus rings */
-button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible {
-  outline: 3px solid #15803d;
-  outline-offset: 2px;
+/* Existing components use bg-white for surfaces; bind it to the theme surface (opacity variants untouched). */
+.bg-white { background-color: rgb(var(--surface)); }
+/* Text on the primary colour must contrast in every theme. */
+[class*="bg-emerald-6"][class*="text-white"], [class*="bg-emerald-7"][class*="text-white"], [class*="bg-emerald-8"][class*="text-white"], [class*="bg-emerald-9"][class*="text-white"] {
+  color: rgb(var(--on-primary));
 }
+input, textarea, select { color: rgb(var(--text)); background-color: rgb(var(--surface)); }
+::placeholder { color: rgb(var(--text-2)); opacity: 0.8; }
 
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 2px solid rgb(var(--primary)); outline-offset: 2px;
 }
-::-webkit-scrollbar-track {
-  background: #f1f5f9;
-}
-::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 9999px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
-}
+::selection { background: rgb(var(--primary)); color: rgb(var(--on-primary)); }
 
-/* Audio wave animation */
-@keyframes soundwave {
-  0% { height: 6px; }
-  50% { height: 28px; }
-  100% { height: 6px; }
-}
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgb(var(--border)); border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: rgb(var(--text-2)); }
 
-.wave-bar {
-  animation: soundwave 1s ease-in-out infinite;
-}
+@keyframes soundwave { 0% { height: 6px; } 50% { height: 28px; } 100% { height: 6px; } }
+.wave-bar { animation: soundwave 1s ease-in-out infinite; }
 .wave-bar:nth-child(2) { animation-delay: 0.15s; }
 .wave-bar:nth-child(3) { animation-delay: 0.3s; }
 .wave-bar:nth-child(4) { animation-delay: 0.45s; }

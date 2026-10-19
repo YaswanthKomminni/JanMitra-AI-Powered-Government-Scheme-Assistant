@@ -6,10 +6,8 @@ import {
   Tractor,
   Droplets,
   Layers,
-  FileCheck2,
   ScanLine,
   Mic,
-  Sparkles,
   ShieldCheck,
   RefreshCw,
   LogIn,
@@ -18,6 +16,9 @@ import {
 } from "lucide-react";
 import { useFarmerStore } from "@/store/useFarmerStore";
 import { translations } from "@/lib/i18n";
+
+const pill =
+  "inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-jm-onprimary/15 border border-jm-onprimary/25 text-[13px] font-medium text-jm-onprimary";
 
 export default function DashboardHeader() {
   const {
@@ -39,34 +40,34 @@ export default function DashboardHeader() {
   };
 
   return (
-    <div className="bg-gradient-to-br from-emerald-900 via-emerald-800 to-emerald-950 text-white rounded-3xl p-6 sm:p-8 shadow-xl shadow-emerald-950/20 relative overflow-hidden mb-8 border border-emerald-700/50">
-      {/* Background Decorative Graphic */}
-      <div className="absolute right-0 bottom-0 opacity-10 pointer-events-none transform translate-x-8 translate-y-8">
-        <Tractor className="w-80 h-80 text-emerald-300" />
+    <div className="relative overflow-hidden mb-8 rounded-[20px] border border-jm-onprimary/10 bg-gradient-to-br from-jm-primary to-jm-hover text-jm-onprimary p-5 sm:p-7 shadow-sm">
+      {/* Decorative graphic */}
+      <div className="absolute -right-6 -bottom-8 opacity-10 pointer-events-none" aria-hidden="true">
+        <Tractor className="w-64 h-64 text-jm-onprimary" />
       </div>
 
       <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-        {/* Left Demographics & Greeting */}
+        {/* Left: greeting */}
         {!isAuthenticated ? (
-          <div className="space-y-3 max-w-2xl">
-            <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white">
+          <div className="min-w-0 max-w-2xl space-y-3">
+            <h1 className="text-[28px] sm:text-[32px] font-bold leading-tight tracking-tight">
               {t.welcome}! {(t as any).guestHeroTitle || "Welcome to JanMithra"}
             </h1>
-            <p className="text-sm sm:text-base text-emerald-100/90 leading-relaxed">
+            <p className="text-[15px] sm:text-base leading-relaxed opacity-90">
               {(t as any).guestHeroSubtitle ||
                 "Explore government schemes and nearby farmer success stories. Sign in or create a free account to ask the AI assistant, scan documents, and keep your conversations saved."}
             </p>
             {authStatus !== "unknown" && (
-              <div className="flex flex-wrap gap-2 pt-1">
+              <div className="flex flex-wrap gap-3 pt-1">
                 <button
                   onClick={() => setAuthModalOpen(true, "login")}
-                  className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-white text-emerald-900 font-black text-sm shadow-md hover:bg-emerald-50 transition active:scale-98"
+                  className="inline-flex items-center justify-center gap-2 h-11 px-5 rounded-xl bg-jm-surface text-jm-text text-sm font-semibold border border-jm-border shadow-sm hover:bg-jm-muted active:translate-y-px transition"
                 >
                   <LogIn className="w-4 h-4" /> Sign In
                 </button>
                 <button
                   onClick={() => setAuthModalOpen(true, "signup")}
-                  className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-emerald-700/80 border border-emerald-400/40 text-white font-black text-sm hover:bg-emerald-600 transition active:scale-98"
+                  className="inline-flex items-center justify-center gap-2 h-11 px-5 rounded-xl bg-jm-onprimary/15 border border-jm-onprimary/35 text-jm-onprimary text-sm font-semibold hover:bg-jm-onprimary/25 active:translate-y-px transition"
                 >
                   <UserPlus className="w-4 h-4" /> Create Free Account
                 </button>
@@ -74,100 +75,85 @@ export default function DashboardHeader() {
             )}
           </div>
         ) : (
-        <div className="space-y-3 max-w-2xl">
-          <div className="flex flex-wrap items-center gap-2">
-            {/* GPS Location Tag */}
-            {(currentFarmer.village || currentFarmer.district || currentFarmer.state) && (
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/70 border border-emerald-500/40 text-xs font-bold text-emerald-200 shadow-sm">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-              <MapPin className="w-3.5 h-3.5 text-emerald-400" />
-              <span>
-                {[currentFarmer.village, currentFarmer.district, currentFarmer.state].filter(Boolean).join(", ")}
-              </span>
-              <button
-                onClick={handleRefreshGps}
-                className="hover:text-white transition p-0.5 ml-1"
-                title="Refresh GPS Coordinates"
-              >
-                <RefreshCw
-                  className={`w-3 h-3 ${gpsRefreshing ? "animate-spin text-white" : ""}`}
-                />
-              </button>
+          <div className="min-w-0 max-w-2xl space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              {(currentFarmer.village || currentFarmer.district || currentFarmer.state) && (
+                <div className={pill}>
+                  <MapPin className="w-3.5 h-3.5" />
+                  <span className="truncate max-w-[16rem]">
+                    {[currentFarmer.village, currentFarmer.district, currentFarmer.state].filter(Boolean).join(", ")}
+                  </span>
+                  <button
+                    onClick={handleRefreshGps}
+                    className="p-0.5 -mr-1 rounded hover:opacity-80 transition"
+                    title="Refresh GPS Coordinates"
+                    aria-label="Refresh GPS Coordinates"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${gpsRefreshing ? "animate-spin" : ""}`} />
+                  </button>
+                </div>
+              )}
+              <div className={pill}>
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>
+                  {currentFarmer.verifiedDocsCount} {t.verifiedStatus}
+                </span>
+              </div>
             </div>
-            )}
 
-            {/* Verified Documents Badge */}
-            <div className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-400/40 text-xs font-bold text-amber-300">
-              <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
-              <span>
-                {currentFarmer.verifiedDocsCount} {t.verifiedStatus}
-              </span>
+            <h1 className="text-[28px] sm:text-[32px] font-bold leading-tight tracking-tight">
+              {t.welcome}, {currentFarmer.name}!
+            </h1>
+
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              {currentFarmer.landSizeAcres > 0 && (
+                <div className={pill}>
+                  <Layers className="w-3.5 h-3.5" />
+                  <span>
+                    {currentFarmer.landSizeAcres} {t.acres}
+                  </span>
+                </div>
+              )}
+              {currentFarmer.soilTypeName && (
+                <div className={pill}>
+                  <span>🌱 {currentFarmer.soilTypeName}</span>
+                </div>
+              )}
+              {currentFarmer.irrigationTypeName && (
+                <div className={pill}>
+                  <Droplets className="w-3.5 h-3.5" />
+                  <span>{currentFarmer.irrigationTypeName}</span>
+                </div>
+              )}
+              {currentFarmer.primaryCrops.length > 0 && (
+                <div className={pill}>
+                  <span>🌾 {currentFarmer.primaryCrops.join(", ")}</span>
+                </div>
+              )}
             </div>
           </div>
-
-          <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white flex items-center gap-3">
-            <span>{t.welcome}, {currentFarmer.name}!</span>
-          </h1>
-
-          {/* High-Contrast Land Profile Badge */}
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3 pt-1">
-            {currentFarmer.landSizeAcres > 0 && (
-            <div className="flex items-center gap-2 bg-emerald-950/80 border border-emerald-500/30 px-3.5 py-2 rounded-2xl">
-              <Layers className="w-4 h-4 text-emerald-400" />
-              <span className="text-sm font-black text-emerald-100">
-                {currentFarmer.landSizeAcres} {t.acres}
-              </span>
-            </div>
-            )}
-
-            {currentFarmer.soilTypeName && (
-            <div className="flex items-center gap-2 bg-emerald-950/80 border border-emerald-500/30 px-3.5 py-2 rounded-2xl">
-              <span className="text-sm font-semibold text-emerald-200">
-                🌱 {currentFarmer.soilTypeName}
-              </span>
-            </div>
-            )}
-
-            {currentFarmer.irrigationTypeName && (
-            <div className="flex items-center gap-2 bg-emerald-950/80 border border-emerald-500/30 px-3.5 py-2 rounded-2xl">
-              <Droplets className="w-4 h-4 text-cyan-400" />
-              <span className="text-sm font-semibold text-emerald-200">
-                {currentFarmer.irrigationTypeName}
-              </span>
-            </div>
-            )}
-
-            {currentFarmer.primaryCrops.length > 0 && (
-            <div className="flex items-center gap-2 bg-amber-950/60 border border-amber-500/30 px-3.5 py-2 rounded-2xl">
-              <span className="text-sm font-semibold text-amber-200">
-                🌾 {currentFarmer.primaryCrops.join(", ")}
-              </span>
-            </div>
-            )}
-          </div>
-        </div>
         )}
 
-        {/* Right CTA Action Buttons */}
-        <div className="flex flex-col sm:flex-row md:flex-col gap-3 shrink-0">
+        {/* Right: actions (same size, one primary + one secondary) */}
+        <div className="flex flex-col sm:flex-row md:flex-col gap-3 shrink-0 md:w-72">
           <button
             onClick={() => setVerificationModalOpen(true)}
-            className="flex items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-amber-500 hover:bg-amber-400 text-amber-950 font-black text-base shadow-xl shadow-amber-500/20 active:scale-98 transition group"
+            className="flex-1 inline-flex items-center justify-center gap-2.5 h-12 px-5 rounded-xl bg-jm-surface text-jm-text text-sm font-semibold border border-jm-border shadow-sm hover:bg-jm-muted active:translate-y-px transition"
           >
-            <ScanLine className="w-5 h-5 text-amber-950 group-hover:rotate-12 transition-transform" />
-            <span>{t.verifyDocsTitle.split(" ")[0]} {t.verifyDocsTitle.split(" ")[1]}</span>
+            <ScanLine className="w-[18px] h-[18px] text-jm-primary shrink-0" />
+            <span className="truncate">{t.verifyDocsTitle}</span>
           </button>
 
           <button
             onClick={() => setActiveTab("chat")}
-            className="flex items-center justify-center gap-3 px-6 py-3.5 rounded-2xl bg-emerald-700/80 hover:bg-emerald-600 text-white font-bold text-sm border border-emerald-500/40 shadow-lg active:scale-98 transition"
+            className="flex-1 inline-flex items-center justify-center gap-2.5 h-12 px-5 rounded-xl bg-jm-onprimary/15 border border-jm-onprimary/35 text-jm-onprimary text-sm font-semibold hover:bg-jm-onprimary/25 active:translate-y-px transition"
           >
             {isAuthenticated ? (
-              <Mic className="w-5 h-5 text-emerald-300 animate-bounce-subtle" />
+              <Mic className="w-[18px] h-[18px] shrink-0" />
             ) : (
-              <MessageSquareText className="w-5 h-5 text-emerald-300" />
+              <MessageSquareText className="w-[18px] h-[18px] shrink-0" />
             )}
-            <span>{t.tabs.chat}</span>
+            <span className="truncate">{t.tabs.chat}</span>
           </button>
         </div>
       </div>

@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Navbar from "@/components/Navbar";
+import AppShell from "@/components/AppShell";
 import AuthModal from "@/components/AuthModal";
 import DashboardHeader from "@/components/DashboardHeader";
 import SchemeCard from "@/components/SchemeCard";
@@ -46,12 +47,13 @@ export default function Home() {
   });
 
   return (
+    <AppShell>
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans pb-24 sm:pb-12">
       {/* Top Navigation */}
       <Navbar />
 
       {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+      <main className="flex-1 max-w-[1200px] w-full mx-auto px-4 sm:px-6 lg:px-8 pt-6">
         {authNotice && (
           <div role="status" className="mb-4 p-3 rounded-2xl bg-amber-50 border border-amber-200 text-xs sm:text-sm font-bold text-amber-900 flex items-center justify-between gap-3">
             <span>{authNotice}</span>
@@ -68,7 +70,7 @@ export default function Home() {
         <DashboardHeader />
 
         {/* Tab View Switcher (Desktop & Tablet) */}
-        <div className="hidden sm:flex items-center justify-between border-b border-stone-200 pb-4 mb-8">
+        <div className="hidden">
           <div className="flex items-center gap-2">
             <button
               onClick={() => setActiveTab("dashboard")}
@@ -137,26 +139,26 @@ export default function Home() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="p-1 rounded-lg bg-emerald-100 text-emerald-800">
-                      <Sparkles className="w-5 h-5 text-emerald-700" />
+                    <span className="grid h-7 w-7 place-items-center rounded-lg bg-jm-soft">
+                      <Sparkles className="w-4 h-4 text-jm-primary" />
                     </span>
-                    <span className="text-xs uppercase font-extrabold tracking-wider text-emerald-800">
+                    <span className="text-[13px] font-medium text-jm-text2">
                       Personalized AI Matching
                     </span>
                   </div>
-                  <h2 className="text-2xl sm:text-3xl font-black text-stone-900 tracking-tight">
+                  <h2 className="text-2xl sm:text-[28px] font-bold leading-tight text-stone-900 tracking-tight">
                     {t.recommendedSchemesTitle}
                   </h2>
-                  <p className="text-sm text-stone-600 mt-0.5">
+                  <p className="text-[15px] text-stone-600 mt-1">
                     {t.recommendedSchemesSubtitle}
                   </p>
                 </div>
 
                 {/* Category Filter Pills */}
-                <div className="flex items-center gap-1.5 overflow-x-auto pb-2 sm:pb-0">
+                <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0">
                   <button
                     onClick={() => setSelectedCategoryFilter("all")}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shrink-0 ${
+                    className={`h-9 px-3.5 rounded-full text-[13px] font-medium transition shrink-0 ${
                       selectedCategoryFilter === "all"
                         ? "bg-emerald-800 text-white shadow-sm"
                         : "bg-white text-stone-700 hover:bg-stone-100 border border-stone-200"
@@ -166,7 +168,7 @@ export default function Home() {
                   </button>
                   <button
                     onClick={() => setSelectedCategoryFilter("solar")}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shrink-0 ${
+                    className={`h-9 px-3.5 rounded-full text-[13px] font-medium transition shrink-0 ${
                       selectedCategoryFilter === "solar"
                         ? "bg-emerald-800 text-white shadow-sm"
                         : "bg-white text-stone-700 hover:bg-stone-100 border border-stone-200"
@@ -176,7 +178,7 @@ export default function Home() {
                   </button>
                   <button
                     onClick={() => setSelectedCategoryFilter("subsidy")}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shrink-0 ${
+                    className={`h-9 px-3.5 rounded-full text-[13px] font-medium transition shrink-0 ${
                       selectedCategoryFilter === "subsidy"
                         ? "bg-emerald-800 text-white shadow-sm"
                         : "bg-white text-stone-700 hover:bg-stone-100 border border-stone-200"
@@ -186,7 +188,7 @@ export default function Home() {
                   </button>
                   <button
                     onClick={() => setSelectedCategoryFilter("insurance")}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shrink-0 ${
+                    className={`h-9 px-3.5 rounded-full text-[13px] font-medium transition shrink-0 ${
                       selectedCategoryFilter === "insurance"
                         ? "bg-emerald-800 text-white shadow-sm"
                         : "bg-white text-stone-700 hover:bg-stone-100 border border-stone-200"
@@ -196,7 +198,7 @@ export default function Home() {
                   </button>
                   <button
                     onClick={() => setSelectedCategoryFilter("soil")}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shrink-0 ${
+                    className={`h-9 px-3.5 rounded-full text-[13px] font-medium transition shrink-0 ${
                       selectedCategoryFilter === "soil"
                         ? "bg-emerald-800 text-white shadow-sm"
                         : "bg-white text-stone-700 hover:bg-stone-100 border border-stone-200"
@@ -208,7 +210,7 @@ export default function Home() {
               </div>
 
               {/* Grid of Recommended Schemes */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="mx-auto grid w-full grid-cols-[repeat(auto-fit,minmax(min(100%,22rem),1fr))] gap-5 lg:gap-6">
                 {filteredSchemes.map((scheme) => (
                   <SchemeCard key={scheme.id} scheme={scheme} />
                 ))}
@@ -219,7 +221,7 @@ export default function Home() {
             <PeerNetwork />
 
             {/* Embedded Multi-modal Assistant preview in Dashboard */}
-            <section className="bg-gradient-to-br from-emerald-50 via-white to-amber-50 rounded-3xl border-2 border-emerald-200 p-6 sm:p-8 shadow-sm">
+            <section className="bg-jm-surface rounded-[20px] border border-jm-border p-5 sm:p-7 shadow-sm">
               <div className="flex flex-col lg:flex-row gap-8 items-start justify-between">
                 <div className="max-w-xl space-y-3">
                   <span className="px-3 py-1 rounded-full text-xs font-extrabold bg-emerald-700 text-white">
@@ -262,7 +264,7 @@ export default function Home() {
       <div className="sm:hidden fixed bottom-4 inset-x-4 z-30 flex items-center gap-3">
         <button
           onClick={() => setActiveTab("chat")}
-          className="flex-1 py-3.5 px-4 rounded-2xl bg-emerald-800 text-white font-black text-sm shadow-2xl flex items-center justify-center gap-2 border border-emerald-500/40 active:scale-95 transition"
+          className="flex-1 h-12 px-4 rounded-xl bg-emerald-800 text-white font-semibold text-sm shadow-lg flex items-center justify-center gap-2 border border-emerald-500/40 active:scale-95 transition"
         >
           <Mic className="w-5 h-5 text-emerald-300 animate-pulse" />
           <span>{t.tabs.chat}</span>
@@ -270,7 +272,7 @@ export default function Home() {
 
         <button
           onClick={() => setVerificationModalOpen(true)}
-          className="p-3.5 rounded-2xl bg-amber-500 text-amber-950 font-black shadow-2xl active:scale-95 transition"
+          className="h-12 w-12 grid place-items-center rounded-xl bg-jm-surface border border-jm-border text-jm-text shadow-lg active:scale-95 transition"
           title="Scan Document"
         >
           <ScanLine className="w-6 h-6" />
@@ -279,7 +281,7 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="mt-16 border-t border-stone-200 bg-white py-8 text-center text-xs text-stone-500 space-y-3">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="max-w-[1200px] mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="text-left">
             <p className="font-black text-stone-800 text-sm">
               JanMithra • AI Agricultural & Government Scheme Discovery
@@ -311,5 +313,6 @@ export default function Home() {
       <DocumentVerificationModal />
       <SchemeDetailModal />
     </div>
+    </AppShell>
   );
 }

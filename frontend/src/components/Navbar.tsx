@@ -13,6 +13,7 @@ import {
   LogOut,
   Loader2,
   MessageSquareText,
+  Menu,
 } from "lucide-react";
 import { useFarmerStore } from "@/store/useFarmerStore";
 import { SUPPORTED_LANGUAGES, SupportedLanguage, translations } from "@/lib/i18n";
@@ -39,44 +40,47 @@ export default function Navbar() {
   const t = translations[language];
 
   return (
-    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-emerald-100 shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-18 py-2">
+    <header className="sticky top-0 z-40 bg-jm-surface/90 backdrop-blur border-b border-jm-border">
+      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center gap-3 h-16">
           {/* Logo & Brand */}
-          <div className="flex items-center gap-3 cursor-pointer" onClick={() => setActiveTab("dashboard")}>
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-600 to-emerald-800 flex items-center justify-center text-white shadow-md shadow-emerald-700/20">
-              <Sprout className="w-7 h-7 text-emerald-200" />
+          <button type="button" className="md:hidden grid place-items-center w-10 h-10 shrink-0 rounded-lg text-stone-700 hover:bg-stone-100" aria-label="Open menu" onClick={() => window.dispatchEvent(new Event("janmitra:toggle-sidebar"))}>
+            <Menu className="w-5 h-5" />
+          </button>
+          <div className="flex items-center gap-2.5 cursor-pointer md:hidden min-w-0" onClick={() => setActiveTab("dashboard")}>
+            <div className="w-9 h-9 rounded-xl bg-jm-primary flex items-center justify-center text-jm-onprimary shrink-0">
+              <Sprout className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-extrabold text-2xl text-emerald-950 tracking-tight">
+                <span className="font-semibold text-lg text-jm-text tracking-tight truncate">
                   {t.appName}
                 </span>
-                <span className="hidden sm:inline-block px-2 py-0.5 text-xs font-bold rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                <span className="hidden sm:inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-jm-soft text-jm-text border border-jm-border">
                   AI 2.0
                 </span>
               </div>
-              <p className="text-xs text-stone-600 hidden sm:block font-medium">
+              <p className="text-xs text-jm-text2 hidden lg:block">
                 {t.appTagline}
               </p>
             </div>
           </div>
 
           {/* Center Call Center Pill (Accessible emergency support) */}
-          <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-amberGold-50 border border-amberGold-500/30 text-amberGold-700 text-xs font-semibold">
-            <PhoneCall className="w-4 h-4 text-amberGold-600 animate-pulse" />
+          <div className="hidden md:inline-flex items-center gap-2 h-9 px-3.5 rounded-full bg-jm-soft border border-jm-primary/25 text-jm-text text-[13px] font-medium">
+            <PhoneCall className="w-4 h-4 text-jm-primary" />
             <a href="tel:1551" className="hover:underline">
               {t.kisanHelpline}
             </a>
           </div>
 
           {/* Right Side Actions: Language Selector & Profile */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 ml-auto shrink-0">
             {/* Audio Indicator if AI is speaking */}
             {isSpeaking && (
               <button
                 onClick={stopAudio}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-100 border border-red-300 text-red-700 text-xs font-bold animate-pulse hover:bg-red-200 transition"
+                className="flex items-center gap-2 h-10 px-3 rounded-xl bg-red-100 border border-red-300 text-red-700 text-[13px] font-medium hover:bg-red-200 transition"
               >
                 <Volume2 className="w-4 h-4" />
                 <span className="hidden sm:inline">{t.stopSpeaking}</span>
@@ -87,11 +91,11 @@ export default function Navbar() {
             <div className="relative">
               <button
                 onClick={() => setLangDropdownOpen(!langDropdownOpen)}
-                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-900 border border-stone-300 transition text-sm font-bold active:scale-95"
+                className="flex items-center gap-2 h-10 px-3 rounded-xl bg-jm-surface hover:bg-jm-muted text-jm-text border border-jm-border transition text-sm font-medium active:scale-95"
                 title={t.selectLanguage}
               >
-                <Globe2 className="w-4 h-4 text-emerald-700" />
-                <span className="font-bold">
+                <Globe2 className="w-4 h-4 text-jm-primary" />
+                <span className="hidden min-[420px]:inline">
                   {SUPPORTED_LANGUAGES.find((l) => l.code === language)?.nativeName}
                 </span>
                 <ChevronDown className="w-4 h-4 text-stone-500" />
@@ -140,12 +144,12 @@ export default function Navbar() {
               <div className="relative">
                 <button
                   onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-                  className="flex items-center gap-2 p-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 transition active:scale-95"
+                  className="flex items-center gap-2 h-10 px-1.5 sm:px-2.5 rounded-xl bg-jm-surface border border-jm-border hover:bg-jm-muted transition active:scale-95"
                 >
                   <img
                     src={currentFarmer.avatarUrl}
                     alt={currentFarmer.name}
-                    className="w-8 h-8 rounded-full object-cover ring-2 ring-emerald-600"
+                    className="w-7 h-7 rounded-full object-cover ring-2 ring-jm-primary"
                   />
                   <div className="text-left hidden sm:block">
                     <p className="text-xs font-bold text-emerald-950 leading-tight">
@@ -223,7 +227,7 @@ export default function Navbar() {
             ) : (
               <button
                 onClick={() => setAuthModalOpen(true, "login")}
-                className="px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-sm shadow-md transition"
+                className="h-10 px-4 rounded-xl bg-jm-primary hover:bg-jm-hover text-jm-onprimary font-semibold text-sm transition whitespace-nowrap"
               >
                 {t.loginTitle}
               </button>
@@ -233,7 +237,7 @@ export default function Navbar() {
 
         {/* Mobile Sub-Navigation Bar (chat asks guests to sign in) */}
         {authStatus !== "unknown" && (
-          <div className="flex sm:hidden items-center justify-around py-2 border-t border-emerald-100 text-xs font-bold">
+          <div className="flex sm:hidden items-center justify-around py-2 border-t border-jm-border text-[13px] font-medium">
             <button
               onClick={() => setActiveTab("dashboard")}
               className={`px-3 py-1.5 rounded-lg transition ${
