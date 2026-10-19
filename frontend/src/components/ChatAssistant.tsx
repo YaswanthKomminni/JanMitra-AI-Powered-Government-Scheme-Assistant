@@ -365,7 +365,7 @@ export default function ChatAssistant({ variant = "full" }: { variant?: "full" |
                   key={idx2}
                   onClick={() => handleClarificationChip(chip)}
                   disabled={isAwaitingReply}
-                  className="px-3 py-1.5 rounded-full text-xs font-bold bg-white text-emerald-900 border-2 border-emerald-300 hover:bg-emerald-50 hover:border-emerald-500 active:scale-95 transition shadow-sm disabled:opacity-50"
+                  className="px-3 py-1.5 rounded-full text-xs font-bold bg-white text-emerald-900 border-2 border-emerald-300 hover:bg-emerald-50 hover:border-emerald-500 transition shadow-sm disabled:opacity-50"
                 >
                   {chip}
                 </button>
@@ -412,7 +412,7 @@ export default function ChatAssistant({ variant = "full" }: { variant?: "full" |
           {!isFull && isAuthenticated && (
             <button
               onClick={() => setActiveTab("chat")}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-700/80 hover:bg-emerald-600 text-white text-xs font-bold transition active:scale-95 border border-emerald-500/30"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-700/80 hover:bg-emerald-600 text-white text-xs font-bold transition border border-emerald-500/30"
               title="Open all conversations"
             >
               <History className="w-4 h-4 text-emerald-300" />
@@ -433,7 +433,7 @@ export default function ChatAssistant({ variant = "full" }: { variant?: "full" |
           {/* OCR Scan shortcut in chat header */}
           <button
             onClick={() => setVerificationModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-700/80 hover:bg-emerald-600 text-white text-xs font-bold transition active:scale-95 border border-emerald-500/30"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-700/80 hover:bg-emerald-600 text-white text-xs font-bold transition border border-emerald-500/30"
             title={t.uploadDoc}
           >
             <Camera className="w-4 h-4 text-emerald-300" />
@@ -609,7 +609,7 @@ export default function ChatAssistant({ variant = "full" }: { variant?: "full" |
           {/* Take Live Camera Photo */}
           <button
             onClick={() => gate() && setLiveCameraOpen(true)}
-            className="p-3 sm:p-3.5 rounded-2xl bg-emerald-100 hover:bg-emerald-200 text-emerald-900 transition active:scale-95 shrink-0 border border-emerald-300 shadow-sm"
+            className="p-3 sm:p-3.5 rounded-2xl bg-emerald-100 hover:bg-emerald-200 text-emerald-900 transition shrink-0 border border-emerald-300 shadow-sm"
             title="Take Live Photo with Webcam/Camera"
           >
             <Camera className="w-5 h-5 text-emerald-900" />
@@ -618,7 +618,7 @@ export default function ChatAssistant({ variant = "full" }: { variant?: "full" |
           {/* Quick Attach Document or Image File */}
           <button
             onClick={() => gate() && chatFileInputRef.current?.click()}
-            className="p-3 sm:p-3.5 rounded-2xl bg-stone-100 hover:bg-emerald-50 hover:text-emerald-800 text-stone-700 transition active:scale-95 shrink-0"
+            className="p-3 sm:p-3.5 rounded-2xl bg-stone-100 hover:bg-emerald-50 hover:text-emerald-800 text-stone-700 transition shrink-0"
             title="Attach Document or Photo (PDF, Image, DOCX, TXT)"
           >
             <UploadCloud className="w-5 h-5 text-stone-600" />
@@ -627,7 +627,7 @@ export default function ChatAssistant({ variant = "full" }: { variant?: "full" |
           {/* Large Push-To-Talk Voice Button */}
           <button
             onClick={toggleSpeechRecognition}
-            className={`p-3 sm:p-3.5 rounded-2xl font-black text-sm transition active:scale-95 shrink-0 flex items-center justify-center ${
+            className={`p-3 sm:p-3.5 rounded-2xl font-black text-sm transition shrink-0 flex items-center justify-center ${
               speechActive
                 ? "bg-red-600 text-white ring-4 ring-red-200 animate-pulse"
                 : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/30"
@@ -657,7 +657,7 @@ export default function ChatAssistant({ variant = "full" }: { variant?: "full" |
             onClick={handleSend}
             disabled={(!inputVal.trim() && !selectedFile) || isAwaitingReply}
             aria-label="Send"
-            className={`p-3 sm:p-3.5 rounded-2xl transition active:scale-95 shrink-0 ${
+            className={`p-3 sm:p-3.5 rounded-2xl transition shrink-0 ${
               (inputVal.trim() || selectedFile) && !isAwaitingReply
                 ? "bg-emerald-700 hover:bg-emerald-800 text-white shadow-md shadow-emerald-800/20"
                 : "bg-stone-100 text-stone-400 cursor-not-allowed"

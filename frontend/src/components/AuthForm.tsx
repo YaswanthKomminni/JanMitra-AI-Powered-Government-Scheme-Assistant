@@ -265,7 +265,7 @@ export default function AuthForm({
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full py-4 rounded-2xl bg-emerald-700 hover:bg-emerald-800 disabled:opacity-70 text-white font-black text-base shadow-lg shadow-emerald-800/30 flex items-center justify-center gap-2 active:scale-98 transition"
+            className="w-full py-4 rounded-2xl bg-emerald-700 hover:bg-emerald-800 disabled:opacity-70 text-white font-black text-base shadow-lg shadow-emerald-800/30 flex items-center justify-center gap-2 transition"
           >
             {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5 text-emerald-300" />}
             <span>{isLoading ? "Signing in..." : "Sign In"}</span>
@@ -288,7 +288,7 @@ export default function AuthForm({
                     key={k}
                     type="button"
                     onClick={() => handleKeypadPress(k)}
-                    className={`h-12 rounded-xl text-lg font-black shadow-sm active:scale-95 transition flex items-center justify-center border ${
+                    className={`h-12 rounded-xl text-lg font-black shadow-sm transition flex items-center justify-center border ${
                       k.length > 1 ? "bg-stone-200 text-stone-700 text-xs uppercase border-stone-200" : "bg-white text-stone-900 border-stone-200 hover:border-emerald-400"
                     }`}
                   >
@@ -512,7 +512,7 @@ export default function AuthForm({
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full mt-2 py-4 rounded-2xl bg-emerald-700 hover:bg-emerald-800 disabled:opacity-70 text-white font-black text-base shadow-lg shadow-emerald-800/30 flex items-center justify-center gap-2 active:scale-98 transition"
+            className="w-full mt-2 py-4 rounded-2xl bg-emerald-700 hover:bg-emerald-800 disabled:opacity-70 text-white font-black text-base shadow-lg shadow-emerald-800/30 flex items-center justify-center gap-2 transition"
           >
             {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <BadgeCheck className="w-5 h-5 text-emerald-300" />}
             <span>{isLoading ? "Creating your account..." : "Create Account & Continue"}</span>

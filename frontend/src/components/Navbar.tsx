@@ -91,7 +91,7 @@ export default function Navbar() {
             <div className="relative">
               <button
                 onClick={() => setLangDropdownOpen(!langDropdownOpen)}
-                className="flex items-center gap-2 h-10 px-3 rounded-xl bg-jm-surface hover:bg-jm-muted text-jm-text border border-jm-border transition text-sm font-medium active:scale-95"
+                className="flex items-center gap-2 h-10 px-3 rounded-xl bg-jm-surface hover:bg-jm-muted text-jm-text border border-jm-border transition text-sm font-medium"
                 title={t.selectLanguage}
               >
                 <Globe2 className="w-4 h-4 text-jm-primary" />
@@ -144,7 +144,7 @@ export default function Navbar() {
               <div className="relative">
                 <button
                   onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-                  className="flex items-center gap-2 h-10 px-1.5 sm:px-2.5 rounded-xl bg-jm-surface border border-jm-border hover:bg-jm-muted transition active:scale-95"
+                  className="flex items-center gap-2 h-10 px-1.5 sm:px-2.5 rounded-xl bg-jm-surface border border-jm-border hover:bg-jm-muted transition"
                 >
                   <img
                     src={currentFarmer.avatarUrl}

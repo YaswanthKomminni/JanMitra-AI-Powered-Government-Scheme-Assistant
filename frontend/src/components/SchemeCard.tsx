@@ -84,7 +84,7 @@ export default function SchemeCard({ scheme }: SchemeCardProps) {
       <div className="mt-5 flex items-center gap-3">
         <button
           onClick={() => setVerificationModalOpen(true)}
-          className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-jm-primary px-4 text-sm font-semibold text-jm-onprimary transition hover:bg-jm-hover active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-jm-primary px-4 text-sm font-semibold text-jm-onprimary transition hover:bg-jm-hover disabled:cursor-not-allowed disabled:opacity-50"
         >
           <ShieldCheck className="h-4 w-4 shrink-0" />
           <span className="truncate">{t.verifyAndApply}</span>
@@ -92,7 +92,7 @@ export default function SchemeCard({ scheme }: SchemeCardProps) {
 
         <button
           onClick={() => setSelectedScheme(scheme)}
-          className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border border-jm-border bg-jm-surface text-jm-text transition hover:bg-jm-muted active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50"
+          className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border border-jm-border bg-jm-surface text-jm-text transition hover:bg-jm-muted disabled:cursor-not-allowed disabled:opacity-50"
           title={t.viewDetails}
           aria-label={t.viewDetails}
         >

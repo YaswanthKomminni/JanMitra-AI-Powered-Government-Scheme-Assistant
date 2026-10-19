@@ -40,34 +40,34 @@ export default function DashboardHeader() {
   };
 
   return (
-    <div className="relative overflow-hidden mb-8 rounded-[20px] border border-jm-onprimary/10 bg-gradient-to-br from-jm-primary to-jm-hover text-jm-onprimary p-5 sm:p-7 shadow-sm">
+    <div className="relative overflow-hidden mb-8 rounded-[24px] bg-jm-primary text-jm-onprimary p-6 sm:p-8 lg:p-10">
       {/* Decorative graphic */}
-      <div className="absolute -right-6 -bottom-8 opacity-10 pointer-events-none" aria-hidden="true">
-        <Tractor className="w-64 h-64 text-jm-onprimary" />
+      <div className="absolute right-6 bottom-5 hidden lg:block opacity-[0.08] pointer-events-none select-none" aria-hidden="true">
+        <Tractor className="w-24 h-24 text-jm-onprimary" strokeWidth={1.5} />
       </div>
 
-      <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div className="relative z-10 grid grid-cols-1 md:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)] md:items-center gap-6 lg:gap-10">
         {/* Left: greeting */}
         {!isAuthenticated ? (
-          <div className="min-w-0 max-w-2xl space-y-3">
-            <h1 className="text-[28px] sm:text-[32px] font-bold leading-tight tracking-tight">
+          <div className="min-w-0 space-y-4">
+            <h1 className="text-[28px] sm:text-[34px] lg:text-[42px] font-semibold leading-[1.15]">
               {t.welcome}! {(t as any).guestHeroTitle || "Welcome to JanMithra"}
             </h1>
-            <p className="text-[15px] sm:text-base leading-relaxed opacity-90">
+            <p className="text-base lg:text-[18px] leading-[1.6] opacity-95 max-w-[34rem]">
               {(t as any).guestHeroSubtitle ||
                 "Explore government schemes and nearby farmer success stories. Sign in or create a free account to ask the AI assistant, scan documents, and keep your conversations saved."}
             </p>
             {authStatus !== "unknown" && (
-              <div className="flex flex-wrap gap-3 pt-1">
+              <div className="flex flex-col sm:flex-row gap-3 pt-2">
                 <button
                   onClick={() => setAuthModalOpen(true, "login")}
-                  className="inline-flex items-center justify-center gap-2 h-11 px-5 rounded-xl bg-jm-surface text-jm-text text-sm font-semibold border border-jm-border shadow-sm hover:bg-jm-muted active:translate-y-px transition"
+                  className="inline-flex items-center justify-center gap-2 h-12 px-6 rounded-xl bg-jm-surface text-jm-text text-[15px] font-semibold border border-jm-surface hover:bg-jm-muted transition-colors"
                 >
                   <LogIn className="w-4 h-4" /> Sign In
                 </button>
                 <button
                   onClick={() => setAuthModalOpen(true, "signup")}
-                  className="inline-flex items-center justify-center gap-2 h-11 px-5 rounded-xl bg-jm-onprimary/15 border border-jm-onprimary/35 text-jm-onprimary text-sm font-semibold hover:bg-jm-onprimary/25 active:translate-y-px transition"
+                  className="inline-flex items-center justify-center gap-2 h-12 px-6 rounded-xl bg-jm-onprimary/10 border border-jm-onprimary/40 text-jm-onprimary text-[15px] font-semibold hover:bg-jm-onprimary/20 transition-colors whitespace-nowrap"
                 >
                   <UserPlus className="w-4 h-4" /> Create Free Account
                 </button>
@@ -75,7 +75,7 @@ export default function DashboardHeader() {
             )}
           </div>
         ) : (
-          <div className="min-w-0 max-w-2xl space-y-3">
+          <div className="min-w-0 space-y-4">
             <div className="flex flex-wrap items-center gap-2">
               {(currentFarmer.village || currentFarmer.district || currentFarmer.state) && (
                 <div className={pill}>
@@ -101,7 +101,7 @@ export default function DashboardHeader() {
               </div>
             </div>
 
-            <h1 className="text-[28px] sm:text-[32px] font-bold leading-tight tracking-tight">
+            <h1 className="text-[28px] sm:text-[34px] lg:text-[42px] font-semibold leading-[1.15]">
               {t.welcome}, {currentFarmer.name}!
             </h1>
 
@@ -135,23 +135,23 @@ export default function DashboardHeader() {
         )}
 
         {/* Right: actions (same size, one primary + one secondary) */}
-        <div className="flex flex-col sm:flex-row md:flex-col gap-3 shrink-0 md:w-72">
+        <div className="flex flex-col gap-3 w-full md:max-w-sm md:justify-self-end">
           <button
             onClick={() => setVerificationModalOpen(true)}
-            className="flex-1 inline-flex items-center justify-center gap-2.5 h-12 px-5 rounded-xl bg-jm-surface text-jm-text text-sm font-semibold border border-jm-border shadow-sm hover:bg-jm-muted active:translate-y-px transition"
+            className="flex w-full items-center justify-start gap-3 h-14 px-5 rounded-xl bg-jm-surface text-jm-text text-[15px] font-semibold border border-jm-surface hover:bg-jm-muted transition-colors"
           >
-            <ScanLine className="w-[18px] h-[18px] text-jm-primary shrink-0" />
+            <ScanLine className="w-5 h-5 text-jm-primary shrink-0" />
             <span className="truncate">{t.verifyDocsTitle}</span>
           </button>
 
           <button
             onClick={() => setActiveTab("chat")}
-            className="flex-1 inline-flex items-center justify-center gap-2.5 h-12 px-5 rounded-xl bg-jm-onprimary/15 border border-jm-onprimary/35 text-jm-onprimary text-sm font-semibold hover:bg-jm-onprimary/25 active:translate-y-px transition"
+            className="flex w-full items-center justify-start gap-3 h-14 px-5 rounded-xl bg-jm-surface text-jm-text text-[15px] font-semibold border border-jm-surface hover:bg-jm-muted transition-colors"
           >
             {isAuthenticated ? (
-              <Mic className="w-[18px] h-[18px] shrink-0" />
+              <Mic className="w-5 h-5 text-jm-primary shrink-0" />
             ) : (
-              <MessageSquareText className="w-[18px] h-[18px] shrink-0" />
+              <MessageSquareText className="w-5 h-5 text-jm-primary shrink-0" />
             )}
             <span className="truncate">{t.tabs.chat}</span>
           </button>

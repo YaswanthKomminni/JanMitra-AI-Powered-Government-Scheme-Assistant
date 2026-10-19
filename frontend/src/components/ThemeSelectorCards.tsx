@@ -17,7 +17,7 @@ export default function ThemeSelectorCards() {
             role="radio"
             aria-checked={active}
             onClick={() => setTheme(th.id)}
-            className="text-left rounded-xl p-3 border-2 transition hover:-translate-y-0.5 bg-jm-surface"
+            className="text-left rounded-xl p-3 border-2 transition-colors bg-jm-surface hover:bg-jm-muted"
             style={{ borderColor: active ? th.primary : undefined }}
           >
             {/* mini preview */}

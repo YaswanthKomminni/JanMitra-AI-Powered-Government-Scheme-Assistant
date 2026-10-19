@@ -51,7 +51,7 @@ body {
 html { transition: background-color 200ms ease; }
 body, header, aside, main, section, button, input, textarea, select, a, div {
   transition-property: background-color, border-color, color, fill, stroke;
-  transition-duration: 180ms;
+  transition-duration: 150ms;
   transition-timing-function: ease;
 }
 @media (prefers-reduced-motion: reduce) {

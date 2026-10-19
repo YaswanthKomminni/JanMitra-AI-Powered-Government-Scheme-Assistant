@@ -117,7 +117,7 @@ export default function Home() {
 
           <button
             onClick={() => setVerificationModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white border-2 border-emerald-600 text-emerald-900 font-extrabold text-sm hover:bg-emerald-50 transition active:scale-95 shadow-sm"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white border-2 border-emerald-600 text-emerald-900 font-extrabold text-sm hover:bg-emerald-50 transition shadow-sm"
           >
             <ScanLine className="w-4 h-4 text-emerald-700" />
             <span>{t.tabs.verify}</span>
@@ -236,7 +236,7 @@ export default function Home() {
                   <div className="flex flex-wrap gap-2 pt-2">
                     <button
                       onClick={() => setActiveTab("chat")}
-                      className="px-5 py-3 rounded-2xl bg-emerald-700 hover:bg-emerald-800 text-white font-black text-sm shadow-md flex items-center gap-2 active:scale-98 transition"
+                      className="px-5 py-3 rounded-2xl bg-emerald-700 hover:bg-emerald-800 text-white font-black text-sm shadow-md flex items-center gap-2 transition"
                     >
                       <Mic className="w-4 h-4 text-emerald-300" />
                       <span>{(t as any).startVoiceChatNow || "Start Voice Chat Now"}</span>
@@ -264,15 +264,15 @@ export default function Home() {
       <div className="sm:hidden fixed bottom-4 inset-x-4 z-30 flex items-center gap-3">
         <button
           onClick={() => setActiveTab("chat")}
-          className="flex-1 h-12 px-4 rounded-xl bg-emerald-800 text-white font-semibold text-sm shadow-lg flex items-center justify-center gap-2 border border-emerald-500/40 active:scale-95 transition"
+          className="flex-1 h-12 px-4 rounded-xl bg-emerald-800 text-white font-semibold text-sm shadow-lg flex items-center justify-center gap-2 border border-emerald-500/40 transition"
         >
-          <Mic className="w-5 h-5 text-emerald-300 animate-pulse" />
+          <Mic className="w-5 h-5 text-emerald-300" />
           <span>{t.tabs.chat}</span>
         </button>
 
         <button
           onClick={() => setVerificationModalOpen(true)}
-          className="h-12 w-12 grid place-items-center rounded-xl bg-jm-surface border border-jm-border text-jm-text shadow-lg active:scale-95 transition"
+          className="h-12 w-12 grid place-items-center rounded-xl bg-jm-surface border border-jm-border text-jm-text shadow-lg transition"
           title="Scan Document"
         >
           <ScanLine className="w-6 h-6" />
