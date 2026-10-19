@@ -4,15 +4,15 @@
 //   2. In another shell:   npm run test:api
 //
 // Uses BASE_URL (default http://localhost:3000) and the DB_* variables from
-// .env.local to inspect MySQL directly. It creates test users with phone numbers
+// .env.local (DATABASE_URL) to inspect PostgreSQL directly. It creates test users with phone numbers
 // 7xxxxxxxxx and removes them (and their data) at the end.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import mysql from "mysql2/promise";
-import { loadEnv, dbConfig } from "../scripts/_env.mjs";
+import pg from "pg";
+import { loadEnv, databaseUrl } from "../scripts/_env.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 loadEnv(path.resolve(here, ".."));
@@ -74,12 +74,13 @@ async function signup(client, n, extra = {}) {
 }
 
 before(async () => {
-  db = await mysql.createConnection(dbConfig());
+  db = new pg.Client({ connectionString: databaseUrl() });
+  await db.connect();
 });
 
 after(async () => {
   if (createdPhones.size) {
-    await db.query("DELETE FROM users WHERE phone IN (?)", [[...createdPhones]]);
+    await db.query("DELETE FROM users WHERE phone = ANY($1)", [[...createdPhones]]);
   }
   await db.end();
 });
@@ -140,7 +141,7 @@ test("sign-up validates required fields", async () => {
     assert.equal(r.status, 400, `${field}: ${JSON.stringify(r.data)}`);
     assert.equal(r.data.field, field);
   }
-  const [rows] = await db.query("SELECT COUNT(*) n FROM users WHERE phone = ?", [phoneFor(900)]);
+  const { rows } = await db.query("SELECT COUNT(*)::int n FROM users WHERE phone = $1", [phoneFor(900)]);
   assert.equal(rows[0].n, 0, "invalid sign-ups must not create users");
 });
 
@@ -167,7 +168,7 @@ test("sign-up creates a hashed account, signs in, and rejects duplicates", async
   assert.ok(sc.includes("samesite=lax"), "cookie must be SameSite=Lax");
   assert.ok(sc.includes("path=/"));
 
-  const [rows] = await db.query("SELECT password_hash, email FROM users WHERE phone = ?", [phoneFor(1)]);
+  const { rows } = await db.query("SELECT password_hash, email FROM users WHERE phone = $1", [phoneFor(1)]);
   assert.match(rows[0].password_hash, /^\$2[aby]\$12\$/, "bcrypt cost 12");
   assert.notEqual(rows[0].password_hash, PASSWORD);
 
@@ -210,7 +211,7 @@ test("login accepts correct credentials and rejects wrong ones", async () => {
 test("legacy accounts without a real password cannot sign in", async () => {
   const phone = phoneFor(50);
   createdPhones.add(phone);
-  await db.query("INSERT INTO users (name, phone, password_hash) VALUES ('Legacy Farmer', ?, NULL)", [phone]);
+  await db.query("INSERT INTO users (name, phone, password_hash) VALUES ('Legacy Farmer', $1, NULL)", [phone]);
   for (const pw of ["1234", "", PASSWORD]) {
     const r = await new Client().post("/api/auth/login", { phone, password: pw || "x" });
     assert.equal(r.status, 401);
@@ -315,7 +316,7 @@ test("retrying the same message never creates duplicates", async () => {
   assert.equal(second.data.userMessage.id, first.data.userMessage.id);
   assert.equal(second.data.aiMessage.id, first.data.aiMessage.id);
   assert.equal(third.data.aiMessage.id, first.data.aiMessage.id);
-  const [rows] = await db.query("SELECT COUNT(*) n FROM chat_logs WHERE client_message_id IN (?, ?)", [id, `${id}:ai`]);
+  const { rows } = await db.query("SELECT COUNT(*)::int n FROM chat_logs WHERE client_message_id IN ($1, $2)", [id, `${id}:ai`]);
   assert.equal(rows[0].n, 2);
 });
 
@@ -323,7 +324,7 @@ test("users are fully isolated (no access to another user's conversations)", asy
   const a = new Client();
   await a.post("/api/auth/login", { phone: phoneFor(1), password: PASSWORD });
   const aConv = (await a.get("/api/conversations")).data.conversations[0];
-  const [[{ n: aCountBefore }]] = await db.query("SELECT COUNT(*) n FROM chat_logs WHERE conversation_id = ?", [aConv.id]);
+  const aCountBefore = (await db.query("SELECT COUNT(*)::int n FROM chat_logs WHERE conversation_id = $1", [aConv.id])).rows[0].n;
 
   const b = new Client();
   const s = await signup(b, 3);
@@ -336,7 +337,7 @@ test("users are fully isolated (no access to another user's conversations)", asy
   const inject = await b.post("/api/chat", { conversationId: aConv.id, clientMessageId: cmid(), text: "inject", language: "en" });
   assert.equal(inject.status, 404);
 
-  const [[{ n: aCountAfter }]] = await db.query("SELECT COUNT(*) n FROM chat_logs WHERE conversation_id = ?", [aConv.id]);
+  const aCountAfter = (await db.query("SELECT COUNT(*)::int n FROM chat_logs WHERE conversation_id = $1", [aConv.id])).rows[0].n;
   assert.equal(aCountAfter, aCountBefore, "A's conversation untouched");
   assert.equal((await a.get(`/api/conversations/${aConv.id}`)).status, 200, "A still has it");
 
@@ -353,14 +354,14 @@ test("users are fully isolated (no access to another user's conversations)", asy
 test("document analysis is recorded for the session user, ignoring a spoofed userId", async () => {
   const b = new Client();
   await b.post("/api/auth/login", { phone: phoneFor(3), password: PASSWORD });
-  const [[{ id: bId }]] = await db.query("SELECT id FROM users WHERE phone = ?", [phoneFor(3)]);
-  const [[{ id: aId }]] = await db.query("SELECT id FROM users WHERE phone = ?", [phoneFor(1)]);
+  const bId = (await db.query("SELECT id FROM users WHERE phone = $1", [phoneFor(3)])).rows[0].id;
+  const aId = (await db.query("SELECT id FROM users WHERE phone = $1", [phoneFor(1)])).rows[0].id;
   const doc = "data:text/plain;base64," + Buffer.from("Soil Health Card pH 7.2 Nitrogen 240 Phosphorus 18 Potassium 310").toString("base64");
 
   const r = await b.post("/api/ocr/analyze", { fileBase64: doc, fileName: "soil_card.txt", fileType: "text/plain", userId: aId });
   assert.equal(r.status, 200, JSON.stringify(r.data).slice(0, 300));
-  const [[{ n: forA }]] = await db.query("SELECT COUNT(*) n FROM document_verifications WHERE user_id = ?", [aId]);
-  const [[{ n: forB }]] = await db.query("SELECT COUNT(*) n FROM document_verifications WHERE user_id = ?", [bId]);
+  const forA = (await db.query("SELECT COUNT(*)::int n FROM document_verifications WHERE user_id = $1", [aId])).rows[0].n;
+  const forB = (await db.query("SELECT COUNT(*)::int n FROM document_verifications WHERE user_id = $1", [bId])).rows[0].n;
   assert.equal(forA, 0);
   assert.equal(forB, 1);
 
@@ -382,7 +383,7 @@ test("users can delete their own conversation (messages removed too)", async () 
   const del = await b.del(`/api/conversations/${conv.id}`);
   assert.equal(del.status, 200);
   assert.equal((await b.get(`/api/conversations/${conv.id}`)).status, 404);
-  const [[{ n }]] = await db.query("SELECT COUNT(*) n FROM chat_logs WHERE conversation_id = ?", [conv.id]);
+  const n = (await db.query("SELECT COUNT(*)::int n FROM chat_logs WHERE conversation_id = $1", [conv.id])).rows[0].n;
   assert.equal(n, 0);
 });
 
@@ -398,7 +399,7 @@ test("input validation and cross-site protection on chat", async () => {
   assert.equal(csrf.status, 403);
   const sqlish = await a.post("/api/chat", { clientMessageId: cmid(), text: "'); DROP TABLE users; --", language: "en" });
   assert.equal(sqlish.status, 200, "stored safely as text");
-  const [[{ n }]] = await db.query("SELECT COUNT(*) n FROM users");
+  const n = (await db.query("SELECT COUNT(*)::int n FROM users")).rows[0].n;
   assert.ok(n > 0);
 });
 

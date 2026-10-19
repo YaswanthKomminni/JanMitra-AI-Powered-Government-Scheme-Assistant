@@ -86,7 +86,7 @@ interface FarmerState {
   peerContactModal: PeerSuccessStory | null;
   verificationModalOpen: boolean;
 
-  // Conversations & chat (persisted in MySQL)
+  // Conversations & chat (persisted in PostgreSQL)
   conversations: ConversationSummary[];
   conversationsLoading: boolean;
   conversationsError: string | null;
@@ -1284,7 +1284,7 @@ export const useFarmerStore = create<FarmerState>((set, get) => {
     const result = get().verificationResult;
     if (!result) return;
 
-    // Send to backend MySQL JanMithra
+    // Send to backend PostgreSQL JanMithra
     try {
       fetch("/api/verify-doc", {
         method: "POST",

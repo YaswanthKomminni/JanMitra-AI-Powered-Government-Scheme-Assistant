@@ -109,7 +109,7 @@ export interface MockOcrResult {
 /**
  * Placeholder profile shown to visitors who are not signed in.
  * It is NOT an account and cannot be used to authenticate; real profiles are
- * loaded from MySQL via /api/auth/me after sign-in. (The old DEMO_FARMERS
+ * loaded from PostgreSQL via /api/auth/me after sign-in. (The old DEMO_FARMERS
  * one-click logins were removed.)
  */
 export const GUEST_FARMER: FarmerProfile = {

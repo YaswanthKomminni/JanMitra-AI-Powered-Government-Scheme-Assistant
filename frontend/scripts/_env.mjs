@@ -1,4 +1,4 @@
-// Minimal .env loader for the standalone database scripts.
+// Minimal .env loader + connection helper for the standalone database scripts.
 // Next.js loads .env.local for the app itself; these scripts run outside Next,
 // so they read the same files here. Existing process.env values win.
 import fs from "node:fs";
@@ -26,14 +26,23 @@ export function loadEnv(cwd = process.cwd()) {
   }
 }
 
-export function dbConfig({ withDatabase = true } = {}) {
-  return {
-    host: process.env.DB_HOST || "127.0.0.1",
-    port: Number(process.env.DB_PORT) || 3306,
-    user: process.env.DB_USER || "root",
-    password: process.env.DB_PASSWORD || "",
-    ...(withDatabase ? { database: process.env.DB_NAME || "JanMithra" } : {}),
-    multipleStatements: true,
-    charset: "utf8mb4",
-  };
+/** The PostgreSQL connection string, from DATABASE_URL (never hardcoded). */
+export function databaseUrl(envName = "DATABASE_URL") {
+  const url = process.env[envName];
+  if (!url) {
+    throw new Error(`${envName} is not set. Copy .env.example to .env.local and fill it in.`);
+  }
+  return url;
+}
+
+/** Same URL, pointed at another database on the same server (e.g. "postgres"). */
+export function withDatabaseName(url, dbName) {
+  const u = new URL(url);
+  u.pathname = "/" + encodeURIComponent(dbName);
+  return u.toString();
+}
+
+/** Database name from a connection string. */
+export function databaseName(url) {
+  return decodeURIComponent(new URL(url).pathname.replace(/^\//, ""));
 }

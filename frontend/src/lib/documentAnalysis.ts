@@ -73,11 +73,11 @@ export async function analyzeAndRecordDocument(opts: {
     fileName,
   };
 
-  // 3. Persist verified document in MySQL JanMithra (for the signed-in user only)
+  // 3. Persist verified document in PostgreSQL JanMithra (for the signed-in user only)
   const sql = `
     INSERT INTO document_verifications
     (user_id, doc_type, title, confidence_score, extracted_data, preview_url, status)
-    VALUES (?, ?, ?, ?, ?, ?, 'verified')
+    VALUES ($1, $2, $3, $4, $5::jsonb, $6, 'verified')
   `;
   const saved = await queryDatabase(sql, [
     userId,
@@ -88,7 +88,7 @@ export async function analyzeAndRecordDocument(opts: {
     fileBase64.startsWith("data:") ? fileBase64.slice(0, 300) + "..." : fileBase64.slice(0, 480),
   ]);
   if (saved.success) {
-    await queryDatabase("UPDATE users SET verified_docs_count = verified_docs_count + 1 WHERE id = ?", [userId]);
+    await queryDatabase("UPDATE users SET verified_docs_count = verified_docs_count + 1 WHERE id = $1", [userId]);
   }
 
   return {

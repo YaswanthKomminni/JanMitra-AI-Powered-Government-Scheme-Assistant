@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireUser, serviceUnavailable } from "@/lib/auth";
-import { dbQuery } from "@/lib/db";
+import { withTransaction } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -20,26 +20,30 @@ export async function POST(request: Request) {
     } = body || {};
 
     const preview = String(previewUrl || "");
-    const result = await dbQuery<any>(
-      `INSERT INTO document_verifications
-       (user_id, doc_type, title, confidence_score, extracted_data, preview_url, status)
-       VALUES (?, ?, ?, ?, ?, ?, 'verified')`,
-      [
-        auth.dbId,
-        String(docType).slice(0, 50),
-        String(title).slice(0, 255),
-        Number(confidenceScore) || 0,
-        JSON.stringify(extractedData ?? {}),
-        preview.startsWith("data:") ? preview.slice(0, 300) + "..." : preview.slice(0, 480),
-      ]
-    );
-
-    await dbQuery("UPDATE users SET verified_docs_count = verified_docs_count + 1 WHERE id = ?", [auth.dbId]);
+    // Insert the record and bump the counter together, or neither.
+    const recordId = await withTransaction(async (client) => {
+      const inserted = await client.query(
+        `INSERT INTO document_verifications
+         (user_id, doc_type, title, confidence_score, extracted_data, preview_url, status)
+         VALUES ($1, $2, $3, $4, $5::jsonb, $6, 'verified')
+         RETURNING id`,
+        [
+          auth.dbId,
+          String(docType).slice(0, 50),
+          String(title).slice(0, 255),
+          Number(confidenceScore) || 0,
+          JSON.stringify(extractedData ?? {}),
+          preview.startsWith("data:") ? preview.slice(0, 300) + "..." : preview.slice(0, 480),
+        ]
+      );
+      await client.query("UPDATE users SET verified_docs_count = verified_docs_count + 1 WHERE id = $1", [auth.dbId]);
+      return inserted.rows[0].id as number;
+    });
 
     return NextResponse.json({
       success: true,
       message: "Document verification saved to JanMithra database!",
-      recordId: result?.insertId,
+      recordId,
       dbSaved: true,
     });
   } catch (error: any) {

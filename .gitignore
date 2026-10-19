@@ -5,6 +5,8 @@ frontend/out/
 frontend/build/
 frontend/.env*.local
 frontend/.env
+frontend/.env.*
+!frontend/.env.example
 *.tsbuildinfo
 
 # Python

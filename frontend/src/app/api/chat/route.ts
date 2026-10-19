@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireUser, serviceUnavailable, isDbError } from "@/lib/auth";
+import { isUniqueViolation } from "@/lib/db";
 import type { SupportedLanguage } from "@/lib/i18n";
 import { LANGUAGE_CODES } from "@/lib/userProfile";
 import {
@@ -131,7 +132,7 @@ export async function POST(request: Request) {
         });
       } catch (err: any) {
         // A concurrent retry stored it first.
-        if (err?.code === "ER_DUP_ENTRY") {
+        if (isUniqueViolation(err, "uq_chat_client_msg")) {
           userRow = await findUserMessageByClientId(userId, clientMessageId);
           if (!userRow) throw err;
           saved = { conversationId: userRow.conversation_id, row: userRow };
@@ -210,7 +211,7 @@ export async function POST(request: Request) {
         metadata: { chips: reply.chips || [], docDetection: reply.docDetection, replyTo: userRow.id },
       });
     } catch (err: any) {
-      if (err?.code === "ER_DUP_ENTRY") {
+      if (isUniqueViolation(err, "uq_chat_client_msg")) {
         aiRow = await findReplyFor(userId, clientMessageId);
       } else {
         throw err;

@@ -60,7 +60,7 @@ export async function POST(request: Request) {
 
   try {
     const rows = await dbQuery<any[]>(
-      `SELECT u.password_hash, ${PUBLIC_USER_COLUMNS} FROM users u WHERE u.phone = ? LIMIT 1`,
+      `SELECT u.password_hash, ${PUBLIC_USER_COLUMNS} FROM users u WHERE u.phone = $1 LIMIT 1`,
       [phone]
     );
     const row = rows[0];
@@ -89,7 +89,7 @@ export async function POST(request: Request) {
     resetRateLimit(limitKey);
     const userId = Number(row.id);
     const session = await createSession(userId, request.headers.get("user-agent"));
-    dbQuery("UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = ?", [userId]).catch(() => undefined);
+    dbQuery("UPDATE users SET last_login_at = now() WHERE id = $1", [userId]).catch(() => undefined);
 
     const res = NextResponse.json({
       success: true,

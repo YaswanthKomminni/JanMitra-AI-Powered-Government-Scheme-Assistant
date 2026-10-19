@@ -59,8 +59,8 @@ cd frontend
 npm install
 ```
 
-> **Database & accounts:** JanMithra now needs MySQL for sign-up, sign-in and saved conversations.
-> Copy `.env.example` to `.env.local`, then run `npm run db:setup` (fresh) or `npm run db:migrate` (existing DB).
+> **Database & accounts:** JanMithra needs PostgreSQL for sign-up, sign-in and saved conversations.
+> Copy `.env.example` to `.env.local`, set `DATABASE_URL`, then run `npm run db:setup` (creates the database if missing and applies migrations) or `npm run db:migrate` (database already exists).
 > See the root README section *Running JanMithra* for details.
 
 ### 2. Run the Local Development Server

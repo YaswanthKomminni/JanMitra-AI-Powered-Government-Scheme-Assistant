@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { dbQuery } from "@/lib/db";
+import { dbQuery, isUniqueViolation } from "@/lib/db";
 import {
   checkSameOrigin,
   clientIp,
@@ -105,8 +105,8 @@ export async function POST(request: Request) {
   try {
     // ---- Duplicate checks (friendly messages) --------------------------
     const existing = await dbQuery<any[]>(
-      "SELECT phone, email FROM users WHERE phone = ? OR (? IS NOT NULL AND email = ?) LIMIT 2",
-      [phone, email, email]
+      "SELECT phone, email FROM users WHERE phone = $1 OR ($2::text IS NOT NULL AND email = $2::text) LIMIT 2",
+      [phone, email]
     );
     if (existing.some((r) => r.phone === phone)) {
       return bad("An account with this mobile number already exists. Please sign in instead.", "phone", 409);
@@ -117,15 +117,16 @@ export async function POST(request: Request) {
 
     const passwordHash = await hashPassword(password);
 
-    let insertId: number;
+    let newUserId: number;
     try {
-      const result = await dbQuery<any>(
+      const result = await dbQuery<{ id: number }[]>(
         `INSERT INTO users (
            name, phone, email, password_hash, role,
            state, district, village, land_size_acres,
            soil_type, irrigation_type, primary_crops,
            annual_income_slab, preferred_language, verified_docs_count, avatar_url, last_login_at
-         ) VALUES (?, ?, ?, ?, 'farmer', ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, CURRENT_TIMESTAMP)`,
+         ) VALUES ($1, $2, $3, $4, 'farmer', $5, $6, $7, $8, $9, $10, $11, $12, $13, 0, $14, now())
+         RETURNING id`,
         [
           name,
           phone,
@@ -143,17 +144,23 @@ export async function POST(request: Request) {
           DEFAULT_AVATAR,
         ]
       );
-      insertId = Number(result.insertId);
+      newUserId = Number(result[0].id);
     } catch (err: any) {
       // Two sign-ups racing for the same phone/email.
-      if (err?.code === "ER_DUP_ENTRY") {
+      if (isUniqueViolation(err, "uq_users_phone")) {
+        return bad("An account with this mobile number already exists. Please sign in instead.", "phone", 409);
+      }
+      if (isUniqueViolation(err, "uq_users_email")) {
+        return bad("An account with this email address already exists. Please sign in instead.", "email", 409);
+      }
+      if (isUniqueViolation(err)) {
         return bad("An account with these details already exists. Please sign in instead.", undefined, 409);
       }
       throw err;
     }
 
-    const rows = await dbQuery<any[]>(`SELECT ${PUBLIC_USER_COLUMNS} FROM users u WHERE u.id = ?`, [insertId]);
-    const session = await createSession(insertId, request.headers.get("user-agent"));
+    const rows = await dbQuery<any[]>(`SELECT ${PUBLIC_USER_COLUMNS} FROM users u WHERE u.id = $1`, [newUserId]);
+    const session = await createSession(newUserId, request.headers.get("user-agent"));
 
     const res = NextResponse.json(
       {

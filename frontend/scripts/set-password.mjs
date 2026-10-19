@@ -4,16 +4,16 @@
 //   npm run user:set-password -- 9876543210
 //
 // Use it for farmer records created before real authentication existed: the
-// migration clears their old plaintext "1234" password, so they cannot sign in
+// data transfer clears their old plaintext "1234" password, so they cannot sign in
 // until a password is set here. The password is read from the terminal without
 // echo (or from stdin when piped) and stored only as a bcrypt hash. All existing
 // sessions of that user are signed out.
 import readline from "node:readline";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import mysql from "mysql2/promise";
+import pg from "pg";
 import bcrypt from "bcryptjs";
-import { loadEnv, dbConfig } from "./_env.mjs";
+import { loadEnv, databaseUrl } from "./_env.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 loadEnv(path.resolve(here, ".."));
@@ -70,18 +70,28 @@ async function main() {
     process.exit(1);
   }
 
-  const conn = await mysql.createConnection(dbConfig());
-  const [rows] = await conn.query("SELECT id, name FROM users WHERE phone = ? LIMIT 1", [phone]);
-  if (!rows.length) {
-    console.error(`No account found for ${phone}.`);
-    await conn.end();
-    process.exit(1);
+  const client = new pg.Client({ connectionString: databaseUrl() });
+  await client.connect();
+  try {
+    const found = await client.query("SELECT id, name FROM users WHERE phone = $1 LIMIT 1", [phone]);
+    if (!found.rows.length) {
+      console.error(`No account found for ${phone}.`);
+      process.exitCode = 1;
+      return;
+    }
+    const user = found.rows[0];
+    const hash = await bcrypt.hash(pw1, 12);
+    await client.query("BEGIN");
+    await client.query("UPDATE users SET password_hash = $1 WHERE id = $2", [hash, user.id]);
+    await client.query("DELETE FROM user_sessions WHERE user_id = $1", [user.id]);
+    await client.query("COMMIT");
+    console.log(`Password updated for ${user.name} (${phone}). Existing sessions were signed out.`);
+  } catch (err) {
+    await client.query("ROLLBACK").catch(() => undefined);
+    throw err;
+  } finally {
+    await client.end();
   }
-  const hash = await bcrypt.hash(pw1, 12);
-  await conn.query("UPDATE users SET password_hash = ? WHERE id = ?", [hash, rows[0].id]);
-  await conn.query("DELETE FROM user_sessions WHERE user_id = ?", [rows[0].id]);
-  await conn.end();
-  console.log(`Password updated for ${rows[0].name} (${phone}). Existing sessions were signed out.`);
 }
 
 main().catch((err) => {

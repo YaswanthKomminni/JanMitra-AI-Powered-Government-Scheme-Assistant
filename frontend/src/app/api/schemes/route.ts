@@ -11,7 +11,7 @@ export async function GET(request: Request) {
     const params: any[] = [];
 
     if (category && category !== "all") {
-      sql += " WHERE category = ?";
+      sql += " WHERE category = $1";
       params.push(category);
     }
 
@@ -37,7 +37,7 @@ export async function GET(request: Request) {
 
       return NextResponse.json({
         success: true,
-        source: "mysql",
+        source: "postgres",
         schemes: formatted,
       });
     }

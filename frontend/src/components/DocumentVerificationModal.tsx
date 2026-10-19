@@ -494,7 +494,7 @@ export default function DocumentVerificationModal() {
                 <div className="flex flex-wrap items-center justify-center gap-2 text-[11px] text-emerald-300 font-bold pt-1">
                   <span className="px-2 py-0.5 rounded bg-emerald-950/60 border border-emerald-700/50">Spatial Bounding Boxes</span>
                   <span className="px-2 py-0.5 rounded bg-emerald-950/60 border border-emerald-700/50">Entity Recognition</span>
-                  <span className="px-2 py-0.5 rounded bg-emerald-950/60 border border-emerald-700/50">MySQL Sync</span>
+                  <span className="px-2 py-0.5 rounded bg-emerald-950/60 border border-emerald-700/50">PostgreSQL Sync</span>
                 </div>
               </div>
             </div>
@@ -516,7 +516,7 @@ export default function DocumentVerificationModal() {
                     <p className="text-xs text-emerald-800 font-bold flex items-center gap-2">
                       <span>Confidence Score: {(verificationResult.confidenceScore * 100).toFixed(0)}%</span>
                       <span>•</span>
-                      <span>Verified in MySQL JanMithra</span>
+                      <span>Verified in PostgreSQL JanMithra</span>
                     </p>
                   </div>
                 </div>

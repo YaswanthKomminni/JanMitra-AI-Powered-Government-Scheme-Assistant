@@ -73,7 +73,7 @@ export async function verifyPassword(pw: string, hash: string | null | undefined
 }
 
 /* ------------------------------------------------------------------ */
-/* Sessions (opaque random token in an HTTP-only cookie, hash in MySQL) */
+/* Sessions (opaque random token in an HTTP-only cookie, hash in PostgreSQL) */
 /* ------------------------------------------------------------------ */
 
 function hashToken(token: string): string {
@@ -84,11 +84,11 @@ export async function createSession(userId: number, userAgent: string | null) {
   const token = crypto.randomBytes(32).toString("base64url");
   await dbQuery(
     `INSERT INTO user_sessions (user_id, token_hash, user_agent, expires_at)
-     VALUES (?, ?, ?, DATE_ADD(CURRENT_TIMESTAMP, INTERVAL ? DAY))`,
+     VALUES ($1, $2, $3, now() + make_interval(days => $4::int))`,
     [userId, hashToken(token), userAgent ? userAgent.slice(0, 255) : null, SESSION_TTL_DAYS]
   );
   // Opportunistic cleanup of expired sessions for this user.
-  dbQuery("DELETE FROM user_sessions WHERE user_id = ? AND expires_at <= CURRENT_TIMESTAMP", [userId]).catch(
+  dbQuery("DELETE FROM user_sessions WHERE user_id = $1 AND expires_at <= now()", [userId]).catch(
     () => undefined
   );
   return { token, maxAgeSeconds: SESSION_TTL_DAYS * 24 * 60 * 60 };
@@ -96,7 +96,7 @@ export async function createSession(userId: number, userAgent: string | null) {
 
 export async function destroySession(token: string | undefined | null) {
   if (!token) return;
-  await dbQuery("DELETE FROM user_sessions WHERE token_hash = ?", [hashToken(token)]);
+  await dbQuery("DELETE FROM user_sessions WHERE token_hash = $1", [hashToken(token)]);
 }
 
 export function setSessionCookie(res: NextResponse, token: string, maxAgeSeconds: number) {
@@ -144,7 +144,7 @@ export interface AuthUser {
 
 /**
  * Resolve the signed-in user from the session cookie.
- * Returns null when there is no valid session. Throws DatabaseError if MySQL is down.
+ * Returns null when there is no valid session. Throws DatabaseError if PostgreSQL is down.
  */
 export async function getSessionUser(request: Request): Promise<AuthUser | null> {
   const token = readSessionToken(request);
@@ -153,7 +153,7 @@ export async function getSessionUser(request: Request): Promise<AuthUser | null>
     `SELECT s.id AS session_id, s.last_seen_at, ${PUBLIC_USER_COLUMNS}
        FROM user_sessions s
        JOIN users u ON u.id = s.user_id
-      WHERE s.token_hash = ? AND s.expires_at > CURRENT_TIMESTAMP
+      WHERE s.token_hash = $1 AND s.expires_at > now()
       LIMIT 1`,
     [hashToken(token)]
   );
@@ -162,7 +162,7 @@ export async function getSessionUser(request: Request): Promise<AuthUser | null>
   // Touch last_seen_at at most every 5 minutes.
   const lastSeen = row.last_seen_at ? new Date(row.last_seen_at).getTime() : 0;
   if (Date.now() - lastSeen > 5 * 60 * 1000) {
-    dbQuery("UPDATE user_sessions SET last_seen_at = CURRENT_TIMESTAMP WHERE id = ?", [row.session_id]).catch(
+    dbQuery("UPDATE user_sessions SET last_seen_at = now() WHERE id = $1", [row.session_id]).catch(
       () => undefined
     );
   }

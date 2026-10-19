@@ -1,14 +1,14 @@
 import "server-only";
 import crypto from "node:crypto";
-import type { PoolConnection } from "mysql2/promise";
-import { dbQuery, withTransaction } from "@/lib/db";
+import type { PoolClient } from "pg";
+import { dbExec, dbQuery, withTransaction } from "@/lib/db";
 import type { ChatMessage, ConversationSummary } from "@/lib/chatEngine";
 
 export type { ConversationSummary };
 
 /**
  * Persistence for conversations (table `conversations`) and their messages
- * (existing table `chat_logs`, extended by migration 001).
+ * (table `chat_logs`).
  *
  * EVERY function takes the authenticated user's id and filters by it, so a
  * conversation id taken from a request can never reach another user's data.
@@ -74,7 +74,7 @@ const SUMMARY_SQL = `
     FROM conversations c`;
 
 export async function listConversations(userId: number, limit = 100): Promise<ConversationSummary[]> {
-  const rows = await dbQuery<any[]>(`${SUMMARY_SQL} WHERE c.user_id = ? ORDER BY c.updated_at DESC, c.id LIMIT ?`, [
+  const rows = await dbQuery<any[]>(`${SUMMARY_SQL} WHERE c.user_id = $1 ORDER BY c.updated_at DESC, c.id LIMIT $2`, [
     userId,
     limit,
   ]);
@@ -82,7 +82,7 @@ export async function listConversations(userId: number, limit = 100): Promise<Co
 }
 
 export async function getConversationSummary(userId: number, conversationId: string) {
-  const rows = await dbQuery<any[]>(`${SUMMARY_SQL} WHERE c.id = ? AND c.user_id = ? LIMIT 1`, [
+  const rows = await dbQuery<any[]>(`${SUMMARY_SQL} WHERE c.id = $1 AND c.user_id = $2 LIMIT 1`, [
     conversationId,
     userId,
   ]);
@@ -91,14 +91,14 @@ export async function getConversationSummary(userId: number, conversationId: str
 
 /** Messages of a conversation in order, or null when it does not exist / is not owned by the user. */
 export async function getConversationMessages(userId: number, conversationId: string) {
-  const owned = await dbQuery<any[]>("SELECT id FROM conversations WHERE id = ? AND user_id = ? LIMIT 1", [
+  const owned = await dbQuery<any[]>("SELECT id FROM conversations WHERE id = $1 AND user_id = $2 LIMIT 1", [
     conversationId,
     userId,
   ]);
   if (!owned.length) return null;
   const rows = await dbQuery<any[]>(
     `SELECT id, sender, message_text, metadata, client_message_id, created_at
-       FROM chat_logs WHERE conversation_id = ? AND user_id = ? ORDER BY id ASC`,
+       FROM chat_logs WHERE conversation_id = $1 AND user_id = $2 ORDER BY id ASC`,
     [conversationId, userId]
   );
   return rows.map(mapMessageRow);
@@ -106,8 +106,8 @@ export async function getConversationMessages(userId: number, conversationId: st
 
 /** Returns true when a row was deleted (i.e. it existed AND belonged to the user). */
 export async function deleteConversation(userId: number, conversationId: string): Promise<boolean> {
-  const result = await dbQuery<any>("DELETE FROM conversations WHERE id = ? AND user_id = ?", [conversationId, userId]);
-  return Number(result?.affectedRows) > 0;
+  const result = await dbExec("DELETE FROM conversations WHERE id = $1 AND user_id = $2", [conversationId, userId]);
+  return result.rowCount > 0;
 }
 
 export function makeTitle(text: string, fileName?: string): string {
@@ -124,8 +124,8 @@ export async function findUserMessageByClientId(userId: number, clientMessageId:
   const rows = await dbQuery<any[]>(
     `SELECT l.id, l.sender, l.message_text, l.metadata, l.client_message_id, l.created_at, l.conversation_id, l.language
        FROM chat_logs l
-       JOIN conversations c ON c.id = l.conversation_id AND c.user_id = ?
-      WHERE l.user_id = ? AND l.client_message_id = ? LIMIT 1`,
+       JOIN conversations c ON c.id = l.conversation_id AND c.user_id = $1
+      WHERE l.user_id = $2 AND l.client_message_id = $3 LIMIT 1`,
     [userId, userId, clientMessageId]
   );
   return rows[0] || null;
@@ -134,11 +134,13 @@ export async function findUserMessageByClientId(userId: number, clientMessageId:
 export async function findReplyFor(userId: number, clientMessageId: string) {
   const rows = await dbQuery<any[]>(
     `SELECT id, sender, message_text, metadata, client_message_id, created_at
-       FROM chat_logs WHERE user_id = ? AND client_message_id = ? LIMIT 1`,
+       FROM chat_logs WHERE user_id = $1 AND client_message_id = $2 LIMIT 1`,
     [userId, `${clientMessageId}:ai`]
   );
   return rows[0] || null;
 }
+
+const MESSAGE_COLUMNS = "id, sender, message_text, metadata, client_message_id, created_at";
 
 /**
  * Store the user's message, creating the conversation if needed, atomically.
@@ -153,26 +155,27 @@ export async function saveUserMessage(opts: {
   metadata: Record<string, any>;
   title: string;
 }) {
-  return withTransaction(async (conn: PoolConnection) => {
+  return withTransaction(async (client: PoolClient) => {
     let conversationId = opts.conversationId;
     if (conversationId) {
-      const [owned]: any = await conn.query(
-        "SELECT id FROM conversations WHERE id = ? AND user_id = ? FOR UPDATE",
+      const owned = await client.query(
+        "SELECT id FROM conversations WHERE id = $1 AND user_id = $2 FOR UPDATE",
         [conversationId, opts.userId]
       );
-      if (!owned.length) return null;
+      if (!owned.rows.length) return null;
     } else {
       conversationId = crypto.randomUUID();
-      await conn.query("INSERT INTO conversations (id, user_id, title, language) VALUES (?, ?, ?, ?)", [
+      await client.query("INSERT INTO conversations (id, user_id, title, language) VALUES ($1, $2, $3, $4)", [
         conversationId,
         opts.userId,
         opts.title,
         opts.language,
       ]);
     }
-    const [ins]: any = await conn.query(
+    const ins = await client.query(
       `INSERT INTO chat_logs (user_id, conversation_id, client_message_id, sender, message_text, language, metadata)
-       VALUES (?, ?, ?, 'user', ?, ?, ?)`,
+       VALUES ($1, $2, $3, 'user', $4, $5, $6::jsonb)
+       RETURNING ${MESSAGE_COLUMNS}`,
       [
         opts.userId,
         conversationId,
@@ -182,12 +185,11 @@ export async function saveUserMessage(opts: {
         JSON.stringify(opts.metadata),
       ]
     );
-    await conn.query("UPDATE conversations SET updated_at = CURRENT_TIMESTAMP(3) WHERE id = ?", [conversationId]);
-    const [rows]: any = await conn.query(
-      "SELECT id, sender, message_text, metadata, client_message_id, created_at FROM chat_logs WHERE id = ?",
-      [ins.insertId]
-    );
-    return { conversationId: conversationId as string, row: rows[0] };
+    await client.query("UPDATE conversations SET updated_at = now() WHERE id = $1 AND user_id = $2", [
+      conversationId,
+      opts.userId,
+    ]);
+    return { conversationId: conversationId as string, row: ins.rows[0] };
   });
 }
 
@@ -199,10 +201,11 @@ export async function saveAiMessage(opts: {
   language: string;
   metadata: Record<string, any>;
 }) {
-  return withTransaction(async (conn: PoolConnection) => {
-    const [ins]: any = await conn.query(
+  return withTransaction(async (client: PoolClient) => {
+    const ins = await client.query(
       `INSERT INTO chat_logs (user_id, conversation_id, client_message_id, sender, message_text, language, metadata)
-       VALUES (?, ?, ?, 'ai', ?, ?, ?)`,
+       VALUES ($1, $2, $3, 'ai', $4, $5, $6::jsonb)
+       RETURNING ${MESSAGE_COLUMNS}`,
       [
         opts.userId,
         opts.conversationId,
@@ -212,14 +215,10 @@ export async function saveAiMessage(opts: {
         JSON.stringify(opts.metadata),
       ]
     );
-    await conn.query("UPDATE conversations SET updated_at = CURRENT_TIMESTAMP(3) WHERE id = ? AND user_id = ?", [
+    await client.query("UPDATE conversations SET updated_at = now() WHERE id = $1 AND user_id = $2", [
       opts.conversationId,
       opts.userId,
     ]);
-    const [rows]: any = await conn.query(
-      "SELECT id, sender, message_text, metadata, client_message_id, created_at FROM chat_logs WHERE id = ?",
-      [ins.insertId]
-    );
-    return rows[0];
+    return ins.rows[0];
   });
 }

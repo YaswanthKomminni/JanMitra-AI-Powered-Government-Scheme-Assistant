@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { queryDatabase } from "@/lib/db";
 import { NEARBY_PEERS } from "@/lib/mockData";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
     const dbResult = await queryDatabase(
@@ -29,7 +31,7 @@ export async function GET() {
 
       return NextResponse.json({
         success: true,
-        source: "mysql",
+        source: "postgres",
         peers: formatted,
       });
     }
