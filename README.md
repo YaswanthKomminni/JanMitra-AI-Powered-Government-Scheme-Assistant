@@ -1,8 +1,6 @@
 # JanMithra: AI-Powered Government Scheme Assistant
 
-[![Next.js](https://img.shields.io/badge/Frontend-Next.js%2014-000000?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org/)
-[![TailwindCSS](https://img.shields.io/badge/UI-Tailwind%20CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
-[![License](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](LICENSE)
+
 
 An accessible, mobile-first, and voice-first conversational AI platform designed to bridge the rural digital divide in India. **JanMithra** empowers farmers, smallholders, and rural citizens to discover personalized government welfare schemes, verify land/soil records with AI Vision OCR, and connect with nearby peer farmers who successfully claimed subsidies.
 
