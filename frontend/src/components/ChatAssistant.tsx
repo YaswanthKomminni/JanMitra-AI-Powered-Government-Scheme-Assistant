@@ -32,6 +32,7 @@ import { translations } from "@/lib/i18n";
 import { createSpeechRecognizer } from "@/lib/speech";
 import LiveCameraCapture from "@/components/LiveCameraCapture";
 import ConversationSidebar from "@/components/ConversationSidebar";
+import { classifyBase64Image } from "@/lib/visionClassifier";
 
 function formatTime(msg: ChatMessage): string {
   const raw = msg.createdAt || msg.timestamp;
@@ -80,6 +81,7 @@ export default function ChatAssistant({ variant = "full" }: { variant?: "full" |
     type: string;
     size: string;
     isImage: boolean;
+    classification?: any;
   } | null>(null);
   const [speechActive, setSpeechActive] = useState(false);
   const [liveCameraOpen, setLiveCameraOpen] = useState(false);
@@ -113,13 +115,23 @@ export default function ChatAssistant({ variant = "full" }: { variant?: "full" |
     if (file) {
       const isImg = file.type.startsWith("image/");
       const reader = new FileReader();
-      reader.onload = (ev) => {
+      reader.onload = async (ev) => {
+        const base64 = ev.target?.result as string;
+        let classification: any = null;
+        if (isImg && base64) {
+          try {
+            classification = await classifyBase64Image(base64, file.name);
+          } catch (e) {
+            console.warn("[chat] Classification error:", e);
+          }
+        }
         setSelectedFile({
-          base64: ev.target?.result as string,
+          base64,
           name: file.name,
           type: file.type || "application/octet-stream",
           size: (file.size / 1024).toFixed(1) + " KB",
           isImage: isImg,
+          classification,
         });
       };
       reader.readAsDataURL(file);
@@ -206,7 +218,8 @@ export default function ChatAssistant({ variant = "full" }: { variant?: "full" |
       inputVal.trim() || defaultPrompt,
       selectedFile?.base64,
       selectedFile?.name,
-      selectedFile?.type
+      selectedFile?.type,
+      selectedFile?.classification
     );
     if (!isAuthenticated) return; // keep the typed text visible behind the modal
     setInputVal("");
@@ -693,13 +706,21 @@ export default function ChatAssistant({ variant = "full" }: { variant?: "full" |
             <LiveCameraCapture
               category="crop_disease"
               title="Snap Live Photo with Webcam / Mobile Camera"
-              onCapture={(base64) => {
+              onCapture={async (base64) => {
+                const fileName = `Live_Scan_${Date.now()}.jpg`;
+                let classification: any = null;
+                try {
+                  classification = await classifyBase64Image(base64, fileName, "crop_disease");
+                } catch (e) {
+                  console.warn("[chat] Live scan classification error:", e);
+                }
                 setSelectedFile({
                   base64,
-                  name: `Live_Scan_${Date.now()}.jpg`,
+                  name: fileName,
                   type: "image/jpeg",
                   size: "Live Photo",
                   isImage: true,
+                  classification,
                 });
                 setLiveCameraOpen(false);
               }}

@@ -24,14 +24,15 @@ export interface VisionClassificationResult {
 
 const AGRI_KEYWORDS = [
   "patta", "pahani", "ror", "survey", "khata", "khasra",
-  "soil", "icar", "shc", "fertilizer", "nutrient", "urea", "dap",
+  "soil", "icar", "shc", "fertilizer", "nutrient", "urea", "dap", "gypsum",
   "crop", "leaf", "pest", "disease", "cotton", "paddy", "chilli", "foliage", "blight", "whitefly",
   "aadhaar", "kisan", "farmer", "dbt", "pm-kisan", "kusum", "pmfby", "rythu",
   "rajasthan", "ghantiyali", "jodhpur", "bigha", "praman",
   "assam", "aea", "khanapara",
   "agronomy", "himanshu", "pathak",
   "birsa", "bau", "ranchi", "horticulture",
-  "dharani", "meebhoomi", "bhulekh", "pattadar"
+  "dharani", "meebhoomi", "bhulekh", "pattadar",
+  "seed", "seeds", "subsidy", "minikit", "sprayer", "equipment", "welfare", "scheme", "assistance", "agriculture", "krishi"
 ];
 
 export function classifyImagePixels(
@@ -146,9 +147,9 @@ export function classifyImagePixels(
   }
 
   // 3. Official Agricultural & Government Document (Document File, Paper + Ink Layout, or Agricultural Keywords)
-  const isDocumentVisual = (docRatio >= 0.45 && textDensity >= 0.012) || (docRatio >= 0.35 && textDensity >= 0.025);
+  const isDocumentVisual = (docRatio >= 0.40 && textDensity >= 0.008) || (docRatio >= 0.28 && textDensity >= 0.012);
 
-  if (isDocumentFile || (hasAgriKeyword && (docRatio >= 0.25 || textDensity >= 0.008)) || (isDocumentVisual && hasAgriKeyword)) {
+  if (isDocumentFile || isDocumentVisual || (hasAgriKeyword && (docRatio >= 0.20 || textDensity >= 0.005))) {
     let docType: "land_record" | "soil_health" | "identity_card" = "land_record";
     if (
       userSelectedCategory === "soil_health" ||

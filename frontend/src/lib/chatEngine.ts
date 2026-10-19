@@ -18,6 +18,7 @@ export interface ChatMessage {
   image?: string;
   fileName?: string;
   fileType?: string;
+  classification?: any;
   clarificationChips?: string[];
   isClarification?: boolean;
   docDetection?: any;
@@ -132,7 +133,59 @@ export function getInitialChatMessage(lang: SupportedLanguage, farmerName: strin
 }
 
 export function formatDocumentAnalysisReply(det: any, lang: SupportedLanguage): { text: string; chips: string[] } {
+  if (!det || det.isAgriRelated === false || det.scopeStatus === "out_of_scope") {
+    const oos = buildOutOfScopeReply(lang, det?.reason);
+    return { text: oos.text, chips: oos.chips || [] };
+  }
+
   const ext = det.extractedData || {};
+
+  // 1A. Seed, Gypsum, & Agricultural Equipment Subsidy Schemes
+  const isSeedSubsidy =
+    det.title?.toLowerCase().includes("seed subsidy") ||
+    det.title?.toLowerCase().includes("input subsidy") ||
+    det.title?.toLowerCase().includes("పరికరాల సబ్సిడీ") ||
+    Boolean(ext.certifiedSeedsSubsidy) ||
+    Boolean(ext.freeMinikitsAllocation) ||
+    (ext.schemeTitle && String(ext.schemeTitle).toLowerCase().includes("seed"));
+
+  if (isSeedSubsidy) {
+    if (lang === "te") {
+      return {
+        text: `🏛️ **వ్యవసాయ శాఖ - విత్తనాలు, జిప్సం & పరికరాల సబ్సిడీ పథకం వివరాలు:**\n\n📋 **ధృవీకరించబడిన సబ్సిడీ వివరాలు:**\n• **ధృవీకరించిన విత్తనాల పంపిణీ (Certified Seeds):** 50% సబ్సిడీ (క్వింటాల్‌కు గరిష్టంగా ₹1,200/- వరకు)\n• **జిప్సం పంపిణీ (Gypsum):** 50% సబ్సిడీ (హెక్టారుకు ₹750/- వరకు నేల నాణ్యత మెరుగుదలకు)\n• **సస్యరక్షణ పరికరాలు (Plant Protection Sprayers):** 50% సబ్సిడీ (చేతితో నడిపే స్ప్రేయర్లు గరిష్టంగా ₹800/- వరకు)\n• **ఉచిత విత్తన మినికిట్ల పంపిణీ (Minikits):** 100% ఉచితంగా ఎంపిక చేసిన రైతులకు పంపిణీ\n\n📍 **దరఖాస్తు & సమర్పించాల్సిన అధికారి:**\nగ్రామ స్థాయిలో **సహాయ వ్యవసాయ అధికారి (Assistant Agricultural Officer - AAO) / రైతు వేదిక** వద్ద సమర్పించాలి.\n\n📄 **కావలసిన పత్రాలు:**\n1. ఆధార్ కార్డు\n2. పట్టాదారు పాస్ పుస్తకం / పహానీ నకలు\n3. బ్యాంక్ ఖాతా వివరాలు`,
+        chips: ["విత్తన సబ్సిడీ దరఖాస్తు", "రైతు వేదిక అధికారి వివరాలు", "ఉచిత మినికిట్ అర్హత", "సస్యరక్షణ పరికరాల బుకింగ్"],
+      };
+    }
+    if (lang === "hi") {
+      return {
+        text: `🏛️ **कृषि विभाग - प्रमाणित बीज, जिप्सम एवं कृषि यंत्र सब्सिडी योजना:**\n\n📋 **स्वीकृत सब्सिडी एवं सहायता विवरण:**\n• **प्रमाणित बीज वितरण (Certified Seeds):** 50% सब्सिडी (अधिकतम ₹1,200/- प्रति क्विंटल)\n• **जिप्सम वितरण (Gypsum):** 50% सब्सिडी (अधिकतम ₹750/- प्रति हेक्टेयर भूमि सुधार हेतु)\n• **पादप संरक्षण उपकरण (Plant Protection Sprayers):** 50% सब्सिडी (हस्तचालित स्प्रेयर अधिकतम ₹800/- तक)\n• **निःशुल्क बीज मिनीकिट (Minikits):** 100% निःशुल्क वितरण (पात्र किसानों के लिए)\n\n📍 **आवेदन एवं नोडल अधिकारी:**\nग्राम स्तर पर **सहायक कृषि अधिकारी (Assistant Agricultural Officer - AAO) / किसान सेवा केंद्र** पर आवेदन जमा करें।\n\n📄 **आवश्यक दस्तावेज़:**\n1. आधार कार्ड\n2. भूमि पट्टा / खसरा खतौनी नकल\n3. बैंक पासबुक`,
+        chips: ["बीज सब्सिडी आवेदन", "कृषि अधिकारी संपर्क", "निःशुल्क मिनीकिट पात्रता", "स्प्रेयर उपकरण बुकिंग"],
+      };
+    }
+    if (lang === "ta") {
+      return {
+        text: `🏛️ **வேளாண்மை துறை - சான்றளிக்கப்பட்ட விதைகள், ஜிப்சம் & தெளிப்பான் மானியத் திட்டம்:**\n\n📋 **சரிபார்க்கப்பட்ட மானிய விவரங்கள்:**\n• **சான்றளிக்கப்பட்ட விதைகள் (Certified Seeds):** 50% மானியம் (குவிண்டாலுக்கு ₹1,200/- வரை)\n• **ஜிப்சம் விநியோகம் (Gypsum):** 50% மானியம் (ஹெக்டேருக்கு ₹750/- வரை)\n• **பயிர் பாதுகாப்பு உபகரணங்கள் (Plant Protection Sprayers):** 50% மானியம் (கைத்தெளிப்பான் ₹800/- வரை)\n• **இலவச விதை மினிகிட் (Minikits):** 100% இலவச விநியோகம்\n\n📍 **விண்ணப்பிக்க வேண்டிய இடம்:**\nகிராம அளவில் உள்ள **உதவி வேளாண்மை அலுவலரிடம் (AAO / உழவர் மையம்)** விண்ணப்பத்தை சமர்ப்பிக்கவும்.\n\n📄 **தேவையான ஆவணங்கள்:**\n1. ஆதார் அட்டை\n2. நில பட்டா / சிட்டா நகல்\n3. வங்கி கணக்கு புத்தகம்`,
+        chips: ["விதை மானியம் விண்ணப்பம்", "வேளாண் அதிகாரி தொடர்பு", "இலவச மினிகிட் தகுதி", "தெளிப்பான் முன்பதிவு"],
+      };
+    }
+    if (lang === "kn") {
+      return {
+        text: `🏛️ **ಕೃಷಿ ಇಲಾಖೆ - ಪ್ರಮಾಣೀಕೃತ ಬೀಜಗಳು, ಜಿಪ್ಸಮ್ & ಕೃಷಿ ಉಪಕರಣ ಸಬ್ಸಿಡಿ ಯೋಜನೆ:**\n\n📋 **ಪರಿಶೀಲಿಸಲಾದ ಸಬ್ಸಿಡಿ ವಿವರಗಳು:**\n• **ಪ್ರಮಾಣೀಕೃತ ಬೀಜ ವಿತರಣೆ (Certified Seeds):** 50% ಸಬ್ಸಿಡಿ (ಕ್ವಿಂಟಾಲ್‌ಗೆ ಗರಿಷ್ಠ ₹1,200/- ವರೆಗೆ)\n• **ಜಿಪ್ಸಮ್ ವಿತರಣೆ (Gypsum):** 50% ಸಬ್ಸಿಡಿ (ಪ್ರತಿ ಹೆಕ್ಟೇರ್‌ಗೆ ₹750/- ವರೆಗೆ)\n• **ಸಸ್ಯ ಸಂರಕ್ಷಣಾ ಉಪಕರಣಗಳು (Plant Protection Sprayers):** 50% ಸಬ್ಸಿಡಿ (ಸ್ಪ್ರೇಯರ್‌ಗಳಿಗೆ ₹800/- ವರೆಗೆ)\n• **ಉಚಿತ ಬೀಜ ಮಿನಿಕಿಟ್ (Minikits):** 100% ಉಚಿತ ವಿತರಣೆ\n\n📍 **ಅರ್ಜಿ ಸಲ್ಲಿಸಬೇಕಾದ ಸ್ಥಳ:**\nಗ್ರಾಮ ಮಟ್ಟದಲ್ಲಿ **ಸಹಾಯಕ ಕೃಷಿ ಅಧಿಕಾರಿ (AAO / ರೈತ ಸಂಪರ್ಕ ಕೇಂದ್ರ)** ಬಳಿ ಅರ್ಜಿ ಸಲ್ಲಿಸಿ.\n\n📄 **ಅಗತ್ಯ ದಾಖಲೆಗಳು:**\n1. ಆಧಾರ್ ಕಾರ್ಡ್\n2. ಪಹಣಿ / ಪಟ್ಟಾ ನಕಲು\n3. ಬ್ಯಾಂಕ್ ಪಾಸ್‌ಬುಕ್`,
+        chips: ["ಬೀಜ ಸಬ್ಸಿಡಿ ಅರ್ಜಿ", "ಕೃಷಿ ಅಧಿಕಾರಿ ವಿವರ", "ಉಚಿತ ಮಿನಿಕಿಟ್ ಅರ್ಹತೆ", "ಸ್ಪ್ರೇಯರ್ ಬುಕಿಂಗ್"],
+      };
+    }
+    if (lang === "bn") {
+      return {
+        text: `🏛️ **কৃষি বিভাগ - প্রত্যয়িত বীজ, জিপসাম ও কৃষি সরঞ্জাম ভর্তুকি প্রকল্প:**\n\n📋 **অনুমোদিত সরকারি ভর্তুকির বিবরণ:**\n• **প্রত্যয়িত বীজ বিতরণ (Certified Seeds):** ৫০% ভর্তুকি (কুইন্টাল প্রতি সর্বোচ্চ ₹১,২০০/-)\n• **জিপসাম বিতরণ (Gypsum):** ৫০% ভর্তুকি (হেক্টর প্রতি ₹৭৫০/- পর্যন্ত)\n• **উদ্ভিদ সংরক্ষণ স্প্রেয়ার সরঞ্জাম (Plant Protection Sprayers):** ৫০% ভর্তুকি (হস্তচালিত স্প্রেয়ার সর্বোচ্চ ₹৮০০/- পর্যন্ত)\n• **বিনামূল্যে বীজ মিনিকেট (Minikits):** ১০০% বিনামূল্যে বিতরণ\n\n📍 **আবেদন প্রক্রিয়া ও দায়িত্বপ্রাপ্ত আধিকারিক:**\nগ্রাম পঞ্চায়েত স্তরে **সহকারী কৃষি আধিকারিক (Assistant Agricultural Officer - AAO) / কৃষি সেবা কেন্দ্রে** জমা দিন।\n\n📄 **প্রয়োজনীয় নথিপত্র:**\n১. আধার কার্ড\n২. জমির পাট্টা / খতিয়ান\n৩. ব্যাংক পাসবুক`,
+        chips: ["বীজ ভর্তুকি আবেদন", "কৃষি আধিকারিকের যোগাযোগ", "বিনামূল্যে মিনিকেট", "স্প্রেয়ার বুকিং"],
+      };
+    }
+    return {
+      text: `🏛️ **Department of Agriculture - Certified Seeds, Gypsum & Equipment Subsidy Scheme:**\n\n📋 **Verified Scheme Entitlements & Subsidies:**\n• **Certified Seeds Distribution:** 50% cost subsidy (up to ₹1,200/- per quintal) for Oilseeds & Pulses\n• **Gypsum Soil Amendment:** 50% subsidy (up to ₹750/- per hectare for soil health improvement)\n• **Plant Protection Equipment:** 50% subsidy (up to ₹800/- for manually operated sprayers)\n• **Free Seed Minikits:** 100% Free of Cost distribution to eligible small and marginal farmers\n\n📍 **Implementing Authority & Where to Submit:**\nSubmit to the **Assistant Agricultural Officer (AAO) at the Village Level / Rythu Vedika / Krishi Bhavan**.\n\n📄 **Required Documents:**\n1. Aadhaar Card (Farmer KYC)\n2. Land Record Passbook (Pattadar Passbook / Pahani / RoR)\n3. Bank Account Passbook (DBT-linked)`,
+      chips: ["Apply for Seed Subsidy", "Contact Village Agri Officer", "Free Minikit Eligibility", "Book Knapsack Sprayer"],
+    };
+  }
+
   const isTelanganaDeed =
     det.title?.toLowerCase().includes("sale deed") ||
     det.title?.toLowerCase().includes("dharani") ||

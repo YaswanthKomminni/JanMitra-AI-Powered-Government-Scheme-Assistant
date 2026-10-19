@@ -131,7 +131,7 @@ interface FarmerState {
   deleteConversation: (id: string) => Promise<AuthResult>;
 
   // Chat Actions
-  sendChatMessage: (text: string, image?: string, fileName?: string, fileType?: string) => Promise<void>;
+  sendChatMessage: (text: string, image?: string, fileName?: string, fileType?: string, classification?: any) => Promise<void>;
   retryChatMessage: (clientMessageId: string) => Promise<void>;
   handleClarificationChip: (chipText: string) => void;
   setIsListening: (listening: boolean) => void;
@@ -270,7 +270,7 @@ export const useFarmerStore = create<FarmerState>((set, get) => {
   };
 
   /** POST a message to the server; shared by send and retry. */
-  const postChat = async (msg: ChatMessage, attachment?: { data: string; fileName?: string; fileType?: string }) => {
+  const postChat = async (msg: ChatMessage, attachment?: { data: string; fileName?: string; fileType?: string; classification?: any }) => {
     const token = chatViewToken;
     const cmid = msg.clientMessageId!;
     const markMessage = (patch: Partial<ChatMessage>) =>
@@ -1055,7 +1055,7 @@ export const useFarmerStore = create<FarmerState>((set, get) => {
 
   /* ---------------- Chat ---------------- */
 
-  sendChatMessage: async (text, image, fileName, fileType) => {
+  sendChatMessage: async (text, image, fileName, fileType, classification) => {
     const trimmed = (text || "").trim();
     if (!trimmed) return;
     if (!get().isAuthenticated) {
@@ -1073,12 +1073,13 @@ export const useFarmerStore = create<FarmerState>((set, get) => {
       image,
       fileName,
       fileType,
+      classification,
       status: "sending",
       timestamp: new Date().toISOString(),
     };
     set((state) => ({ chatMessages: [...state.chatMessages, userMsg] }));
 
-    await postChat(userMsg, image ? { data: image, fileName, fileType } : undefined);
+    await postChat(userMsg, image ? { data: image, fileName, fileType, classification } : undefined);
   },
 
   retryChatMessage: async (clientMessageId) => {
@@ -1097,7 +1098,7 @@ export const useFarmerStore = create<FarmerState>((set, get) => {
     }));
     await postChat(
       { ...msg, status: "sending" },
-      msg.image ? { data: msg.image, fileName: msg.fileName, fileType: msg.fileType } : undefined
+      msg.image ? { data: msg.image, fileName: msg.fileName, fileType: msg.fileType, classification: msg.classification } : undefined
     );
   },
 

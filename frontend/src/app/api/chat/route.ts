@@ -94,11 +94,13 @@ export async function POST(request: Request) {
   const attachment = body?.attachment;
   let fileName: string | undefined;
   let fileType: string | undefined;
+  let classification: any = undefined;
   if (attachment) {
     if (typeof attachment.data !== "string" || !attachment.data) return fail(400, "Attachment is empty.");
     if (attachment.data.length > MAX_ATTACHMENT_CHARS) return fail(413, "Attachment is too large (max ~8 MB).");
     fileName = String(attachment.fileName || "uploaded_document.png").slice(0, 200);
     fileType = String(attachment.fileType || "image/png").slice(0, 100);
+    classification = attachment.classification;
   }
 
   try {
@@ -166,6 +168,7 @@ export async function POST(request: Request) {
                 fileBase64: attachment.data,
                 fileName,
                 fileType,
+                classification,
               });
               if (!outcome.success && outcome.isOutOfScope) {
                 return buildOutOfScopeReply(language, outcome.reason);
