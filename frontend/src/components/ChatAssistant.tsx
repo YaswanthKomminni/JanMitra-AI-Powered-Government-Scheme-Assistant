@@ -673,7 +673,7 @@ export default function ChatAssistant({ variant = "full" }: { variant?: "full" |
   return (
     <div
       className={`bg-white rounded-2xl border border-stone-200 overflow-hidden flex relative ${
-        isFull ? "h-[78vh] min-h-[560px] max-h-[860px]" : "h-[650px] max-h-[80vh]"
+        isFull ? "h-[calc(100dvh-8rem)] min-h-[480px]" : "h-[650px] max-h-[80vh]"
       }`}
     >
       {/* Conversation history (full view, signed in) */}
