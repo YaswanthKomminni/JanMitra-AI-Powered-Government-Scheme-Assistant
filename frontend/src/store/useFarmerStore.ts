@@ -1262,22 +1262,27 @@ export const useFarmerStore = create<FarmerState>((set, get) => {
         });
         return true;
       }
-    } catch (e) {
-      console.warn("Failed to reach /api/ocr/analyze, falling back to local vision heuristics:", e);
+    } catch (e: any) {
+      console.warn("Failed to reach /api/ocr/analyze:", e);
+      set({
+        verificationScanning: false,
+        verificationResult: null,
+        outOfScopeError: {
+          title: "Analysis Error",
+          message: "Could not reach the JanMithra vision server.",
+          reason: e?.message || "Network timeout or connection error during image analysis.",
+          previewUrl: fileBase64,
+          suggestions: [
+            "Please check your internet connection and try again.",
+            "Capture a clear, well-lit photo of the agricultural document or crop leaf.",
+            "Ensure the file size is less than 8 MB.",
+          ],
+        },
+      });
+      return false;
     }
 
-    // Fallback simulation if network issue
-    const preset = MOCK_OCR_PRESETS["land_patta"];
-    set({
-      verificationScanning: false,
-      verificationResult: {
-        ...preset,
-        previewUrl: fileBase64,
-        fileName,
-      },
-      outOfScopeError: null,
-    });
-    return true;
+    return false;
   },
 
   confirmExtractedData: () => {

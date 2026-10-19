@@ -175,7 +175,79 @@ export function formatDocumentAnalysisReply(det: any, lang: SupportedLanguage): 
     };
   }
 
-  // Generic document or Rajasthan / Soil card
+  // 2. Crop Disease & Foliage Pest Diagnosis
+  if (det.docType === "crop_disease") {
+    const crop = ext.crop || "Cotton Crop (పత్తి / कपास)";
+    const pest = ext.pestOrDisease || "Whitefly & Sucking Pests (తెల్లదోమ / सफेद मक्खी)";
+    const organic = ext.organicRemedy || "Spray 10,000 ppm Neem Oil @ 2-3ml/L water in late afternoon.";
+    const chemical = ext.chemicalTreatment || "Spray Diafenthiuron 50% WP @ 1g/L or Flonicamid 50% WG @ 0.3g/L.";
+    const tips = ext.preventionTips || "Install 15 yellow sticky traps/acre and ensure proper field drainage.";
+
+    if (lang === "te") {
+      return {
+        text: `🌿 **పంట తెగులు & కీటక వ్యాధి నిర్ధారణ (AI Crop Vision Diagnosis)**\n\n🔍 **గుర్తించిన సమస్య:**\n• పంట: ${crop}\n• సోకిన తెగులు/కీటకం: **${pest}**\n• తీవ్రత: ${ext.severity || "మధ్యస్థం (తక్షణ నివారణ అవసరం)"}\n\n🧪 **శాస్త్రీయ నివారణ & సలహాలు:**\n1. **సేంద్రీయ నివారణ:** ${organic}\n2. **రసాయన చికిత్స:** ${chemical}\n3. **క్షేత్ర యాజమాన్యం:** ${tips}\n\n🏛️ **ప్రభుత్వ పథకాలు & బీమా సాయం:**\n• **PMFBY పంట నష్టం బీమా:** నష్టం 33% పైగా ఉంటే 72 గంటల్లోగా పోర్టల్ లేదా వ్యవసాయ అధికారికి తెలియజేయండి.\n• **కిసాన్ కాల్ సెంటర్ (ఉచితం):** 1800-180-1551 కాల్ చేసి ఉచిత వ్యవసాయ శాస్త్రవేత్త సలహా పొందండి.`,
+        chips: ["మందు పిచికారీ సమయం", "PMFBY పంట బీమా దరఖాస్తు", "వేపనూనె తయారీ విధానం", "రైతు భరోసా కేంద్రం"],
+      };
+    }
+    if (lang === "hi") {
+      return {
+        text: `🌿 **फसल कीट एवं रोग निदान (AI Crop Vision Diagnosis)**\n\n🔍 **पहचाना गया विवरण:**\n• फसल: ${crop}\n• कीट / रोग: **${pest}**\n• प्रकोप स्तर: ${ext.severity || "मध्यम (त्वरित उपचार आवश्यक)"}\n\n🧪 **वैज्ञानिक उपचार एवं कृषि सलाह:**\n1. **जैविक उपचार:** ${organic}\n2. **रासायनिक छिड़काव:** ${chemical}\n3. **खेत प्रबंधन:** ${tips}\n\n🏛️ **सरकारी सहायता एवं फसल बीमा:**\n• **PMFBY फसल बीमा:** 33% से अधिक नुकसान पर 72 घंटे के भीतर टोल-फ्री या पोर्टल पर सूचना दें.\n• **किसान कॉल सेंटर (निःशुल्क):** 1800-180-1551 पर कृषि वैज्ञानिकों से सीधी सलाह लें.`,
+        chips: ["दवा छिड़काव की सही मात्रा", "PMFBY बीमा क्लेम प्रक्रिया", "नीम तेल जैविक विधि", "नजदीकी कृषि विज्ञान केंद्र"],
+      };
+    }
+    if (lang === "ta") {
+      return {
+        text: `🌿 **பயிர் நோய் மற்றும் பூச்சி கண்டறிதல் (AI Crop Vision Diagnosis)**\n\n🔍 **கண்டறியப்பட்ட விவரங்கள்:**\n• பயிர்: ${crop}\n• பூச்சி/நோய்: **${pest}**\n• தீவிரம்: ${ext.severity || "மிதமான பாதிப்பு (உடனடி நடவடிக்கை தேவை)"}\n\n🧪 **பரிந்துரைக்கப்பட்ட விவசாய ஆலோசனைகள்:**\n1. **இயற்கை முறை:** ${organic}\n2. **வேதியியல் தெளிப்பு:** ${chemical}\n3. **வயல் பராமரிப்பு:** ${tips}\n\n🏛️ **அரசு மானியங்கள் & பயிர் காப்பீடு:**\n• **PMFBY பயிர் காப்பீடு:** 33% மேல் சேதம் ஏற்பட்டால் 72 மணி நேரத்திற்குள் தெரிவிக்கவும்.\n• **உழவர் உதவி மையம் (இலவசம்):** 1800-180-1551 என்ற எண்ணில் வேளாண் விஞ்ஞானிகளிடம் ஆலோசனை பெறவும்.`,
+        chips: ["மருந்து தெளிக்கும் முறை", "PMFBY காப்பீடு விண்ணப்பம்", "இயற்கை வேப்பெண்ணெய் முறை", "உழவர் மையம்"],
+      };
+    }
+    if (lang === "kn") {
+      return {
+        text: `🌿 **ಬೆಳೆ ರೋಗ ಮತ್ತು ಕೀಟ ನಿರ್ಣಯ (AI Crop Vision Diagnosis)**\n\n🔍 **ಗುರುತಿಸಲಾದ ಸಮಸ್ಯೆ:**\n• ಬೆಳೆ: ${crop}\n• ಕೀಟ / ರೋಗ: **${pest}**\n• ತೀವ್ರತೆ: ${ext.severity || "ಮಧ್ಯಮ (ತಕ್ಷಣದ ಕ್ರಮ ಅಗತ್ಯ)"}\n\n🧪 **ವೈಜ್ಞಾನಿಕ ಕೃಷಿ ಸಲಹೆಗಳು:**\n1. **ಸಾವಯವ ವಿಧಾನ:** ${organic}\n2. **ರಾಸಾಯನಿಕ ಸಿಂಪಡಣೆ:** ${chemical}\n3. **ಜಮೀನಿನ ನಿರ್ವಹಣೆ:** ${tips}\n\n🏛️ **ಸರ್ಕಾರಿ ಬೆಳೆ ವಿಮೆ ಮತ್ತು ನೆರವು:**\n• **PMFBY ಬೆಳೆ ವಿಮೆ:** 33% ಕ್ಕಿಂತ ಹೆಚ್ಚು ಹಾನಿಯಾಗಿದ್ದರೆ 72 ಗಂಟೆಗಳಲ್ಲಿ ದೂರು ದಾಖಲಿಸಿ.\n• **ಕಿಸಾನ್ ಕಾಲ್ ಸೆಂಟರ್ (ಉಚಿತ):** 1800-180-1551 ಗೆ ಕರೆ ಮಾಡಿ ಕೃಷಿ ತಜ್ಞರ ಸಲಹೆ ಪಡೆಯಿರಿ.`,
+        chips: ["ಔಷಧ ಸಿಂಪಡಣೆ ಪ್ರಮಾಣ", "PMFBY ಬೆಳೆ ವಿಮೆ ಕ್ಲೈಮ್", "ಬೇವಿನ ಎಣ್ಣೆ ಬಳಕೆ", "ಕೃಷಿ ಕೇಂದ್ರ"],
+      };
+    }
+    if (lang === "bn") {
+      return {
+        text: `🌿 **ফসল রোগ ও পোকা নির্ণয় (AI Crop Vision Diagnosis)**\n\n🔍 **চিহ্নিত সমস্যা:**\n• ফসল: ${crop}\n• পোকা / রোগ: **${pest}**\n• তীব্রতা: ${ext.severity || "মাঝারি (জরুরি ব্যবস্থা প্রয়োজন)"}\n\n🧪 **বিজ্ঞানসম্মত প্রতিকার ও পরামর্শ:**\n1. **জৈব সমাধান:** ${organic}\n2. **রাসায়নিক স্প্রে:** ${chemical}\n3. **মাঠের যত্ন:** ${tips}\n\n🏛️ **সরকারি ফসল বীমা ও সহায়তা:**\n• **PMFBY ফসল বীমা:** ৩৩% এর বেশি ক্ষতি হলে ৭২ ঘণ্টার মধ্যে অভিযোগ নথিভুক্ত করুন।\n• **কিষাণ কল সেন্টার (টোল-ফ্রি):** 1800-180-1551 এ কল করে সরাসরি কৃষি বিশেষজ্ঞদের পরামর্শ নিন।`,
+        chips: ["ওষুধ স্প্রে করার পরিমাণ", "PMFBY বীমা দাবি প্রক্রিয়া", "নিম তেল তৈরির পদ্ধতি", "কৃষি সেবা কেন্দ্র"],
+      };
+    }
+
+    return {
+      text: `🌿 **Crop Pest & Disease Diagnosis (AI Vision Analysis)**\n\n🔍 **Identified Parameters:**\n• Crop: **${crop}**\n• Identified Pest / Disease: **${pest}**\n• Severity: **${ext.severity || "Moderate (Action Threshold Reached)"}**\n\n🧪 **Actionable Agronomic Advice:**\n1. **Organic Treatment:** ${organic}\n2. **Chemical Control:** ${chemical}\n3. **Field Prevention:** ${tips}\n\n🏛️ **Government Assistance & Insurance:**\n• **PMFBY Crop Loss Claim:** Report within 72 hours via PMFBY portal if damage exceeds 33%.\n• **Kisan Call Center (Toll-Free):** Dial 1800-180-1551 for free guidance from agricultural scientists.`,
+      chips: ["Spray Dosage Guide", "Apply for PMFBY Claim", "Organic Neem Oil Recipe", "Nearest Krishi Kendra"],
+    };
+  }
+
+  // 3. Soil Health Card & Nutrient Analysis
+  if (det.docType === "soil_health_card") {
+    const ph = ext.soilPh || 6.8;
+    const n = ext.nitrogenStatus || "Medium";
+    const p = ext.phosphorusStatus || "Low (Deficient)";
+    const k = ext.potassiumStatus || "High (Sufficient)";
+    const action = ext.recommendedAction || "Apply balanced NPK fertilizer with Zinc Sulphate.";
+
+    if (lang === "te") {
+      return {
+        text: `🧪 **సాయిల్ హెల్త్ కార్డ్ & పోషకాల విశ్లేషణ (Soil Health Card Analysis)**\n\n📊 **నేల రసాయన సమతుల్యత:**\n• నేల పీహెచ్ (pH): **${ph}** (${ext.soilReaction || "అనుకూలమైన స్థితి"})\n• నత్రజని (Nitrogen): ${n}\n• భాస్వరం (Phosphorus): ${p}\n• పొటాష్ (Potassium): ${k}\n\n💡 **రైతుకు ఎరువుల సిఫార్సులు:**\n${action}\n\n🏛️ **వర్తించే ప్రభుత్వ రాయితీలు:**\n• ఉచిత నేల ఆరోగ్య కార్డు సూక్ష్మపోషకాల కిట్ పథకం\n• పరంపరాగత్ కృషి వికాస్ యోజన (PKVY) సేంద్రియ సాగు సబ్సిడీ`,
+        chips: ["ఎరువుల మోతాదు లెక్కింపు", "సేంద్రియ ఎరువుల సలహా", "సాయిల్ కిట్ దరఖాస్తు"],
+      };
+    }
+    if (lang === "hi") {
+      return {
+        text: `🧪 **मृदा स्वास्थ्य कार्ड एवं पोषक तत्व विश्लेषण (Soil Health Analysis)**\n\n📊 **रासायनिक संतुलन:**\n• मिट्टी का पीएच (pH): **${ph}** (${ext.soilReaction || "उचित स्थिति"})\n• नाइट्रोजन (N): ${n}\n• फास्फोरस (P): ${p}\n• पोटाश (K): ${k}\n\n💡 **उर्वरक एवं सुधारक सिफारिश:**\n${action}\n\n🏛️ **सरकारी सब्सिडी:**\n• मृदा स्वास्थ्य कार्ड योजनान्तर्गत निःशुल्क सूक्ष्म पोषक तत्व किट\n• परम्परागत कृषि विकास योजना (PKVY) जैविक खेती प्रोत्साहन`,
+        chips: ["उर्वरक की सही मात्रा", "जैविक खाद सलाह", "सॉइल किट सब्सिडी"],
+      };
+    }
+
+    return {
+      text: `🧪 **Soil Health Card & Nutrient Analysis**\n\n📊 **Soil Chemical Balance:**\n• Soil pH: **${ph}** (${ext.soilReaction || "Optimal Range"})\n• Available Nitrogen (N): **${n}**\n• Available Phosphorus (P): **${p}**\n• Available Potassium (K): **${k}**\n\n💡 **Fertilizer & Amendment Recommendations:**\n${action}\n\n🏛️ **Eligible Government Subsidies:**\n• Soil Health Card Micronutrient Kit Subsidy\n• Paramparagat Krishi Vikas Yojana (PKVY) ₹50,000/ha Organic Cluster Scheme`,
+      chips: ["Calculate Fertilizer Dose", "Organic Compost Guide", "Soil Kit Subsidy"],
+    };
+  }
+
+  // 4. Generic Agricultural / Land Document
   const schemesList = (det.schemesUnlocked || [])
     .slice(0, 4)
     .map((s: string, idx: number) => `${idx + 1}. ${s}`)
@@ -592,8 +664,17 @@ export function buildOutOfScopeReply(lang: SupportedLanguage, reason?: string): 
   } else if (lang === "hi") {
     replyText = `⚠️ कार्यक्षेत्र से बाहर (Out of Scope):\nयह तस्वीर या फ़ाइल कृषि, फसलों या सरकारी किसान योजनाओं से संबंधित नहीं लग रही है (${data.reason || "गैर-कृषि वस्तुएं"})।\n\nजनमित्रा (JanMithra) AI केवल फसलों, कीट नियंत्रण, भूमि दस्तावेज़ों और सरकारी योजनाओं के लिए समर्पित है।\nकृपया:\n• किसी पौधे या पत्ती की स्पष्ट तस्वीर भेजें।\n• या भूमि बैनामा (Sale Deed), पट्टा/खसरा, सॉइल हेल्थ कार्ड साझा करें।`;
     chips = ["किसान योजनाओं की जानकारी", "फसल पत्ती की तस्वीर लें", "भूमि दस्तावेज़ स्कैन"];
+  } else if (lang === "ta") {
+    replyText = `⚠️ எல்லைக்கு அப்பாற்பட்ட படம் (Out of Scope):\nநீங்கள் அனுப்பிய படம் விவசாயம், பயிர்கள் அல்லது அரசு உழவர் நலத்திட்டங்களுடன் தொடர்புடையதாக இல்லை (${data.reason || "விவசாயம் அல்லாத பொருட்கள்"}).\n\nஜனமித்ரா (JanMithra) AI பயிர் நோய் கண்டறிதல், விவசாய வழிகாட்டுதல் மற்றும் அரசு திட்டங்களுக்கு மட்டுமே உதவும்.\nதயவுசெய்து:\n• பூச்சி அல்லது நோய் தாக்கப்பட்ட பயிர் இலை படத்தை எடுக்கவும்.\n• அல்லது நிலப் பட்டா, அடங்கல், மண் பரிசோதனை அட்டை போன்ற அதிகாரப்பூர்வ ஆவணங்களை பதிவேற்றவும்.`;
+    chips = ["அரசு விவசாய திட்டங்கள்", "பயிர் இலை புகைப்படம் எடு", "நிலப் பட்டா ஸ்கேன்"];
+  } else if (lang === "kn") {
+    replyText = `⚠️ ವ್ಯಾಪ್ತಿಯಿಂದ ಹೊರಗಿದೆ (Out of Scope):\nನೀವು ಕಳುಹಿಸಿದ ಚಿತ್ರವು ಕೃಷಿ, ಬೆಳೆಗಳು ಅಥವಾ ಸರ್ಕಾರದ ರೈತ ಯೋಜನೆಗಳಿಗೆ ಸಂಬಂಧಿಸಿದಂತೆ ಕಂಡುಬರುತ್ತಿಲ್ಲ (${data.reason || "ಕೃಷಿಯೇತರ ವಸ್ತುಗಳು"}).\n\nಜನಮಿತ್ರ (JanMithra) AI ಕೇವಲ ಕೃಷಿ ಸಲಹೆ, ಬೆಳೆ ರೋಗ ನಿರ್ಣಯ ಮತ್ತು ಸರ್ಕಾರಿ ಯೋಜನೆಗಳಿಗಾಗಿ ಮಾತ್ರ ಸಮರ್ಪಿತವಾಗಿದೆ.\nದಯವಿಟ್ಟು:\n• ರೋಗ ಅಥವಾ ಕೀಟ ಬಾಧಿತ ಬೆಳೆ ಎಲೆಯ ಸ್ಪಷ್ಟ ಫೋಟೋ ಕಳುಹಿಸಿ.\n• ಅಥವಾ ಅಧಿಕೃತ ಪಟ್ಟಾ, ಪಹಣಿ/ಆರ್‌ಒಆರ್, ಮಣ್ಣು ಆರೋಗ್ಯ ಕಾರ್ಡ್ ಅಪ್‌ಲೋಡ್ ಮಾಡಿ.`;
+    chips = ["ರೈತ ಕಲ್ಯಾಣ ಯೋಜನೆಗಳು", "ಬೆಳೆ ಎಲೆಯ ಫೋಟೋ ತೆಗೆಯಿರಿ", "ಭೂಮಿ ದಾಖಲೆ ಸ್ಕ್ಯಾನ್"];
+  } else if (lang === "bn") {
+    replyText = `⚠️ আওতা বহির্ভূত ছবি (Out of Scope):\nআপনার পাঠানো ছবিটি কৃষি, ফসল বা সরকারি কৃষক প্রকল্পের সাথে সম্পর্কিত নয় (${data.reason || "অ-কৃষি সামগ্রী"}).\n\nজনমিত্র (JanMithra) AI শুধুমাত্র কৃষিকাজ, ফসলের রোগ নির্ণয় ও সরকারি প্রকল্পের সহায়তার জন্য তৈরি।\nদয়া করে:\n• আক্রান্ত ফসলের পাতা বা পোকার স্পষ্ট ছবি তুলুন।\n• অথবা সরকারি জমির দলিল, পাট্টা/পাহানি, মাটি পরীক্ষা কার্ড আপলোড করুন।`;
+    chips = ["সরকারি কৃষি প্রকল্প", "ফসলের পাতার ছবি নিন", "জমির পাট্টা স্ক্যান"];
   } else {
-    replyText = `⚠️ Out of Scope:\nThe uploaded photo/file does not appear to be related to agriculture, crops, or government welfare schemes (${data.reason || "Everyday indoor items"}).\n\nJanMithra AI is dedicated exclusively to agriculture, crop diagnostics, and farmer schemes.\nPlease provide:\n• A photo of a farm crop leaf, pest, or field for disease diagnosis.\n• An official agricultural/government document (Registered Sale Deed, Land Patta / Pahani / RoR, Soil Health Card, or Farmer ID).`;
+    replyText = `⚠️ Out of Scope (Not Related to Agriculture or Schemes):\nThe uploaded photo/file does not appear to be related to agriculture, crops, or government welfare schemes (${data.reason || "Everyday indoor items"}).\n\nJanMithra AI is dedicated exclusively to agriculture, crop diagnostics, and farmer schemes.\n\nPlease provide:\n• A photo of a farm crop leaf, pest, or field for disease diagnosis.\n• An official agricultural/government document (Registered Sale Deed, Land Patta / Pahani / RoR, Soil Health Card, or Farmer ID).`;
     chips = ["Explore Agri Schemes", "Take Crop Leaf Photo", "Scan Land Record"];
   }
   return { text: replyText, chips };

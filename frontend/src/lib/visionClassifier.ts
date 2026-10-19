@@ -24,17 +24,14 @@ export interface VisionClassificationResult {
 
 const AGRI_KEYWORDS = [
   "patta", "pahani", "ror", "survey", "khata", "khasra",
-  "soil", "icar", "shc", "fertilizer", "nutrient",
-  "crop", "leaf", "pest", "disease", "cotton", "paddy", "chilli", "plant", "farm", "agri",
-  "aadhaar", "kisan", "farmer", "dbt", "pm-kisan", "kusum",
-  "rajasthan", "ghantiyali", "jodhpur", "bap", "bigha", "praman",
-  "assam", "aea", "khanapara", "guwahati",
+  "soil", "icar", "shc", "fertilizer", "nutrient", "urea", "dap",
+  "crop", "leaf", "pest", "disease", "cotton", "paddy", "chilli", "foliage", "blight", "whitefly",
+  "aadhaar", "kisan", "farmer", "dbt", "pm-kisan", "kusum", "pmfby", "rythu",
+  "rajasthan", "ghantiyali", "jodhpur", "bigha", "praman",
+  "assam", "aea", "khanapara",
   "agronomy", "himanshu", "pathak",
-  "birsa", "bau", "ranchi", "admission", "horticulture",
-  "4.16.26", "4.16.27", "4.16.28", "4.16.29",
-  "deed", "sale", "vendor", "vendee", "dharani", "property", "registry", "registration",
-  "encumbrance", "mutation", "telangana", "warangal", "nekkonda", "passbook", "conveyance",
-  "stamp", "agreement", "contract", "affidavit", "revenue", "document", "gov", "pdf", "doc", "docx", "txt", "thumb"
+  "birsa", "bau", "ranchi", "horticulture",
+  "dharani", "meebhoomi", "bhulekh", "pattadar"
 ];
 
 export function classifyImagePixels(
@@ -48,7 +45,7 @@ export function classifyImagePixels(
 
   // If filename explicitly indicates an agricultural document or sample
   const hasAgriKeyword = AGRI_KEYWORDS.some((kw) => lowerName.includes(kw));
-  const isDocumentFile = [".pdf", ".doc", ".docx", ".txt", ".rtf"].some(ext => lowerName.endsWith(ext));
+  const isDocumentFile = [".pdf", ".txt", ".rtf"].some((ext) => lowerName.endsWith(ext));
 
   let totalSampled = 0;
   let greenCount = 0;
@@ -71,38 +68,40 @@ export function classifyImagePixels(
       totalSampled++;
 
       // 1. Green Vegetation / Crop Leaf Detection:
-      const isGreen = g > 45 && g > r * 1.08 && g > b * 1.08;
-      const isChloroticLeaf = r > 75 && g > 75 && b < 65 && Math.abs(r - g) < 40; // Yellowing/pest leaf
+      const isGreen = g > 45 && g > r * 1.12 && g > b * 1.12;
+      const isChloroticLeaf = r > 85 && g > 85 && b < 70 && Math.abs(r - g) < 35; // Yellowing/pest leaf
       if (isGreen || isChloroticLeaf) {
         greenCount++;
       }
 
       // 2. Soil / Farmland Earth Detection:
       const isSoil =
-        r > 35 &&
-        r < 185 &&
-        g > 25 &&
-        g < 150 &&
-        b > 15 &&
-        b < 120 &&
+        r > 40 &&
+        r < 180 &&
+        g > 30 &&
+        g < 140 &&
+        b > 20 &&
+        b < 110 &&
         r >= g &&
         g >= b &&
-        b < r * 0.85;
+        b < r * 0.82;
       if (isSoil) {
         soilCount++;
       }
 
       // 3. Document / Paper Background & Ink Detection:
-      // Paper is typically high luminance, moderate/low saturation (white, off-white, yellow stamp paper)
+      // Real paper has high luminance and very low saturation (white, off-white, cream, or light stamp paper)
       const lum = 0.299 * r + 0.587 * g + 0.114 * b;
       const maxC = Math.max(r, g, b);
       const minC = Math.min(r, g, b);
       const sat = maxC === 0 ? 0 : (maxC - minC) / maxC;
 
-      if (lum > 85 && sat < 0.6) {
+      const isPaper = (lum > 140 && sat < 0.28) || (lum > 125 && sat < 0.40 && r > 130 && g > 115 && b < 95);
+      const isInk = lum < 75 && sat < 0.35;
+
+      if (isPaper) {
         documentPaperCount++;
-      } else if (lum < 85 && sat < 0.5) {
-        // Dark ink / printed text / seals
+      } else if (isInk) {
         highContrastTextEdges++;
       }
     }
@@ -114,8 +113,8 @@ export function classifyImagePixels(
   const textDensity = totalSampled > 0 ? highContrastTextEdges / totalSampled : 0;
 
   // Decision Logic:
-  // 1. Crop / Plant / Pest Leaf
-  if (greenRatio >= 0.12 || (userSelectedCategory === "crop_disease" && greenRatio >= 0.08)) {
+  // 1. Crop / Plant / Foliage / Pest Leaf
+  if (greenRatio >= 0.08 || (userSelectedCategory === "crop_disease" && greenRatio >= 0.05)) {
     return {
       isAgriRelated: true,
       detectedType: "crop_disease",
@@ -125,12 +124,12 @@ export function classifyImagePixels(
         greenVegetationRatio: Math.round(greenRatio * 100),
         soilToneRatio: Math.round(soilRatio * 100),
         documentPaperRatio: Math.round(docRatio * 100),
-        dominantDomain: "Crops & Horticulture",
+        dominantDomain: "Crops & Foliage",
       },
     };
   }
 
-  // 2. Soil / Farmland Sample
+  // 2. Soil / Farmland Earth Sample
   if (soilRatio >= 0.22 || (userSelectedCategory === "soil_health" && soilRatio >= 0.15)) {
     return {
       isAgriRelated: true,
@@ -146,22 +145,16 @@ export function classifyImagePixels(
     };
   }
 
-  // 3. Official Agricultural & Government Document (Sale Deed, Patta, RoR, Soil Card, University Admission, Govt Notice)
-  if (
-    isDocumentFile ||
-    totalSampled === 0 ||
-    docRatio >= 0.10 ||
-    textDensity >= 0.005 ||
-    hasAgriKeyword ||
-    (userSelectedCategory !== "auto_detect" && userSelectedCategory !== "crop_disease")
-  ) {
+  // 3. Official Agricultural & Government Document (Document File, Paper + Ink Layout, or Agricultural Keywords)
+  const isDocumentVisual = (docRatio >= 0.45 && textDensity >= 0.012) || (docRatio >= 0.35 && textDensity >= 0.025);
+
+  if (isDocumentFile || (hasAgriKeyword && (docRatio >= 0.25 || textDensity >= 0.008)) || (isDocumentVisual && hasAgriKeyword)) {
     let docType: "land_record" | "soil_health" | "identity_card" = "land_record";
     if (
       userSelectedCategory === "soil_health" ||
       lowerName.includes("soil") ||
       lowerName.includes("shc") ||
-      lowerName.includes("agronomy") ||
-      lowerName.includes("4.16.28")
+      lowerName.includes("agronomy")
     ) {
       docType = "soil_health";
     } else if (userSelectedCategory === "identity_card" || lowerName.includes("aadhaar") || lowerName.includes("id")) {
@@ -182,11 +175,11 @@ export function classifyImagePixels(
     };
   }
 
-  // If explicit keyword was present (e.g., sample presets), allow as document
+  // If explicit agricultural sample keyword was present in file
   if (hasAgriKeyword) {
     let docType: "crop_disease" | "soil_health" | "land_record" | "identity_card" = "land_record";
-    if (lowerName.includes("leaf") || lowerName.includes("crop")) docType = "crop_disease";
-    else if (lowerName.includes("soil") || lowerName.includes("agronomy") || lowerName.includes("4.16.28")) docType = "soil_health";
+    if (lowerName.includes("leaf") || lowerName.includes("crop") || lowerName.includes("pest")) docType = "crop_disease";
+    else if (lowerName.includes("soil") || lowerName.includes("agronomy")) docType = "soil_health";
     else if (lowerName.includes("aadhaar")) docType = "identity_card";
 
     return {
@@ -203,17 +196,17 @@ export function classifyImagePixels(
     };
   }
 
-  // Otherwise: OUT OF SCOPE!
+  // Otherwise: STRICTLY OUT OF SCOPE!
   return {
     isAgriRelated: false,
     detectedType: "out_of_scope",
-    confidence: 0.2,
+    confidence: 0.95,
     message: "Out of Scope: Image does not appear to be related to agriculture or government schemes.",
     metrics: {
       greenVegetationRatio: Math.round(greenRatio * 100),
       soilToneRatio: Math.round(soilRatio * 100),
       documentPaperRatio: Math.round(docRatio * 100),
-      dominantDomain: "Non-Agricultural / Everyday Indoor Objects",
+      dominantDomain: "Non-Agricultural / Everyday Objects (Out of Scope)",
     },
   };
 }

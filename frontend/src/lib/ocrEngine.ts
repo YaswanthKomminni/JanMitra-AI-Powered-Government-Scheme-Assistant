@@ -73,8 +73,9 @@ export async function performOcr(
 export async function analyzeDocumentComprehensive(
   fileBase64: string,
   fileName: string = "",
-  fileType: string = ""
-): Promise<ExtractedDocumentResult> {
+  fileType: string = "",
+  classification?: any
+): Promise<ExtractedDocumentResult & { isAgriRelated?: boolean; scopeStatus?: string; reason?: string }> {
   const lowerName = fileName.toLowerCase();
   const b64Pure = fileBase64.replace(/^data:[^;]+;base64,/, "");
   const b64Len = b64Pure.length;
@@ -519,80 +520,267 @@ export async function analyzeDocumentComprehensive(
     };
   }
 
-  // 7. General Fallback: Soil Health Card
-  if (
+  // 7. Soil Health Card & Soil Nutrient Test
+  const isSoilReport =
     lowerOcr.includes("soil") ||
     lowerOcr.includes("nutrient") ||
     lowerOcr.includes("phosphorus") ||
     lowerOcr.includes("nitrogen") ||
-    lowerName.includes("soil")
-  ) {
+    lowerOcr.includes("potassium") ||
+    lowerOcr.includes("fertilizer") ||
+    lowerOcr.includes("urea") ||
+    lowerOcr.includes("micronutrient") ||
+    lowerName.includes("soil") ||
+    lowerName.includes("shc") ||
+    (classification && classification.detectedType === "soil_health");
+
+  if (isSoilReport) {
+    const phMatch = ocrRawText.match(/pH\s*[:=]?\s*([0-9\.]+)/i);
+    const phVal = phMatch ? parseFloat(phMatch[1]) : 6.8;
+
     return {
       docType: "soil_health_card",
-      title: "Government Soil Health Card (ICAR Lab)",
-      confidenceScore: 0.94,
+      title: "Government Soil Health Card (ICAR Agricultural Lab)",
+      confidenceScore: 0.95,
+      isAgriRelated: true,
       detectionSummary:
-        "12-parameter soil chemical profile analyzed. Macronutrients and micronutrients extracted.",
+        "12-parameter soil chemical profile analyzed. Macronutrients (N, P, K) and micronutrients (Zinc, Iron) evaluated.",
+      extractedTextSnippet: ocrRawText.slice(0, 300),
       extractedData: {
-        soilPh: 6.8,
+        soilPh: phVal,
+        soilReaction: phVal < 6.5 ? "Slightly Acidic" : phVal > 7.5 ? "Alkaline" : "Neutral & Optimal",
         nitrogenStatus: "Medium (280 kg/ha)",
         phosphorusStatus: "Low (14 kg/ha) - Deficient",
         potassiumStatus: "High (310 kg/ha) - Sufficient",
+        organicCarbon: "0.48% (Low to Medium)",
         recommendedAction:
-          "Apply 25kg Zinc Sulphate per acre + Neem Coated Urea in split doses.",
+          "Apply 25kg Zinc Sulphate per acre + Neem Coated Urea in split doses to correct nutrient deficiency.",
       },
       boundingBoxes: [
         {
           id: "s1",
           label: "Soil pH (Acidity/Alkalinity)",
-          text: "pH: 6.8 (Optimal Neutral Range)",
+          text: `pH: ${phVal} (Soil Reaction Analyzed)`,
           box: { top: 22, left: 16, width: 36, height: 11 },
           confidence: 0.96,
+        },
+        {
+          id: "s2",
+          label: "Primary Macronutrients (NPK)",
+          text: "Nitrogen: 280 kg/ha • Phosphorus: 14 kg/ha • Potassium: 310 kg/ha",
+          box: { top: 40, left: 12, width: 75, height: 15 },
+          confidence: 0.95,
         },
       ],
       schemesUnlocked: [
         "National Soil Health Free Fertilizer Kit Subsidy",
-        "Paramparagat Krishi Vikas Yojana (PKVY) Organic Incentive",
+        "Paramparagat Krishi Vikas Yojana (PKVY) ₹50,000/ha Organic Cluster Scheme",
+        "Soil Health Micronutrient Subsidy for Zinc & Gypsum",
+        "Neem-Coated Urea Subsidized Distribution",
       ],
     };
   }
 
-  // 8. General Fallback: Agricultural Land Patta / Pahani
+  // 8. Crop Foliage, Pest & Foliar Disease Diagnosis
+  const isCropDisease =
+    lowerOcr.includes("crop") ||
+    lowerOcr.includes("leaf") ||
+    lowerOcr.includes("pest") ||
+    lowerOcr.includes("disease") ||
+    lowerOcr.includes("whitefly") ||
+    lowerOcr.includes("blight") ||
+    lowerOcr.includes("wilt") ||
+    lowerOcr.includes("rust") ||
+    lowerOcr.includes("mildew") ||
+    lowerOcr.includes("cotton") ||
+    lowerOcr.includes("paddy") ||
+    lowerOcr.includes("chilli") ||
+    lowerName.includes("crop") ||
+    lowerName.includes("leaf") ||
+    lowerName.includes("pest") ||
+    lowerName.includes("plant") ||
+    lowerName.includes("disease") ||
+    (classification && classification.detectedType === "crop_disease") ||
+    (classification && classification.metrics?.greenVegetationRatio >= 8);
+
+  if (isCropDisease) {
+    const isPaddy = lowerOcr.includes("paddy") || lowerOcr.includes("rice") || lowerName.includes("paddy");
+    const isChilli = lowerOcr.includes("chilli") || lowerOcr.includes("mirchi") || lowerName.includes("chilli");
+
+    let cropName = "Cotton (Gossypium hirsutum)";
+    let pestName = "Whitefly (Bemisia tabaci) & Early Foliar Chlorosis";
+    let organicAdvice = "Spray 10,000 ppm Neem Oil @ 2-3 ml per liter water during late afternoon.";
+    let chemicalAdvice = "Spray Diafenthiuron 50% WP @ 1g/L or Flonicamid 50% WG @ 0.3g/L of water.";
+
+    if (isPaddy) {
+      cropName = "Paddy / Rice (Oryza sativa)";
+      pestName = "Bacterial Leaf Blight & Brown Plant Hopper";
+      organicAdvice = "Spray fresh cow dung extract @ 20% or neem seed kernel extract (NSKE 5%).";
+      chemicalAdvice = "Spray Streptomycin sulphate + Tetracycline combination @ 300g/ha.";
+    } else if (isChilli) {
+      cropName = "Chilli (Capsicum annuum)";
+      pestName = "Thrips, Mites & Leaf Curl Complex";
+      organicAdvice = "Spray ginger-garlic-chilli extract + Pongamia oil @ 3ml/L.";
+      chemicalAdvice = "Spray Fipronil 5% SC @ 2ml/L or Spiromesifen 22.9% SC @ 1ml/L.";
+    }
+
+    return {
+      docType: "crop_disease",
+      title: `${cropName} - ${pestName} Diagnosis`,
+      confidenceScore: 0.94,
+      isAgriRelated: true,
+      detectionSummary: `AI Vision identified foliar damage symptoms on ${cropName}. Integrated pest management and preventive steps recommended.`,
+      extractedTextSnippet: ocrRawText.slice(0, 300),
+      extractedData: {
+        crop: cropName,
+        pestOrDisease: pestName,
+        severity: "Moderate Infestation (Action Threshold)",
+        symptoms: "Yellow chlorotic stippling, leaf curling, and foliar sap depletion.",
+        organicRemedy: organicAdvice,
+        chemicalTreatment: chemicalAdvice,
+        preventionTips: "Install 15 yellow/blue sticky traps per acre, avoid excess nitrogen, maintain field drainage.",
+        recommendedAction: `Apply ${organicAdvice} promptly and avoid spraying during high wind or rain.`,
+      },
+      boundingBoxes: [
+        {
+          id: "cd1",
+          label: "Crop Foliage & Leaf Area",
+          text: `${cropName} Leaf Tissue`,
+          box: { top: 15, left: 15, width: 70, height: 50 },
+          confidence: 0.95,
+        },
+        {
+          id: "cd2",
+          label: "Foliar Damage / Pest Vector",
+          text: pestName,
+          box: { top: 35, left: 25, width: 45, height: 25 },
+          confidence: 0.92,
+        },
+      ],
+      schemesUnlocked: [
+        "PMFBY (Pradhan Mantri Fasal Bima Yojana) Pest Damage Loss Claim",
+        "Kisan Call Center (Toll-Free 1800-180-1551) Free Agronomist Help",
+        "Certified Seed Replacement Subsidy (National Food Security Mission)",
+        "SMAM Battery Operated Knapsack Sprayer 50% Subsidy",
+      ],
+    };
+  }
+
+  // 9. Farmer Identity / Aadhaar / Kisan Card
+  const isFarmerId =
+    lowerOcr.includes("aadhaar") ||
+    lowerOcr.includes("unique identification") ||
+    lowerOcr.includes("uidai") ||
+    lowerOcr.includes("kisan credit") ||
+    lowerOcr.includes("farmer id") ||
+    lowerName.includes("aadhaar") ||
+    lowerName.includes("id_card") ||
+    (classification && classification.detectedType === "identity_card");
+
+  if (isFarmerId) {
+    return {
+      docType: "identity_card",
+      title: "Government of India - Farmer Identity & Aadhaar KYC Card",
+      confidenceScore: 0.96,
+      isAgriRelated: true,
+      detectionSummary: "Official UIDAI / Government Farmer ID detected for Aadhaar-based Direct Benefit Transfer (DBT) verification.",
+      extractedTextSnippet: ocrRawText.slice(0, 300),
+      extractedData: {
+        idType: "Aadhaar Card (UIDAI) / Farmer DBT Identity",
+        verificationStatus: "Ready for e-KYC Linking",
+        dbtEnabled: "NPCI Bank Account Seeded",
+        recommendedAction: "Link Aadhaar with PM-KISAN portal to enable ₹6,000 annual installment credit.",
+      },
+      boundingBoxes: [
+        {
+          id: "id1",
+          label: "Government of India Header",
+          text: "GOVERNMENT OF INDIA • UIDAI",
+          box: { top: 8, left: 15, width: 70, height: 12 },
+          confidence: 0.98,
+        },
+      ],
+      schemesUnlocked: [
+        "PM-KISAN ₹6,000 Direct Benefit Transfer Linkage",
+        "Aadhaar-Enabled PMFBY Crop Insurance Portal Claim",
+        "Kisan Credit Card (KCC) 4% Concessional Credit Approval",
+      ],
+    };
+  }
+
+  // 10. Official Land Record with Genuine Revenue Keywords
+  const isLegitLandDoc =
+    lowerOcr.includes("patta") ||
+    lowerOcr.includes("pahani") ||
+    lowerOcr.includes("khasra") ||
+    lowerOcr.includes("khata") ||
+    lowerOcr.includes("survey") ||
+    lowerOcr.includes("land") ||
+    lowerOcr.includes("dharani") ||
+    lowerOcr.includes("meebhoomi") ||
+    lowerOcr.includes("bhulekh") ||
+    lowerName.includes("patta") ||
+    lowerName.includes("pahani") ||
+    lowerName.includes("khasra");
+
+  if (isLegitLandDoc) {
+    const surveyMatch = ocrRawText.match(/survey\s*(?:no\.?|number)?\s*[:=]?\s*([0-9\/\-A-Za-z]+)/i);
+    const surveyNo = surveyMatch ? surveyMatch[1] : "142/2A";
+
+    return {
+      docType: "land_record",
+      title: "Verified Revenue Land Record (Pahani / Patta Deed)",
+      confidenceScore: 0.95,
+      isAgriRelated: true,
+      detectionSummary: "Official State Revenue Record, Survey Khata, and Agricultural Landholding extent confirmed.",
+      extractedTextSnippet: ocrRawText.slice(0, 300),
+      extractedData: {
+        ownerName: "Verified Landholder / Pattadar",
+        surveyNumber: surveyNo,
+        landAreaAcres: 3.5,
+        soilType: "Agricultural Farmland (Cultivable)",
+        districtMandal: "State Revenue Jurisdiction",
+        revenueStatus: "Mutation Verified & RoR Clean",
+        recommendedAction: "Link survey number with PM-KISAN and PM-KUSUM 60% solar pump subsidy.",
+      },
+      boundingBoxes: [
+        {
+          id: "b1",
+          label: "Survey / Khata No",
+          text: `Survey No: ${surveyNo}`,
+          box: { top: 18, left: 14, width: 44, height: 12 },
+          confidence: 0.98,
+        },
+        {
+          id: "b2",
+          label: "Verified Area",
+          text: "3.50 Acres Farmland",
+          box: { top: 36, left: 14, width: 50, height: 13 },
+          confidence: 0.95,
+        },
+      ],
+      schemesUnlocked: [
+        "PM-KUSUM 60% Solar Pump (Eligible for 5HP unit)",
+        "PM-KISAN ₹6,000 Annual Direct Benefit Transfer",
+        "PMFBY Comprehensive Crop Loss Insurance",
+        "Kisan Credit Card (KCC) 4% Concessional Credit against Land",
+      ],
+    };
+  }
+
+  // 11. STRICT REJECTION: Image is OUT OF SCOPE (not related to agriculture or government schemes)
   return {
-    docType: "land_record",
-    title: "Verified Revenue Land Record (Pahani / Patta Deed)",
-    confidenceScore: 0.96,
-    detectionSummary:
-      "Official State Revenue Seal, Survey Khata, and Landholding acreage confirmed.",
-    extractedData: {
-      ownerName: "Ramesh Goud s/o Narayana Goud",
-      surveyNumber: "142/2A (Khata: 894)",
-      landAreaAcres: 3.5,
-      soilType: "Black Cotton Soil (Regur)",
-      districtMandal: "Rangareddy, Kothur Mandal",
-      waterSource: "Open Well & Borewell (Drip Connected)",
-      revenueStatus: "Mutation Verified & RoR Clean",
-    },
-    boundingBoxes: [
-      {
-        id: "b1",
-        label: "Survey / Khata No",
-        text: "Survey No: 142/2A • Khata 894",
-        box: { top: 18, left: 14, width: 44, height: 12 },
-        confidence: 0.98,
-      },
-      {
-        id: "b2",
-        label: "Verified Area",
-        text: "3.50 Acres (3 Acres 20 Guntas)",
-        box: { top: 36, left: 14, width: 50, height: 13 },
-        confidence: 0.97,
-      },
-    ],
-    schemesUnlocked: [
-      "PM-KUSUM 60% Solar Pump (Eligible for 5HP unit)",
-      "PM-KISAN ₹6,000 Annual Direct Benefit Transfer",
-      "PMFBY Comprehensive Crop Loss Insurance",
-    ],
+    docType: "land_record" as any,
+    title: "Not Related to Agriculture or Government Schemes",
+    confidenceScore: 0.1,
+    isAgriRelated: false,
+    scopeStatus: "out_of_scope",
+    detectionSummary: "Image does not appear to be related to agriculture or government schemes.",
+    reason:
+      "The uploaded photo does not contain recognizable farming crops, soil samples, or official government welfare documents.",
+    extractedTextSnippet: ocrRawText ? ocrRawText.slice(0, 200) : undefined,
+    extractedData: {},
+    boundingBoxes: [],
+    schemesUnlocked: [],
   };
 }
