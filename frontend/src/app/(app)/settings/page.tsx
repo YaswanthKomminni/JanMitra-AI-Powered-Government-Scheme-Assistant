@@ -1,9 +1,6 @@
 "use client";
 
 import React from "react";
-import Navbar from "@/components/Navbar";
-import AppShell from "@/components/AppShell";
-import AuthModal from "@/components/AuthModal";
 import ThemeSelectorCards from "@/components/ThemeSelectorCards";
 import { useFarmerStore } from "@/store/useFarmerStore";
 
@@ -22,9 +19,8 @@ export default function SettingsPage() {
   const initials = (f.name || "?").split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 
   return (
-    <AppShell>
-      <Navbar />
-      <main className="w-full max-w-[1000px] mx-auto px-4 sm:px-6 py-8 space-y-10">
+    <>
+      <div className="w-full max-w-[1000px] mx-auto px-4 sm:px-6 py-8 space-y-10">
         <h1 className="text-[25px] sm:text-[32px] leading-tight font-semibold">Settings</h1>
 
         <section aria-labelledby="profile-h" className="space-y-3">
@@ -75,8 +71,8 @@ export default function SettingsPage() {
             </div>
           </section>
         )}
-      </main>
-      <AuthModal />
-    </AppShell>
+      </div>
+      
+    </>
   );
 }
