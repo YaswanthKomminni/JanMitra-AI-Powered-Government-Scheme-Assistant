@@ -271,7 +271,7 @@ export async function analyzeDocumentComprehensive(
     (lowerOcr.includes("village") && lowerOcr.includes("officer")) ||
     (lowerOcr.includes("cost of") && lowerOcr.includes("seed")) ||
     (lowerOcr.includes("50%") && (lowerOcr.includes("cost") || lowerOcr.includes("subsidy") || lowerOcr.includes("rs") || lowerOcr.includes("1200") || lowerOcr.includes("800") || lowerOcr.includes("750"))) ||
-    (classification && classification.isAgriRelated && classification.detectedType === "land_record" && (lowerOcr.includes("distribution") || lowerOcr.includes("cost") || lowerOcr.includes("50%") || lowerOcr.includes("subsidy") || lowerOcr.includes("officer") || lowerOcr.includes("seed") || lowerOcr.includes("plant")));
+    (classification && classification.isAgriRelated && classification.detectedType === "land_record");
 
   if (isAgriSubsidyScheme) {
     const hasSeeds = lowerOcr.includes("seed");
