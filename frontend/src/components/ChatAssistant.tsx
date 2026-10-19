@@ -704,13 +704,13 @@ export default function ChatAssistant({ variant = "full" }: { variant?: "full" |
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-md animate-in fade-in">
           <div className="w-full max-w-xl">
             <LiveCameraCapture
-              category="crop_disease"
+              category="auto_detect"
               title="Snap Live Photo with Webcam / Mobile Camera"
               onCapture={async (base64) => {
                 const fileName = `Live_Scan_${Date.now()}.jpg`;
                 let classification: any = null;
                 try {
-                  classification = await classifyBase64Image(base64, fileName, "crop_disease");
+                  classification = await classifyBase64Image(base64, fileName, "auto_detect");
                 } catch (e) {
                   console.warn("[chat] Live scan classification error:", e);
                 }

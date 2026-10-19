@@ -265,7 +265,13 @@ export async function analyzeDocumentComprehensive(
     (hasAgriInputKeywords && hasSubsidyGovKeywords) ||
     lowerOcr.includes("certified seeds") ||
     lowerOcr.includes("plant protection equipment") ||
-    (lowerOcr.includes("assistant agricultural officer") && (lowerOcr.includes("subsidy") || lowerOcr.includes("seed") || lowerOcr.includes("farmer") || lowerOcr.includes("application")));
+    lowerOcr.includes("oilseeds") ||
+    lowerOcr.includes("minikit") ||
+    (lowerOcr.includes("assistant") && lowerOcr.includes("officer")) ||
+    (lowerOcr.includes("village") && lowerOcr.includes("officer")) ||
+    (lowerOcr.includes("cost of") && lowerOcr.includes("seed")) ||
+    (lowerOcr.includes("50%") && (lowerOcr.includes("cost") || lowerOcr.includes("subsidy") || lowerOcr.includes("rs") || lowerOcr.includes("1200") || lowerOcr.includes("800") || lowerOcr.includes("750"))) ||
+    (classification && classification.isAgriRelated && classification.detectedType === "land_record" && (lowerOcr.includes("distribution") || lowerOcr.includes("cost") || lowerOcr.includes("50%") || lowerOcr.includes("subsidy") || lowerOcr.includes("officer") || lowerOcr.includes("seed") || lowerOcr.includes("plant")));
 
   if (isAgriSubsidyScheme) {
     const hasSeeds = lowerOcr.includes("seed");
@@ -952,7 +958,7 @@ export async function analyzeDocumentComprehensive(
     lowerOcr.includes("pesticide") ||
     lowerOcr.includes("irrigation");
 
-  if (isGenericAgriNotice && ocrRawText.trim().length >= 15) {
+  if (isGenericAgriNotice && (ocrRawText.trim().length >= 15 || (classification && classification.isAgriRelated && classification.detectedType !== "out_of_scope"))) {
     return {
       docType: "land_record",
       title: "Government Agricultural Welfare Scheme & Official Notice",
