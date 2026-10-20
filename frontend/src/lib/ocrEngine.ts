@@ -362,12 +362,19 @@ export async function analyzeDocumentComprehensive(
     };
   }
 
-  // If text is essentially empty, no green foliage, no soil, and no document texture
+  const isCaptureOrDocIntent =
+    lowerName.includes("scan") ||
+    lowerName.includes("doc") ||
+    lowerName.includes("img") ||
+    lowerName.includes("live") ||
+    isDocumentVisual;
+
+  // If text is essentially empty, no green foliage, no soil, no document texture, and no scan/doc intent
   if (
     cleanLines.length === 0 &&
     !isFoliageVisual &&
     !isSoilVisual &&
-    !isDocumentVisual &&
+    !isCaptureOrDocIntent &&
     !hasStrongAgriContent
   ) {
     return {

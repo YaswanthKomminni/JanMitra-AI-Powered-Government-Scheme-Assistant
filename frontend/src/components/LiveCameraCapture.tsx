@@ -141,12 +141,7 @@ export default function LiveCameraCapture({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Mirror image if using front selfie camera
-    if (facingMode === "user") {
-      ctx.translate(width, 0);
-      ctx.scale(-1, 1);
-    }
-
+    // Do NOT mirror the captured frame so document text and labels remain readable left-to-right for OCR!
     ctx.drawImage(video, 0, 0, width, height);
 
     const base64 = canvas.toDataURL("image/jpeg", 0.92);
