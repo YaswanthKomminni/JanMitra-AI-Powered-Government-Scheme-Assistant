@@ -11,7 +11,11 @@ export interface ConversationMemory {
   latestUploadAvailable?: boolean;
 }
 
-const cropPattern = /\b(cotton|paddy|rice|maize|corn|chilli|wheat|tomato|groundnut|sugarcane|millet|soybean|potato|onion)\b/gi;
+const cropPattern = /\b(cotton|paddy|rice|maize|corn|chill?i(?:es)?|mirchi|mirch|wheat|tomato|groundnut|sugarcane|millet|soybean|potato|onion)\b|మిర్చి|मिर्च/gi;
+
+function canonicalCrop(value?: string): string | undefined {
+  return value && /^(?:mirchi?|chill?i(?:es)?|మిర్చి|मिर्च)$/i.test(value) ? "chilli" : value;
+}
 const states = /\b(Telangana|Andhra Pradesh|Tamil Nadu|Karnataka|Kerala|Maharashtra|Rajasthan|Assam|Madhya Pradesh|Uttar Pradesh|Punjab|Haryana|Odisha|West Bengal|Gujarat|Bihar|Jharkhand|Chhattisgarh|Uttarakhand|Himachal Pradesh|Goa)\b/gi;
 const schemePattern = /PM[ -]?KISAN|Kisan Samman Nidhi|PMFBY|crop insurance|PM[ -]?KUSUM|Kisan Credit Card|\bKCC\b|Mahalakshmi|Rythu Bharosa|Gruha Jyothi|Indiramma(?: Indlu)?|Cheyutha/gi;
 const keys = ["crop", "cropAge", "land", "state", "district", "location", "soil", "irrigation", "symptoms", "lastRain"] as const;
@@ -44,6 +48,8 @@ export function classifyTextTurn(query: string, memory?: ConversationMemory): Te
   if (memory?.options?.length && /\b(?:first|second|third|1st|2nd|3rd)\b/i.test(q)) return "contextual";
   if (memory?.options?.length && q.length < 60 && /insurance|loan|credit|income support|cash support|solar|pump|బీమా|రుణ|ఆదాయ|बीमा|ऋण|आय सहायता/i.test(q)) return "contextual";
   const hasTopic = Boolean(memory?.topic);
+  if (hasTopic && cropMentionPattern.test(q) && (q.length < 35 && !/\b(?:how|what|why|when|which)\b|\?/.test(q)
+    || /^(?:my crop|i grow|i planted|we grow)\b/i.test(q))) return "contextual";
   if (hasTopic && (isContextualFollowup(q) || genericFollowup.test(q))) {
     // A named new topic takes precedence over the old one.
     if (!schemeMentionPattern.test(q) && !/\b(?:new|different|another)\s+(?:crop|scheme|topic)\b/i.test(q)) return "contextual";
@@ -106,12 +112,14 @@ function updateUser(memory: ConversationMemory, query: string, attachment = fals
   }
   const facts = memory.facts;
   const pending = memory.pendingQuestion || "";
-  const crop = lastMatch(q, cropPattern);
+  const rawCrop = lastMatch(q, cropPattern);
+  const crop = canonicalCrop(rawCrop);
   const state = lastMatch(q, states);
   const comparison = /\b(compare|versus|vs|or)\b/i.test(q);
   const cropsMentioned = q.match(cropPattern) || [];
   const personalCrop = !comparison && crop && (/\b(i|we)\s+(?:am\s+)?(?:grow|growing|planted|cultivate|have)|\bnot\b.*\b(?:cotton|maize|paddy|rice)\b/i.test(q)
-    || new RegExp(`\\bmy\\s+(?:crop (?:is |of )?|farm (?:has |grows )?)?${crop}\\b`, "i").test(q)
+    || q.toLowerCase() === rawCrop?.toLowerCase()
+    || new RegExp(`\\bmy\\s+(?:crop (?:is |of )?|farm (?:has |grows )?)?${rawCrop}\\b`, "i").test(q)
     || (q.length < 150 && (!/\b(how|what|why|when|which)\b/i.test(q) && (/crop|grow|plant/i.test(pending) || memory.topic?.kind === "crop"))));
   if (personalCrop && !new RegExp(`\\bnot\\s+${crop}\\b`, "i").test(q)) {
     if (facts.crop && facts.crop.toLowerCase() !== crop!.toLowerCase()) {
@@ -122,8 +130,9 @@ function updateUser(memory: ConversationMemory, query: string, attachment = fals
   }
   const age = q.match(/\b(\d{1,3}\s*(?:days?|weeks?|months?)(?:\s+old)?)\b/i)?.[1];
   if (age && (/age|old|crop|plant|sow/i.test(q + pending) || memory.topic?.kind === "crop")) facts.cropAge = age;
-  const land = q.match(/\b(\d+(?:\.\d+)?\s*(?:acres?|hectares?|guntas?|cents?))\b/i)?.[1];
-  if (land && !/\b(if|suppose|example|someone|neighbour)\b/i.test(q)) facts.land = land;
+  const land = q.match(/\b((?:(?:more|less) than|over|above|under|below)?\s*\d+(?:\.\d+)?\s*(?:acres?|acers?|hectares?|guntas?|cents?))\b/i)?.[1]?.trim().replace(/acers?/i, "acres");
+  if (land && !/\b(if|suppose|example|someone|neighbour)\b/i.test(q)
+    && (/\b(?:i|my|we|our)\b/i.test(q) || /^(?:(?:more|less) than|over|above|under|below|\d)/i.test(q) || /land|acres|holding/i.test(pending) && q.length < 40)) facts.land = land;
   if (state && !comparison && !/\b(if|suppose|example|someone)\b/i.test(q) && (!/^(how|what|why|when|which|is|are|can)\b/i.test(q) || /\bi live|\bi am from|\bmy farm\b/i.test(q))) {
     if (facts.state && facts.state.toLowerCase() !== state.toLowerCase()) {
       delete facts.district;
@@ -160,7 +169,7 @@ function updateUser(memory: ConversationMemory, query: string, attachment = fals
   } else if (/scheme|subsid|pension|scholarship|welfare|yojana/i.test(q) && !isContextualFollowup(q)) {
     memory.topic = { kind: "scheme", query: q };
   } else if (/irrigat|fertili[sz]|soil test|yellow|wilting|pest|disease|seed|sowing|weed|compost|weather|forecast|market|price/i.test(q)
-    && (!isContextualFollowup(q) || /^(?:how|what|why|when|which)\b/i.test(q) && /irrigat|soil|pest|seed|weather|market/i.test(q))) {
+    && (!isContextualFollowup(q) || /^(?:how|what|why|when|which)\b/i.test(q) && /irrigat|fertili[sz]|soil|yellow|wilting|pest|disease|seed|sowing|weed|compost|weather|forecast|market|price/i.test(q))) {
     memory.topic = { kind: "crop", query: q, crop: comparison && cropsMentioned.length > 1 ? undefined : crop || facts.crop };
   } else if (crop && memory.topic?.kind === "crop" && !comparison) {
     memory.topic.crop = crop;

@@ -8,7 +8,7 @@ export function providerKeys(customKey?: string): Array<{ provider: AiProvider; 
     if (provider) keys.push({ provider, key: custom });
   }
   for (const [provider, key] of [
-    ["gemini", process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.VISION_API_KEY],
+    ["gemini", process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.VISION_API_KEY || process.env["API-Key"]],
     ["groq", process.env.GROQ_API_KEY],
     ["openai", process.env.OPENAI_API_KEY],
   ] as const) {

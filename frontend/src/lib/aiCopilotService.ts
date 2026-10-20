@@ -536,6 +536,9 @@ export function semanticSearchSchemes(
     const matched = new Set(terms.filter(term => name.has(term) || detail.has(term)));
     // A high vector score with no topic words is a collision, not a recommendation.
     if (!matched.size) continue;
+    const explicitTitle = normalizedSchemeText(query).includes(normalizedSchemeText(s.name));
+    if (!explicitTitle && !aliases.length && (matched.size / terms.length < 0.5 || (terms.length > 1 && matched.size < 2))) continue;
+    if (!explicitTitle && /\b(?:farmers?|agricultur\w*|crops?|acres?|acers?)\b/i.test(query) && !s.is_agri) continue;
     const sVec = s.vector || generateDenseVectorEmbedding(s.name + " " + s.description);
     const vectorCosine = computeVectorCosineSimilarity(qVec, sVec);
     const sparseScore = matched.size / terms.length;
@@ -581,7 +584,21 @@ const SCHEME_STOPWORDS = new Set([
   "to", "what", "which", "who", "will", "with", "you", "your", "yojana", "apply", "application", "eligible",
   "eligibility", "documents", "document", "deadline", "date", "benefit", "benefits", "required", "current",
   "conversation", "topic", "question", "details", "help", "about", "available", "assistant", "status", "check",
+  "related", "having", "have", "has", "more", "less", "than", "above", "below", "over", "under", "land", "farmer", "farmers", "farm", "acres", "acre", "acers", "acer", "hectares", "hectare",
+  "subsidy", "subsidies",
 ]);
+
+/** Match titles, never description keywords, when the user explicitly names a programme. */
+export function findNamedCatalogScheme(query: string): IndexedScheme | undefined {
+  const target = normalizedSchemeText(query.replace(/^(?:how (?:do|can) i apply for|how to apply for|apply for|eligibility (?:conditions )?for|documents (?:required )?for|tell me about|explain)\s+/i, ""));
+  if (!target || !meaningfulSchemeTerms(target).length) return undefined;
+  const rows = getTrainedModel()?.schemes || [];
+  const exact = rows.find(row => normalizedSchemeText(row.name) === target);
+  if (exact) return exact;
+  if (meaningfulSchemeTerms(target).length < 3) return undefined;
+  return rows.find(row => meaningfulSchemeTerms(row.name).length >= 3 && (` ${normalizedSchemeText(query)} `).includes(` ${normalizedSchemeText(row.name)} `))
+    || rows.find(row => normalizedSchemeText(row.name).startsWith(target + " "));
+}
 function normalizedSchemeText(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9\u0900-\u0D7F]+/g, " ").trim();
 }

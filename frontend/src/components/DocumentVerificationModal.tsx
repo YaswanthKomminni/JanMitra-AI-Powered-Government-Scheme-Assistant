@@ -25,6 +25,7 @@ import { useFarmerStore } from "@/store/useFarmerStore";
 import { translations } from "@/lib/i18n";
 import { MOCK_OCR_PRESETS } from "@/lib/mockData";
 import LiveCameraCapture from "@/components/LiveCameraCapture";
+import AiConnectionCheck from "@/components/AiConnectionCheck";
 
 export default function DocumentVerificationModal() {
   const {
@@ -317,6 +318,7 @@ export default function DocumentVerificationModal() {
                 </button>
               </div>
 
+              <AiConnectionCheck />
               {showKeyInput && (
                 <div className="mt-2.5 pt-2.5 border-t border-emerald-200 flex flex-col sm:flex-row gap-2">
                   <input

@@ -15,7 +15,7 @@ import { partialDocumentSource } from "@/lib/partialDocument";
 import { providerKeys, providerModels, geminiGenerationConfig, discoverProviderModels } from "@/lib/aiProviders";
 import type { SupportedLanguage } from "@/lib/i18n";
 import type { FarmerProfile } from "@/lib/mockData";
-import { farmerChatReply, nonDomainChatReply, schemeReferences } from "@/lib/farmerChat";
+import { farmerChatReply, nonDomainChatReply, schemeReferences, prepareFarmerConversation } from "@/lib/farmerChat";
 import { shouldUseDocument } from "@/lib/chatRouting";
 import { answerDocumentQuestion, parseAndSummarizeDocumentContent } from "@/lib/nlpDocumentAnalyzer";
 import { buildConversationMemory, knownFarmerFacts, resolveConversationQuery, type ConversationMemory } from "@/lib/conversationMemory";
@@ -144,12 +144,12 @@ async function callGeminiText(
 
       if (!res.ok) {
         console.warn(`[text] ${model}: HTTP ${res.status}`);
-        if (!discovered && [400, 404, 410, 429].includes(res.status)) {
+        if (!discovered && [400, 403, 404, 410, 429].includes(res.status)) {
           discovered = true;
           const available = await discoverProviderModels("gemini", apiKey, false, signal);
           models.push(...available.filter((id) => !models.includes(id)));
         }
-        if ([401, 403].includes(res.status)) break;
+        if (res.status === 401) break;
         continue;
       }
       const data = await res.json();
@@ -208,12 +208,12 @@ async function callGroqText(
 
       if (!res.ok) {
         console.warn(`[text] ${model}: HTTP ${res.status}`);
-        if (!discovered && [400, 404, 410, 429].includes(res.status)) {
+        if (!discovered && [400, 403, 404, 410, 429].includes(res.status)) {
           discovered = true;
           const available = await discoverProviderModels("groq", apiKey, false, signal);
           models.push(...available.filter((id) => !models.includes(id)));
         }
-        if ([401, 403].includes(res.status)) break;
+        if (res.status === 401) break;
         continue;
       }
       const data = await res.json();
@@ -272,12 +272,12 @@ async function callOpenAiText(
 
       if (!res.ok) {
         console.warn(`[text] ${model}: HTTP ${res.status}`);
-        if (!discovered && [400, 404, 410, 429].includes(res.status)) {
+        if (!discovered && [400, 403, 404, 410, 429].includes(res.status)) {
           discovered = true;
           const available = await discoverProviderModels("openai", apiKey, false, signal);
           models.push(...available.filter((id) => !models.includes(id)));
         }
-        if ([401, 403].includes(res.status)) break;
+        if (res.status === 401) break;
         continue;
       }
       const data = await res.json();
@@ -333,6 +333,7 @@ export async function generateIntelligentChatReply(
   const history = (req.history || []).filter((turn) => ["user", "assistant"].includes(turn.role) && typeof turn.content === "string")
     .slice(-12).map((turn) => ({ ...turn, content: turn.content.slice(0, 2500) }));
   const memory = req.conversationMemory || buildConversationMemory(req.history || [], query);
+  if (!req.forceDocumentContext) prepareFarmerConversation(query, memory);
   const latestDocument = memory.topic ? memory.topic.kind === "document" : req.documentContextIsLatestTopic !== false;
   const useDocument = (memory.latestUploadAvailable !== false || req.forceDocumentContext === true)
     && shouldUseDocument(query, req.documentContext, latestDocument, req.forceDocumentContext);

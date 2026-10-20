@@ -109,12 +109,12 @@ async function cloudVision(provider: AiProvider, key: string, views: Array<{ url
       if (!response.ok) {
         console.warn(`[vision] ${provider}/${model}: HTTP ${response.status}`);
         failures?.push({ provider, code: [401, 403].includes(response.status) ? "auth" : response.status === 429 ? "quota" : [400, 404, 410].includes(response.status) ? "model" : "unavailable" });
-        if (!discovered && [400, 404, 410, 429].includes(response.status)) {
+        if (!discovered && [400, 403, 404, 410, 429].includes(response.status)) {
           discovered = true;
           const available = await discoverProviderModels(provider, key, true, signal);
           models.push(...available.filter((id) => !models.includes(id)));
         }
-        if ([401, 403].includes(response.status)) break;
+        if (response.status === 401) break;
         continue;
       }
       const body = await response.json();
@@ -149,4 +149,18 @@ export async function analyzeImageIntelligently(opts: {
   const local = await localPromise;
   const result = reconcileImageEvidence(cloud, local as VisionAnalysisResult);
   return { ...result, visionStatus: result.visionStatus || cloud?.visionStatus || { state: "local", failures: failures?.filter((entry, index, all) => all.findIndex(other => other.provider === entry.provider && other.code === entry.code) === index) } };
+}
+
+/** An explicit connection test makes a real vision request, without OCR or farmer data. */
+export async function checkVisionConnections(customApiKey?: string) {
+  const keys = providerKeys(customApiKey);
+  const png = await sharp({ create: { width: 64, height: 64, channels: 3, background: "#ffffff" } }).png().toBuffer();
+  const views = [{ url: `data:image/png;base64,${png.toString("base64")}`, mimeType: "image/png" }];
+  const checks = await Promise.all(keys.map(async ({ provider, key }) => {
+    const failures: NonNullable<VisionAnalysisResult["visionStatus"]>["failures"] = [];
+    const result = await cloudVision(provider, key, views, "image/png", "en", AbortSignal.timeout(18000), failures);
+    return { provider, connected: !!result, model: result?.visionStatus?.model,
+      failures: Array.from(new Set(failures.map(f => f.code))) };
+  }));
+  return { configured: keys.length > 0, checks };
 }

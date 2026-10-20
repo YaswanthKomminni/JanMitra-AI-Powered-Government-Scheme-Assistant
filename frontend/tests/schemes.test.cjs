@@ -19,6 +19,70 @@ const { buildConversationMemory, finishConversationMemory } = require('../src/li
 const { generateIntelligentChatReply } = require('../src/lib/llmService.ts');
 const env = { ...process.env };
 const originalFetch = global.fetch;
+test('farmer acreage questions do not select a commodity or unrelated welfare entry', async () => {
+  const query = 'what are the schemes there for farmers having more than 10 acers land';
+  const memory = buildConversationMemory([], query);
+  assert.equal(memory.facts.land, undefined);
+  const reply = await generateIntelligentChatReply({ query, language: 'en', conversationMemory: memory });
+  assert.match(reply.text, /PM-KISAN/);
+  assert.match(reply.text, /10 acers|10 acres/);
+  assert.match(reply.text, /exclusions|not an eligibility/);
+  assert.doesNotMatch(reply.text, /cardamom|Kashmir|Security Related Expenditure/i);
+  assert.deepEqual(semanticSearchSchemes('Related government schemes', GUEST_FARMER), []);
+});
+
+test('catalog application chip stays with its scheme and accepts mirchi as a crop correction', async () => {
+  const name = 'Large cardamom Irrigation Land Development : Irrigation equipment (nos)';
+  let memory = buildConversationMemory([], name);
+  let reply = await generateIntelligentChatReply({ query: name, language: 'en', conversationMemory: memory });
+  assert.equal(memory.topic.kind, 'scheme');
+  memory = finishConversationMemory(memory, reply.text);
+  const chip = reply.chips.find(chip => /How to apply/i.test(chip));
+  assert.ok(chip);
+  memory = buildConversationMemory([], chip, memory);
+  reply = await generateIntelligentChatReply({ query: chip, language: 'en', conversationMemory: memory });
+  assert.match(reply.text, /To apply/);
+  assert.match(reply.text, /Commerce And Industry|implementing authority/i);
+  assert.doesNotMatch(reply.text, /Irrigation depends|Which crop are you growing/);
+  memory = finishConversationMemory(memory, reply.text);
+  memory = buildConversationMemory([], 'mirchi', memory);
+  reply = await generateIntelligentChatReply({ query: 'mirchi', language: 'en', conversationMemory: memory });
+  assert.equal(memory.facts.crop, 'chilli');
+  assert.match(reply.text, /not a suitable crop match/);
+  assert.doesNotMatch(reply.text, /Which crop are you growing|Which scheme do you mean/);
+});
+
+test('related schemes and crop details stay with the farmer rather than catalog collisions', async () => {
+  let memory = buildConversationMemory([], 'How do I irrigate my crop?');
+  let reply = await generateIntelligentChatReply({ query: 'How do I irrigate my crop?', language: 'en', conversationMemory: memory });
+  memory = finishConversationMemory(memory, reply.text);
+  memory = buildConversationMemory([], 'mirchi', memory);
+  reply = await generateIntelligentChatReply({ query: 'mirchi', language: 'en', conversationMemory: memory });
+  assert.equal(memory.facts.crop, 'chilli');
+  assert.doesNotMatch(reply.text, /Which crop are you growing/);
+  memory = finishConversationMemory(memory, reply.text);
+  memory = buildConversationMemory([], 'Related government schemes', memory);
+  reply = await generateIntelligentChatReply({ query: 'Related government schemes', language: 'en', conversationMemory: memory });
+  assert.match(reply.text, /PM-KISAN|PMFBY|Kisan Credit/);
+  assert.doesNotMatch(reply.text, /Kashmir|Security Related Expenditure|cardamom/i);
+  memory = finishConversationMemory(memory, reply.text);
+  memory = buildConversationMemory([], 'my crop is mirchi', memory);
+  reply = await generateIntelligentChatReply({ query: 'my crop is mirchi', language: 'en', conversationMemory: memory });
+  assert.match(reply.text, /chilli/);
+  assert.doesNotMatch(reply.text, /Which scheme do you mean|Which crop are you growing/);
+  memory = finishConversationMemory(memory, reply.text);
+  const title = 'Large cardamom Irrigation Land Development';
+  memory = buildConversationMemory([], title, memory);
+  reply = await generateIntelligentChatReply({ query: title, language: 'en', conversationMemory: memory });
+  assert.match(reply.text, /cardamom/);
+  assert.doesNotMatch(reply.text, /Irrigation depends|Which crop are you growing/);
+});
+
+test('crop aliases and acreage spelling do not turn hypothetical questions into profile facts', () => {
+  for (const crop of ['mirchi', 'mirch', 'chili', 'chillies', 'మిర్చి', 'मिर्च']) assert.equal(buildConversationMemory([], crop).facts.crop, 'chilli', crop);
+  assert.equal(buildConversationMemory([], 'I have more than 10 acers of land').facts.land, 'more than 10 acres');
+  assert.equal(buildConversationMemory([], 'If someone has 12 acres, can they apply?').facts.land, undefined);
+});
 for (const key of ['GEMINI_API_KEY', 'GOOGLE_API_KEY', 'VISION_API_KEY', 'GROQ_API_KEY', 'OPENAI_API_KEY']) delete process.env[key];
 after(() => { process.env = env; global.fetch = originalFetch; Module._resolveFilename = originalResolve; });
 

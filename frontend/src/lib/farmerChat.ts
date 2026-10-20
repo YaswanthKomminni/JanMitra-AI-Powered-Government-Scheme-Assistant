@@ -1,7 +1,7 @@
 import type { SupportedLanguage } from "@/lib/i18n";
 import { GUEST_FARMER, SCHEMES_DATABASE, type FarmerProfile } from "@/lib/mockData";
-import { semanticSearchSchemes } from "@/lib/aiCopilotService";
-import { buildConversationMemory, classifyTextTurn, knownFarmerFacts, resolveConversationQuery, type ConversationMemory, type HistoryTurn } from "@/lib/conversationMemory";
+import { semanticSearchSchemes, findNamedCatalogScheme, schemeJurisdiction } from "@/lib/aiCopilotService";
+import { buildConversationMemory, classifyTextTurn, isUploadReference, knownFarmerFacts, resolveConversationQuery, type ConversationMemory, type HistoryTurn } from "@/lib/conversationMemory";
 
 const scopeMessages: Record<SupportedLanguage, { greeting: string; offTopic: string; schemeName: string; crop: string; chips: string[] }> = {
   en: { greeting: "Hello! I can help with farming and government welfare schemes. What would you like to know?", offTopic: "Please ask about agriculture or government welfare schemes. I can help with crop problems, eligibility, required documents and applications.", schemeName: "Which scheme do you mean? Tell me its name, or describe the support you need and your state.", crop: "I have your crop as", chips: ["Which schemes fit me?", "Help with my crop", "How do I apply?"] },
@@ -71,16 +71,34 @@ const recommendationCopy: Record<SupportedLanguage, { intro: string; state: stri
 function isRecommendationRequest(query: string): boolean {
   if (namedSchemes.some(item => item.match.test(query))) return false;
   if (/pension|scholarship|housing|ration|education|disability|widow|employment|పింఛను|छात्रवृत्ति|आवास/i.test(query)) return false;
+  if (/\b(?:cardamom|chaff|tractor|drip|irrigation|solar|pump|equipment|seed|fertilizer|machinery|organic|horticulture)\b/i.test(query)) return false;
+  if (/\b(?:related government schemes|government schemes|schemes|subsidies|benefits)\b/i.test(query)
+    && (/\b(?:farmers?|agricultur\w*|crops?|land|acres?|acers?)\b/i.test(query) || /^(?:related )?government schemes[?.!]*$/i.test(query.trim()))) return true;
   return /\b(?:schemes?|subsidies|benefits)\b.{0,45}\b(?:for me|fit me|help me|my farm|can i apply|am i eligible)\b|\bwhat can i apply for\b|\b(?:suggest|recommend|show|find|list)\b.{0,25}\b(?:schemes?|subsidies)\b(?:\s+for (?:me|my farm))?[?.!]*$|నా.*పథక|मेरे.*योजना|எனக்கு.*திட்ட|ನನಗೆ.*ಯೋಜನೆ|আমার.*প্রকল্প/i.test(query);
 }
 
-function broadSchemeGuidance(lang: SupportedLanguage, facts: ReturnType<typeof knownFarmerFacts>) {
+function broadSchemeGuidance(lang: SupportedLanguage, facts: ReturnType<typeof knownFarmerFacts>, query = "") {
   const l = recommendationCopy[lang];
   const supportQuestion: Record<SupportedLanguage, string> = { en: "Which support do you need first: income support, crop insurance, a loan, or equipment?", te: "ముందుగా ఏ సహాయం కావాలి: ఆదాయ సహాయం, పంట బీమా, రుణం లేదా పరికరాలా?", hi: "पहले किस सहायता की ज़रूरत है: आय सहायता, फसल बीमा, ऋण या उपकरण?", ta: "முதலில் எந்த உதவி தேவை: வருமான உதவி, பயிர் காப்பீடு, கடன் அல்லது கருவிகளா?", kn: "ಮೊದಲು ಯಾವ ನೆರವು ಬೇಕು: ಆದಾಯ ನೆರವು, ಬೆಳೆ ವಿಮೆ, ಸಾಲ ಅಥವಾ ಉಪಕರಣಗಳು?", bn: "প্রথমে কোন সহায়তা দরকার: আয় সহায়তা, ফসল বিমা, ঋণ না যন্ত্রপাতি?" };
   const known = [facts.state && `${l.state}: ${facts.state}`, facts.crop && `${l.crop}: ${facts.crop}`, facts.land && `${l.land}: ${facts.land}`].filter(Boolean);
-  return { text: [`**${l.intro}**`, known.join("; "), `• ${l.kisan}`, `• ${l.insurance}`, `• ${l.credit}`,
+  const acreage = query.match(/\b(?:(?:more|less) than|over|above|under|below)?\s*\d+(?:\.\d+)?\s*(?:acres?|acers?|hectares?)\b/i)?.[0]?.trim();
+  const landNote = lang === "en" && acreage ? `For the land criterion you asked about (${acreage}): land size alone does not establish eligibility. PM-KISAN covers eligible landholding farmer families irrespective of holding size, subject to its exclusions; check https://pmkisan.gov.in/. Other schemes have their own crop, location and land limits.` : "";
+  return { text: [`**${l.intro}**`, known.join("; "), landNote, `• ${l.kisan}`, `• ${l.insurance}`, `• ${l.credit}`,
     /pump|borewell|sprinkler|drip/i.test(facts.irrigation || "") ? `• ${l.solar}` : "", l.unknown, facts.state && facts.crop ? supportQuestion[lang] : l.ask].filter(Boolean).join("\n\n"),
     chips: scopeMessages[lang].chips };
+}
+
+/** Resolve a real catalog title before words inside it can be mistaken for a crop problem. */
+export function prepareFarmerConversation(query: string, memory: ConversationMemory): void {
+  if (["greeting", "off_topic"].includes(classifyTextTurn(query, memory))) return;
+  if (isUploadReference(query) || memory.topic?.kind === "document" && classifyTextTurn(query, memory) === "contextual") return;
+  const named = findNamedCatalogScheme(query);
+  if (named) {
+    memory.topic = { kind: "scheme", query, scheme: named.name,
+      intent: /apply|application|register/i.test(query) ? "apply" : /documents?|checklist/i.test(query) ? "documents" : /eligib|conditions/i.test(query) ? "eligibility" : undefined };
+  } else if (isRecommendationRequest(query)) {
+    memory.topic = { kind: "scheme", query };
+  }
 }
 
 const schemeActions: Record<SupportedLanguage, { apply: string; documents: string; eligible: string; deadline: string; status: string; official: string }> = {
@@ -93,6 +111,9 @@ const schemeActions: Record<SupportedLanguage, { apply: string; documents: strin
 };
 
 export function schemeReferences(query: string, profile?: FarmerProfile | null, memory?: ConversationMemory) {
+  const explicit = findNamedCatalogScheme(query) || (memory?.topic?.scheme ? findNamedCatalogScheme(memory.topic.scheme) : undefined);
+  if (explicit) return [{ name: explicit.name, department: explicit.ministry, description: explicit.description, benefits: explicit.benefits,
+    documents: explicit.documents_required, jurisdiction: schemeJurisdiction(explicit.ministry), source: "Saved scheme catalog; current rules, deadlines and eligibility are unverified" }];
   if (isRecommendationRequest(query)) return SCHEMES_DATABASE.filter(item => ["SCH_KISAN", "SCH_FASAL", "SCH_KCC"].includes(item.id))
     .map(item => ({ name: item.name, department: item.department, description: item.description, benefits: item.benefits,
       documents: item.documentsRequired.join("\n"), jurisdiction: undefined as string | undefined,
@@ -108,15 +129,17 @@ export function schemeReferences(query: string, profile?: FarmerProfile | null, 
 
 export function farmerChatReply(query: string, lang: SupportedLanguage, profile?: FarmerProfile | null, history: HistoryTurn[] = [], suppliedMemory?: ConversationMemory) {
   const memory = suppliedMemory || buildConversationMemory(history, query);
+  prepareFarmerConversation(query, memory);
   const nonDomain = nonDomainChatReply(query, lang, profile, memory);
   if (nonDomain) return nonDomain;
-  if (classifyTextTurn(query, memory) === "unknown") return { text: help[lang], chips: scopeMessages[lang].chips };
+  if (classifyTextTurn(query, memory) === "unknown" && !memory.topic?.scheme) return { text: help[lang], chips: scopeMessages[lang].chips };
   const facts = knownFarmerFacts(profile, memory);
   const effective = resolveConversationQuery(query, memory);
   const chips = ["Which scheme can help me?", "Help with my crop", "How to apply?"];
   const location = [facts.district, facts.state].filter(Boolean).join(", ");
   const crop = memory.topic?.crop || facts.crop;
   const context = [crop, facts.cropAge, facts.land, facts.soil, facts.irrigation, location].filter(Boolean).join("; ");
+  if (isRecommendationRequest(query) || memory.topic?.kind === "scheme" && !memory.topic.scheme && facts.crop && /^(?:my crop|mirchi|chilli|మిర్చి|मिर्च)/i.test(query)) return broadSchemeGuidance(lang, facts, query);
   const named = memory.topic?.kind !== "crop" && namedSchemes.find((item) => item.match.test(effective));
   if (named) {
     const documents = memory.topic?.intent === "documents" || /documents?|paperwork|checklist|దరఖాస్తు పత్ర|दस्तावेज/i.test(query);
@@ -140,7 +163,6 @@ export function farmerChatReply(query: string, lang: SupportedLanguage, profile?
     else if (apply) guidance = `To apply for ${named.name}${location ? ` in ${location}` : ""}:\n1. Open the official portal below and check the current application window and applicable state/season/component.\n2. Read the eligibility conditions and current document checklist.\n3. Submit through the listed official channel${/Credit/.test(named.name) ? " or your bank" : " or authorised local centre"}, keep the acknowledgement, and track the application there. ${/PM-KISAN/.test(named.name) ? "For PM-KISAN, complete the requested e-KYC and resolve any land/bank-record mismatch." : "The implementing agency must confirm the exact process for your case."}`;
     return { text: `${location && !apply ? `For your location: ${location}.\n\n` : ""}${guidance}\n\nOfficial information: ${named.url}${!facts.state ? "\n\nWhich state are you in?" : ""}`, chips: [`How to apply for ${named.name}?`, `Eligibility for ${named.name}`, `Documents for ${named.name}`] };
   }
-  if (isRecommendationRequest(query)) return broadSchemeGuidance(lang, facts);
   // Prefer the current agricultural question, then the active issue for short replies.
   const topic = memory.topic?.kind !== "scheme" ? knowledge.find((item) => item.terms.test(memory.topic?.query || query)) || knowledge.find((item) => item.terms.test(effective)) : undefined;
   if (topic) {
@@ -164,6 +186,7 @@ export function farmerChatReply(query: string, lang: SupportedLanguage, profile?
   const schemes = schemeReferences(effective, profile, memory);
   if (schemes.length) {
     const selected = schemes[0];
+    memory.topic = { ...memory.topic, kind: "scheme", query: memory.topic?.query || query, scheme: selected.name };
     if (memory.topic?.intent === "deadline" || /deadline|last date|closing date|when.*apply/i.test(query)) {
       return { text: `${selected.name}\n\n${schemeActions[lang].deadline}\n\n${schemeActions[lang].official}: https://www.myscheme.gov.in/`, chips: scopeMessages[lang].chips };
     }
@@ -173,7 +196,14 @@ export function farmerChatReply(query: string, lang: SupportedLanguage, profile?
       return { text: `${selected.name}\n\n${action}\n\n${schemeActions[lang].official}: https://www.myscheme.gov.in/`, chips: scopeMessages[lang].chips };
     }
     const paperwork = /documents?|checklist/i.test(query) && selected.documents ? `\n\nThe saved catalog lists: ${selected.documents}. Confirm the current checklist with the implementing office.` : "";
-    return { text: `${selected.name}\n\nThe saved scheme catalog describes it as: ${selected.description}${paperwork}\n\nConfirm current eligibility, benefits and dates with ${selected.department || "the implementing department"} or the official scheme listing at https://www.myscheme.gov.in/.${facts.state ? ` Your location is ${location || facts.state}. Which condition would you like to check?` : " Which state are you in?"}`, chips: [`How to apply for ${selected.name}?`, "What are the eligibility conditions?", "What documents are required?"] };
+    const titleCrops = selected.name.match(/\b(?:cardamom|tea|coffee|rubber|coconut|cotton|paddy|rice|maize|chilli|wheat|groundnut|sugarcane|millet|soybean|potato|onion)\b/gi) || [];
+    const cropMatches = titleCrops.some(name => crop && (crop.toLowerCase().includes(name.toLowerCase()) || /rice|paddy/i.test(name) && /rice|paddy/i.test(crop)));
+    const cropLimit = titleCrops.length && crop && !cropMatches
+      ? `\n\nThis catalog entry specifically mentions ${Array.from(new Set(titleCrops)).join(", ")}. You told me your crop is ${crop}, so this is not a suitable crop match for that field. I can help find support for your crop instead.` : "";
+    if (memory.topic.intent === "apply" || /apply|application|register/i.test(query)) {
+      return { text: `${selected.name}\n\nTo apply: contact ${selected.department || "the implementing authority"} and request its current application form, eligibility conditions, submission channel and deadline. The saved catalog does not confirm that applications are currently open.\n\n${selected.documents ? `The saved catalog lists these documents; confirm the current checklist:\n${selected.documents}` : schemeActions[lang].documents}${cropLimit}\n\nOfficial scheme directory: https://www.myscheme.gov.in/\n\n${facts.state ? "Which application step do you need help with?" : "Which state is your farm in?"}`, chips: ["What are the eligibility conditions?", "What documents are required?", "Which schemes fit me?"] };
+    }
+    return { text: `${selected.name}\n\nThe saved scheme catalog describes it as: ${selected.description}${paperwork}${cropLimit}\n\nConfirm current eligibility, benefits and dates with ${selected.department || "the implementing department"} or the official scheme listing at https://www.myscheme.gov.in/.${facts.state ? ` Your location is ${location || facts.state}. Which condition would you like to check?` : " Which state are you in?"}`, chips: [`How to apply for ${selected.name}?`, "What are the eligibility conditions?", "What documents are required?"] };
   }
   if (memory.topic?.kind === "scheme" || /\b(?:apply|application|eligib\w*|documents?|deadline|benefits?|subsid\w*|schemes?)\b/i.test(query)) {
     return { text: scopeMessages[lang].schemeName, chips: scopeMessages[lang].chips };

@@ -109,6 +109,10 @@ frontend/
 
 ## Document and image AI
 
+Render's existing `API-Key` variable is accepted as a Gemini key, alongside `GEMINI_API_KEY`, `GOOGLE_API_KEY` and `GOOGLE_GENERATIVE_AI_API_KEY`. Keys stay on the server. In OCR Scan, **Check AI connection** makes a real vision request using a blank test image and reports whether a provider works, rejects authorization, reaches quota, or times out. Saving a key alone does not prove that it works; no key or raw provider error is returned by the check.
+
+Farmer scheme recommendations distinguish a request for possible support from an explicitly named programme. Generic acreage and “related schemes” questions do not select a catalog item from a loose word match. Selected catalog programme names persist through application, document and eligibility follow-ups, including names containing agricultural words such as irrigation. Crop details recognize `mirchi`, `mirch`, `chili`, `chillies`, `మిర్చి` and `मिर्च` as chilli. Hypothetical acreage questions do not overwrite the farmer's landholding.
+
 Government welfare notices (including pensions and scholarships), agricultural admissions/recruitment, land records, KYC and crop photos are supported. A portrait printed on an ID card, hands holding a notice, or a document displayed on a screen does not make the document irrelevant.
 
 Configure at least one server-side provider key in `.env.local` for multimodal reasoning and full translated responses: `GEMINI_API_KEY`, `GROQ_API_KEY`, or `OPENAI_API_KEY`. Optional text/vision model overrides are listed in `.env.example`. Defaults were checked against the Google and Groq model catalogs on 2026-10-20; deployments can override these as availability changes. Restart the app after changing settings.

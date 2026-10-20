@@ -251,3 +251,54 @@ test('an explicit doc reference returns to the upload after a different farming 
   assert.equal(shouldUseDocument('hai', detection), false);
   assert.equal(shouldUseDocument('Tell me a joke', detection), false);
 });
+
+test('the deployed API-Key environment variable is recognized as a Gemini credential', () => {
+  const { providerKeys } = require('../src/lib/aiProviders.ts');
+  const previous = process.env['API-Key'];
+  process.env['API-Key'] = 'synthetic-render-gemini-key';
+  try { assert.ok(providerKeys().some(item => item.provider === 'gemini' && item.key === 'synthetic-render-gemini-key')); }
+  finally { if (previous === undefined) delete process.env['API-Key']; else process.env['API-Key'] = previous; }
+});
+
+test('connection check reports absent, rejected and successful providers without returning keys', async () => {
+  const { checkVisionConnections } = require('../src/lib/visionLlm.ts');
+  assert.deepEqual(await checkVisionConnections(), { configured: false, checks: [] });
+  process.env.GEMINI_API_KEY = 'synthetic-connection-secret';
+  try {
+    global.fetch = async () => new Response('', { status: 401 });
+    let result = await checkVisionConnections();
+    assert.equal(result.configured, true);
+    assert.equal(result.checks[0].connected, false);
+    assert.deepEqual(result.checks[0].failures, ['auth']);
+    assert.doesNotMatch(JSON.stringify(result), /synthetic-connection-secret/);
+    global.fetch = async () => Response.json({ candidates: [{ content: { parts: [{ text: JSON.stringify({ scopeStatus: 'out_of_scope', confidenceScore: 1, detectionSummary: 'Blank test image', suggestions: [] }) }] } }] });
+    result = await checkVisionConnections();
+    assert.equal(result.checks[0].connected, true);
+    assert.match(result.checks[0].model, /gemini/);
+    assert.doesNotMatch(JSON.stringify(result), /synthetic-connection-secret/);
+  } finally { delete process.env.GEMINI_API_KEY; global.fetch = realFetch; }
+});
+
+test('general application follow-up to an upload stays grounded in the uploaded evidence', async () => {
+  const { prepareFarmerConversation } = require('../src/lib/farmerChat.ts');
+  const memory = buildConversationMemory([], 'Summarize this document', undefined, true);
+  memory.latestUploadAvailable = true;
+  prepareFarmerConversation('What can I apply for?', memory);
+  assert.equal(memory.topic.kind, 'document');
+});
+
+test('a restricted default model can recover to an account-available Gemini vision model', async () => {
+  const { checkVisionConnections } = require('../src/lib/visionLlm.ts');
+  process.env.GEMINI_API_KEY = 'synthetic-restricted-model-key';
+  global.fetch = async (url, options) => {
+    if (!options.body) return Response.json({ models: [{ name: 'models/gemini-2.5-flash', supportedGenerationMethods: ['generateContent'] }] });
+    if (!url.includes('gemini-2.5-flash:')) return new Response('', { status: 403 });
+    assert.equal(JSON.parse(options.body).generationConfig.thinkingConfig.thinkingBudget, 0);
+    return Response.json({ candidates: [{ content: { parts: [{ text: JSON.stringify({ scopeStatus: 'out_of_scope', detectionSummary: 'Blank test image', confidenceScore: 1, suggestions: [] }) }] } }] });
+  };
+  try {
+    const result = await checkVisionConnections();
+    assert.equal(result.checks[0].connected, true);
+    assert.equal(result.checks[0].model, 'gemini-2.5-flash');
+  } finally { delete process.env.GEMINI_API_KEY; global.fetch = realFetch; }
+});
