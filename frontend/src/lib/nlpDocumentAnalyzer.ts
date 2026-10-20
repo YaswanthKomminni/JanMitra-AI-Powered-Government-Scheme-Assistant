@@ -38,7 +38,8 @@ export type DocumentGenre =
   | "soil_health"
   | "crop_disease"
   | "identity_card"
-  | "general_document";
+  | "general_document"
+  | "out_of_scope";
 
 export interface ParsedDocumentDetails {
   genre: DocumentGenre;
@@ -104,41 +105,73 @@ export function parseAndSummarizeDocumentContent(
 
     // Extract Survey Number
     const surveyMatch = text.match(/survey\s*(?:no\.?|number)?\s*[:=\-]?\s*([0-9A-Za-z\/\-]+)/i);
-    const surveyNumber = surveyMatch ? surveyMatch[1].trim() : "65/e/1";
+    const surveyNumber = surveyMatch ? surveyMatch[1].trim() : "";
 
     // Extract Land Extent
     const extentMatch = text.match(/([0-9]+(?:\.[0-9]+)?)\s*(ac\.?cts|acres?|hectares?|ha\.?|guntas?|cents?)/i);
-    const extentStr = extentMatch ? `${extentMatch[1]} ${extentMatch[2]}` : "0.2250 Ac.Cts";
+    const extentStr = extentMatch ? `${extentMatch[1]} ${extentMatch[2]}` : "";
 
     // Extract Passbook Number
     const passbookMatch = text.match(/(?:pass\s*book|passbook|td-cum-pass)\s*(?:no\.?|number)?\s*[:=\-]?\s*([A-Za-z0-9]+)/i);
-    const passbookNo = passbookMatch ? passbookMatch[1].trim() : "T22090081201";
+    const passbookNo = passbookMatch ? passbookMatch[1].trim() : "";
 
     // Extract Consideration Amount
     const amountMatch = text.match(/(?:consideration\s*of\s*rs\.?|rs\.?|sum\s*of\s*rs\.?)\s*([0-9,]+)/i);
-    const amountVal = amountMatch ? `₹${amountMatch[1].replace(/,/g, "")}` : "₹1,26,518";
+    const amountVal = amountMatch ? `₹${amountMatch[1].replace(/,/g, "")}` : "";
 
     // Extract Location & Date
     const locMatch = text.match(/([A-Za-z\s]+)\s*\(v\),\s*([A-Za-z\s]+)\s*\(m\),\s*([A-Za-z\s]+)\s*(?:dist|district)/i);
-    const location = locMatch ? `${locMatch[1].trim()} (V), ${locMatch[2].trim()} (M), ${locMatch[3].trim()} District` : "Redlawada (V), Nekkonda (M), Warangal District, Telangana";
+    const location = locMatch ? `${locMatch[1].trim()} (V), ${locMatch[2].trim()} (M), ${locMatch[3].trim()} District` : "";
 
     const dateMatch = text.match(/(?:executed\s*on|dated|on)\s*[:=\-]?\s*([0-9]{1,2}\s+[A-Za-z]+\s+[0-9]{4})/i);
-    const execDate = dateMatch ? dateMatch[1].trim() : "13 July 2024";
+    const execDate = dateMatch ? dateMatch[1].trim() : "";
 
-    const summary = `This document is an official Dharani Registered Sale Deed executed on ${execDate} in Telangana. The Vendor, ${vendor || "Narala Navya Sri (W/O Srinivasulu)"}, has transferred ${extentStr} of agricultural land in Survey No. ${surveyNumber} (Passbook No: ${passbookNo}), located at ${location}, to the Vendee, ${vendee || "Banothu Venkanna (S/O Hari Singh)"}, for a total consideration of ${amountVal}/-.`;
+    const partyParts: string[] = [];
+    if (vendor && vendee) {
+      partyParts.push(`The Vendor (${vendor}) has transferred agricultural property to the Vendee (${vendee})`);
+    } else if (vendee) {
+      partyParts.push(`Agricultural land has been transferred in favor of the Vendee (${vendee})`);
+    } else if (vendor) {
+      partyParts.push(`Agricultural land has been transferred by Vendor (${vendor})`);
+    } else {
+      partyParts.push(`An official conveyance transfer of agricultural land was executed`);
+    }
+
+    const detailParts: string[] = [];
+    if (extentStr) detailParts.push(`measuring ${extentStr}`);
+    if (surveyNumber) detailParts.push(`in Survey No. ${surveyNumber}`);
+    if (passbookNo) detailParts.push(`under Passbook No. ${passbookNo}`);
+    if (location) detailParts.push(`situated in ${location}`);
+    if (amountVal) detailParts.push(`for a total consideration of ${amountVal}`);
+    if (execDate) detailParts.push(`on ${execDate}`);
+
+    const summary = `This document is an official Registered Sale Deed / Land Conveyance executed in Telangana. ${partyParts.join(" ")}${detailParts.length ? ", " + detailParts.join(", ") : ""}.`;
 
     const extractedParameters: Record<string, string> = {
-      "Document Type": "Registered Deed of Sale (Dharani Portal)",
-      "Execution Date": execDate,
-      "Vendor (Seller)": vendor || "Narala Navya Sri (W/O Srinivasulu)",
-      "Vendee (Purchaser)": vendee || "Banothu Venkanna (S/O Hari Singh)",
-      "Survey Number": surveyNumber,
-      "Land Extent": extentStr,
-      "Passbook Number": passbookNo,
-      "Consideration Amount": amountVal,
-      "Village / Mandal / District": location,
-      "Portal Verification": "Generated from dharani.telangana.gov.in",
+      "Document Type": "Registered Deed of Sale (Farmland Conveyance)",
+      "Execution Date": execDate || "Not explicitly specified in document",
+      "Vendor (Seller)": vendor || "Not explicitly specified in document",
+      "Vendee (Purchaser)": vendee || "Not explicitly specified in document",
+      "Survey Number": surveyNumber || "Not specified in document",
+      "Land Extent": extentStr || "Not specified in document",
+      "Passbook Number": passbookNo || "Not specified in document",
+      "Consideration Amount": amountVal || "Not specified in document",
+      "Village / Mandal / District": location || "Not specified in document",
+      "Portal Verification": text.toLowerCase().includes("dharani") ? "Generated via Dharani Land Records Portal" : "State Land Revenue & Registration Department",
     };
+
+    const actionableSuggestions: string[] = [];
+    if (surveyNumber) {
+      actionableSuggestions.push(`Link Survey No. ${surveyNumber} to your PM-KISAN portal profile to receive annual ₹6,000 DBT installments.`);
+    } else {
+      actionableSuggestions.push(`Link your registered land title to your PM-KISAN portal profile for ₹6,000 annual DBT.`);
+    }
+    if (passbookNo) {
+      actionableSuggestions.push(`Apply for a Kisan Credit Card (KCC) at 4% subsidized interest rate using Passbook No. ${passbookNo}.`);
+    } else {
+      actionableSuggestions.push(`Apply for a Kisan Credit Card (KCC) at 4% subsidized interest rate with your registered land deed.`);
+    }
+    actionableSuggestions.push("Avail 60% capital subsidy on solar water pump installation under the PM-KUSUM scheme.");
 
     return {
       genre: "sale_deed",
@@ -151,16 +184,12 @@ export function parseAndSummarizeDocumentContent(
         "PM-KUSUM Component-B 60% Solar Water Pump Subsidy",
         "PMFBY Comprehensive Crop Loss & Calamity Insurance",
       ],
-      actionableSuggestions: [
-        `Link Survey No. ${surveyNumber} to your PM-KISAN portal profile to receive annual ₹6,000 DBT installments.`,
-        `Apply for a Kisan Credit Card (KCC) at 4% subsidized interest rate using Passbook No. ${passbookNo}.`,
-        "Avail 60% capital subsidy on solar water pump installation under the PM-KUSUM scheme.",
-      ],
+      actionableSuggestions,
       boundingBoxes: [
         {
           id: "box_hdr",
-          label: "YOLOv8: Official Header & State Seal",
-          text: "Government of Telangana - Dharani Sale Deed",
+          label: "Official Header & State Seal",
+          text: text.toLowerCase().includes("dharani") ? "Government of Telangana - Dharani Sale Deed" : "Official Land Revenue Registered Sale Deed",
           box: { top: 10, left: 10, width: 80, height: 18 },
           normalizedCoords: [10, 10, 28, 90],
           confidence: 0.98,
@@ -169,8 +198,8 @@ export function parseAndSummarizeDocumentContent(
         },
         {
           id: "box_parties",
-          label: `YOLOv8: Parties (${vendee || "Banothu Venkanna"})`,
-          text: `Vendor: ${vendor || "Narala Navya Sri"} | Vendee: ${vendee || "Banothu Venkanna"}`,
+          label: vendee ? `Parties: ${vendee}` : "Parties: Registered Beneficiary",
+          text: `Vendor: ${vendor || "Specified in Deed"} | Vendee: ${vendee || "Specified in Deed"}`,
           box: { top: 32, left: 10, width: 80, height: 26 },
           normalizedCoords: [32, 10, 58, 90],
           confidence: 0.95,
@@ -179,8 +208,8 @@ export function parseAndSummarizeDocumentContent(
         },
         {
           id: "box_parcel",
-          label: `YOLOv8: Survey ${surveyNumber} • Extent ${extentStr}`,
-          text: `Survey: ${surveyNumber} | Extent: ${extentStr} | Consideration: ${amountVal}`,
+          label: surveyNumber ? `Survey: ${surveyNumber}` : "Land Parcel Extent",
+          text: `Survey: ${surveyNumber || "As per deed"} | Extent: ${extentStr || "As per deed"} | Consideration: ${amountVal || "As per deed"}`,
           box: { top: 62, left: 10, width: 80, height: 28 },
           normalizedCoords: [62, 10, 90, 90],
           confidence: 0.94,
@@ -544,7 +573,36 @@ export function parseAndSummarizeDocumentContent(
   }
 
   // -----------------------------------------------------------------
-  // GENRE 6: GENERIC OFFICIAL GOVERNMENT DOCUMENT / NOTICE
+  // GENRE 6: STRICT OUT-OF-SCOPE ENFORCEMENT
+  // Rejects selfies, portraits, room interiors, pets, objects, or empty/garbled non-agri images
+  // -----------------------------------------------------------------
+  const isClassifiedOutOfScope = classification?.isAgriRelated === false || classification?.detectedType === "out_of_scope";
+  const hasNoTextAndNoCrop = lines.length === 0 && !lower.includes("crop") && !lower.includes("leaf") && !lower.includes("soil") && !lower.includes("patta");
+
+  if (isClassifiedOutOfScope || hasNoTextAndNoCrop) {
+    return {
+      genre: "out_of_scope",
+      title: "Out of Scope (Not Related to Agriculture or Schemes)",
+      summary:
+        "The uploaded photo does not appear to be related to agriculture, farming crops, plant health, or official government welfare documents.",
+      extractedParameters: {
+        "Domain Status": "Out of Scope",
+        "Reason":
+          classification?.message ||
+          "The captured image appears to show a person, portrait, or indoor surroundings rather than agricultural crops, plant leaves, soil samples, or official government welfare documents.",
+      },
+      unlockedSchemes: [],
+      actionableSuggestions: [
+        "Capture a photo of a farm crop leaf, pest, or field for disease diagnosis.",
+        "Upload an official agricultural document (Registered Sale Deed, Land Patta / Pahani / RoR, Soil Health Card, or Farmer ID).",
+      ],
+      boundingBoxes: [],
+      fullOcrText: text,
+    };
+  }
+
+  // -----------------------------------------------------------------
+  // GENRE 7: GENERIC OFFICIAL GOVERNMENT DOCUMENT / NOTICE
   // -----------------------------------------------------------------
   const titleLine = lines[0] ? lines.slice(0, 3).join(" - ") : "Official Government Document";
   const firstParagraphs = lines.slice(0, 8).join(" ");
@@ -610,6 +668,29 @@ export function analyzeDocumentWithNlpSuite(
   classification?: any
 ) {
   const parsed = parseAndSummarizeDocumentContent(ocrRawText, fileName, classification);
+
+  if (parsed.genre === "out_of_scope") {
+    return {
+      docType: "land_record" as const,
+      isAgriRelated: false,
+      scopeStatus: "out_of_scope" as const,
+      title: parsed.title,
+      confidenceScore: 0.96,
+      detectionSummary: parsed.summary,
+      reason:
+        parsed.extractedParameters?.["Reason"] ||
+        "The captured image appears to show a person, portrait, or indoor surroundings rather than agricultural crops, plant leaves, soil samples, or official government welfare documents.",
+      extractedData: parsed.extractedParameters,
+      boundingBoxes: [],
+      schemesUnlocked: [],
+      suggestions: parsed.actionableSuggestions,
+      parsedDetails: parsed,
+      nlpBreakdown: {
+        genre: parsed.genre,
+        fullOcrText: parsed.fullOcrText,
+      },
+    };
+  }
 
   let docCategory: "land_record" | "soil_health_card" | "crop_disease" | "identity_card" = "land_record";
   if (parsed.genre === "crop_disease") docCategory = "crop_disease";
@@ -784,14 +865,19 @@ export function answerDocumentQuestion(
     const author = p["Author / Dignitary"];
     const inst = p["Institution"];
 
-    if (vendor && vendee) {
-      replyText = `👥 **Parties Named in this Sale Deed:**\n• **Vendor (Seller):** **${vendor}**\n• **Vendee (Buyer / Purchaser):** **${vendee}**\n• **Survey No:** **${p["Survey Number"] || "65/e/1"}** (${p["Land Extent"] || "0.2250 Ac.Cts"})\n• **Location:** **${p["Village / Mandal / District"] || "Warangal, Telangana"}**`;
+    const isExplicit = (val?: string) => val && !val.toLowerCase().includes("not specified") && !val.toLowerCase().includes("not explicitly");
+
+    if (vendor && vendee && (isExplicit(vendor) || isExplicit(vendee))) {
+      replyText = `👥 **Parties Named in this Sale Deed:**\n• **Vendor (Seller):** **${vendor}**\n• **Vendee (Buyer / Purchaser):** **${vendee}**\n• **Survey No:** **${p["Survey Number"] || "Not specified in document"}** (${p["Land Extent"] || "Not specified"})\n• **Location:** **${p["Village / Mandal / District"] || "Not specified in document"}**`;
+      chips = ["What is the consideration amount?", "Survey number and extent", "Summarize this deed"];
+    } else if (vendee && isExplicit(vendee)) {
+      replyText = `👥 **Beneficiary / Purchaser Named in Document:**\n• **Vendee (Buyer / Purchaser):** **${vendee}**\n• **Survey No:** **${p["Survey Number"] || "Not specified in document"}**\n• **Location:** **${p["Village / Mandal / District"] || "Not specified in document"}**`;
       chips = ["What is the consideration amount?", "Survey number and extent", "Summarize this deed"];
     } else if (author) {
       replyText = `👤 **Dignitary / Author:**\n• **Name & Designation:** **${author}**\n• **Organization:** **${p["Ministry / Organization"] || "ICAR / DARE, Govt of India"}**\n• **Subject:** ${p["Core Subject"] || "Agricultural Transformation"}`;
       chips = ["Summarize the foreword", "Key targets mentioned", "What schemes are related?"];
     } else {
-      replyText = `👤 **Identified Individuals / Authority:**\n• **Institution / Entity:** **${inst || p["Issuing Authority"] || "Government Directorate"}**\n• **Subject / Program:** **${p["Program / Degree"] || p["Post Name"] || parsed.title}**`;
+      replyText = `👤 **Identified Individuals / Authority:**\n• **Institution / Entity:** **${inst || p["Issuing Authority"] || "Government Directorate / Department"}**\n• **Subject / Program:** **${p["Program / Degree"] || p["Post Name"] || parsed.title}**`;
       chips = ["What documents are required?", "Summarize this document", "Schedule and dates"];
     }
     return { text: replyText, chips };
@@ -811,12 +897,15 @@ export function answerDocumentQuestion(
     qLower.includes("सर्वे") ||
     qLower.includes("रकबा")
   ) {
-    if (p["Survey Number"]) {
-      replyText = `📍 **Land Parcel & Extent Details:**\n• **Survey Number:** **${p["Survey Number"]}**\n• **Total Extent:** **${p["Land Extent"] || "0.2250 Ac.Cts"}**\n• **Passbook Number:** **${p["Passbook Number"] || "T22090081201"}**\n• **Consideration Value:** **${p["Consideration Amount"] || "₹1,26,518"}**\n• **Location:** **${p["Village / Mandal / District"] || "Redlawada, Nekkonda, Warangal"}**`;
+    const surveyVal = p["Survey Number"];
+    const hasSurvey = surveyVal && !surveyVal.toLowerCase().includes("not specified");
+
+    if (hasSurvey) {
+      replyText = `📍 **Land Parcel & Extent Details:**\n• **Survey Number:** **${surveyVal}**\n• **Total Extent:** **${p["Land Extent"] || "Not specified in document"}**\n• **Passbook Number:** **${p["Passbook Number"] || "Not specified in document"}**\n• **Consideration Value:** **${p["Consideration Amount"] || "Not specified in document"}**\n• **Location:** **${p["Village / Mandal / District"] || "Not specified in document"}**`;
       chips = ["Who are the parties?", "What schemes can I apply for?", "Summarize this deed"];
     } else {
-      replyText = `ℹ️ This uploaded document (${parsed.title}) is an educational / recruitment notice and does not contain land survey numbers or agricultural land parcels.`;
-      chips = ["What documents are required?", "Summarize this notice", "Schedule dates"];
+      replyText = `ℹ️ No specific land survey number or agricultural parcel was found in this uploaded document (${parsed.title}). If this is a land deed, ensure the survey number section is clearly lit and legible.`;
+      chips = ["What documents are required?", "Summarize this document", "Actionable suggestions"];
     }
     return { text: replyText, chips };
   }
@@ -835,8 +924,11 @@ export function answerDocumentQuestion(
     qLower.includes("राशि") ||
     qLower.includes("कीमत")
   ) {
-    if (p["Consideration Amount"]) {
-      replyText = `💰 **Consideration / Valuation Value:**\n• **Sale Consideration:** **${p["Consideration Amount"]}** (Rupees One Lakh Twenty-Six Thousand Five Hundred Eighteen Only)\n• **Property Survey:** **${p["Survey Number"] || "65/e/1"}**\n• **Vendor:** ${p["Vendor (Seller)"] || "Narala Navya Sri"}\n• **Vendee:** ${p["Vendee (Purchaser)"] || "Banothu Venkanna"}`;
+    const amountVal = p["Consideration Amount"];
+    const hasAmount = amountVal && !amountVal.toLowerCase().includes("not specified");
+
+    if (hasAmount) {
+      replyText = `💰 **Consideration / Valuation Value:**\n• **Sale Consideration:** **${amountVal}**\n• **Property Survey:** **${p["Survey Number"] || "Not specified in document"}**\n• **Vendor:** ${p["Vendor (Seller)"] || "Not specified in document"}\n• **Vendee:** ${p["Vendee (Purchaser)"] || "Not specified in document"}`;
       chips = ["Who are the vendor and vendee?", "Survey number and extent", "Summarize this deed"];
     } else {
       replyText = `ℹ️ No commercial property valuation or stamp consideration amount was recorded in this document (${parsed.title}).`;

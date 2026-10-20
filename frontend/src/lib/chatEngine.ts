@@ -1,15 +1,14 @@
-import { semanticSearchSchemes, predictResolutionSLA, computeHybridScore } from "@/lib/aiCopilotService";
+import { semanticSearchSchemes } from "@/lib/aiCopilotService";
 /**
  * JanMithra conversational reply engine.
  *
- * This is the SAME multilingual rule-based engine that previously ran inside
- * the browser (useFarmerStore.sendChatMessage). It was moved here unchanged so
- * that it runs on the server behind authentication in /api/chat, and so every
- * question and answer can be persisted. The formatting helpers are also used by
- * the client store to re-localise messages when the language is switched.
+ * Grounded conversational assistance for Indian agriculture, crop diagnostics,
+ * and government welfare schemes. Runs on the server behind authentication
+ * in /api/chat, and formats responses across 6 Indian languages.
  */
 import type { SupportedLanguage } from "@/lib/i18n";
 import type { FarmerProfile } from "@/lib/mockData";
+import { GUEST_FARMER } from "@/lib/mockData";
 
 export interface ChatMessage {
   id: string;
@@ -48,86 +47,94 @@ export interface EngineReply {
   chips?: string[];
 }
 
-export function getInitialChatMessage(lang: SupportedLanguage, farmerName: string = "Ramesh Goud"): ChatMessage {
+export function getInitialChatMessage(lang: SupportedLanguage, farmerName: string = "Farmer Friend"): ChatMessage {
+  const isGeneric = !farmerName || farmerName === "Farmer Friend" || farmerName === "Guest" || farmerName === "Ramesh Goud";
+
   if (lang === "te") {
+    const greeting = isGeneric ? "రైతు మిత్రమా" : `${farmerName} గారు`;
     return {
       id: "msg_init",
       sender: "ai",
-      text: `నమస్కారం ${farmerName} గారు! నేను మీ జనమిత్ర (JanMithra) వ్యవసాయ మిత్రుడిని. కొత్తూరులో మీకున్న 3.5 ఎకరాల నల్లరేగడి భూమికి PM-KUSUM 60% సోలార్ పంపు సబ్సిడీ పథకం చాలా ప్రయోజనకరంగా ఉంది. మీ పొరుగున ఉన్న రామేశ్వర్ రెడ్డి గారు దీనితో నెలకు రూ. 4,600 డీజిల్ ఆదా చేసుకుంటున్నారు! ఈరోజు మీ చేనుకి లేదా ప్రభుత్వ పథకాలకు నేను ఏ విధంగా సాయపడగలను?`,
+      text: `నమస్కారం ${greeting}! నేను మీ జనమిత్ర (JanMithra) వ్యవసాయ & సంక్షేమ పథకాల సహాయకుడిని. మీ పంటల సంరక్షణ, భూమి దస్తావేజుల విశ్లేషణ లేదా ప్రభుత్వ సబ్సిడీ పథకాలలో (PM-KISAN, PM-KUSUM, KCC, PMFBY) నేను ఏ విధంగా సహాయపడగలను?`,
       timestamp: "10:30 AM",
       clarificationChips: [
         "నా వివరాలు చెప్పు",
         "PM-KUSUM సోలార్ పంపు దరఖాస్తు",
-        "పత్తిలో తెల్లదోమ నివారణ",
-        "PM-KISAN ₹6,000 జమ వివరాలు",
+        "పంట తెగులు సలహా",
+        "PM-KISAN ₹6,000 వివరాలు",
       ],
     };
   }
   if (lang === "hi") {
+    const greeting = isGeneric ? "किसान साथी" : `${farmerName} जी`;
     return {
       id: "msg_init",
       sender: "ai",
-      text: `नमस्ते ${farmerName} जी! मैं आपका जनमित्रा (JanMithra) कृषि साथी हूँ। कोथुर में आपकी 3.5 एकड़ काली मिट्टी की भूमि के लिए PM-KUSUM 60% सोलर पंप योजना बहुत लाभकारी है। आपके पड़ोसी रामेश्वर रेड्डी जी ने इसे लगाकर हर महीने ₹4,600 का डीजल बचाया! आज मैं आपकी खेती में कैसे सहायता कर सकता हूँ?`,
+      text: `नमस्ते ${greeting}! मैं आपका जनमित्रा (JanMithra) कृषि एवं सरकारी कल्याण योजना सहायक हूँ। आज आपकी खेती, फसल स्वास्थ्य, भूमि दस्तावेज़ों या सरकारी योजनाओं (PM-KISAN, PM-KUSUM, KCC) में मैं किस प्रकार सहायता कर सकता हूँ?`,
       timestamp: "10:30 AM",
       clarificationChips: [
         "मेरी जानकारी बताएं",
         "PM-KUSUM सोलर पंप आवेदन",
-        "कपास में सफेद मक्खी नियंत्रण",
-        "PM-KISAN ₹6,000 स्थिति",
+        "फसल कीट एवं रोग सलाह",
+        "PM-KISAN स्थिति",
       ],
     };
   }
   if (lang === "ta") {
+    const greeting = isGeneric ? "விவசாய தோழரே" : `${farmerName} அவர்களே`;
     return {
       id: "msg_init",
       sender: "ai",
-      text: `வணக்கம் ${farmerName} அவர்களே! நான் உங்கள் ஜனமித்ரா (JanMithra) விவசாய தோழன். கொத்தூரில் உங்கள் 3.5 ஏக்கர் கரிசல் மண் நிலத்திற்கு PM-KUSUM 60% சோலார் பம்ப் மானியம் மிகவும் பயனளிக்கும். இன்று உங்கள் விவசாயத்திற்கு நான் எவ்வாறு உதவ முடியும்?`,
+      text: `வணக்கம் ${greeting}! நான் உங்கள் ஜனமித்ரா (JanMithra) விவசாய மற்றும் அரசு நலத்திட்ட உதவியாளர். உங்கள் பயிர் மேலாண்மை, நில ஆவணங்கள் அல்லது அரசு மானிய திட்டங்கள் குறித்து உங்களுக்கு எவ்வாறு உதவ முடியும்?`,
       timestamp: "10:30 AM",
       clarificationChips: [
         "என் விவரங்கள் சொல்",
         "PM-KUSUM சோலார் பம்ப் விண்ணப்பம்",
-        "பருத்தியில் வெள்ளை ஈ கட்டுப்பாடு",
-        "PM-KISAN ₹6,000 நிலை",
+        "பயிர் பூச்சி கட்டுப்பாடு",
+        "PM-KISAN நிலை",
       ],
     };
   }
   if (lang === "kn") {
+    const greeting = isGeneric ? "ರೈತ ಮಿತ್ರರೇ" : `${farmerName} ಅವರೇ`;
     return {
       id: "msg_init",
       sender: "ai",
-      text: `ನಮಸ್ಕಾರ ${farmerName} ಅವರೇ! ನಾನು ನಿಮ್ಮ ಜನಮಿತ್ರ (JanMithra) ಕೃಷಿ ಸಂಗಾತಿ. ಕೊತ್ತೂರಿನಲ್ಲಿ ನಿಮ್ಮ 3.5 ಎಕರೆ ಕಪ್ಪು ಮಣ್ಣಿನ ಜಮೀನಿಗೆ PM-KUSUM 60% ಸೋಲಾರ್ ಪಂಪ್ ಸಬ್ಸಿಡಿ ಯೋಜನೆ ಬಹಳ ಪ್ರಯೋಜನಕಾರಿಯಾಗಿದೆ. ಇಂದು ನಿಮ್ಮ ಕೃಷಿಗೆ ನಾನು ಹೇಗೆ ಸಹಾಯ ಮಾಡಲಿ?`,
+      text: `ನಮಸ್ಕಾರ ${greeting}! ನಾನು ನಿಮ್ಮ ಜನಮಿತ್ರ (JanMithra) ಕೃಷಿ ಮತ್ತು ಸರ್ಕಾರಿ ಯೋಜನೆಗಳ ಸಹಾಯಕ. ನಿಮ್ಮ ಕೃಷಿ ಬೆಳೆ ರಕ್ಷಣೆ, ಭೂ ದಾಖಲೆ ಪರಿಶೀಲನೆ ಅಥವಾ ಸರ್ಕಾರಿ ಸಬ್ಸಿಡಿ ಯೋಜನೆಗಳ ಕುರಿತು ಇಂದು ನಾನು ಹೇಗೆ ಸಹಾಯ ಮಾಡಲಿ?`,
       timestamp: "10:30 AM",
       clarificationChips: [
         "ನನ್ನ ವಿವರ ತಿಳಿಸಿ",
         "PM-KUSUM ಸೋಲಾರ್ ಪಂಪ್ ಅರ್ಜಿ",
-        "ಹತ್ತಿ ಬೆಳೆಯಲ್ಲಿ ಬಿಳಿ ನೊಣ ನಿಯಂತ್ರಣ",
-        "PM-KISAN ₹6,000 ಸ್ಥಿತಿ",
+        "ಬೆಳೆ ಕೀಟ ನಿಯಂತ್ರಣ ಸಲಹೆ",
+        "PM-KISAN ಸ್ಥಿತಿ",
       ],
     };
   }
   if (lang === "bn") {
+    const greeting = isGeneric ? "কৃষক বন্ধু" : `${farmerName} বাবু`;
     return {
       id: "msg_init",
       sender: "ai",
-      text: `নমস্কার ${farmerName} বাবু! আমি আপনার জনমিত্র (JanMithra) কৃষি সহায়ক। কোথুরে আপনার ৩.৫ একর কালো মাটির জমির জন্য PM-KUSUM ৬০% সৌর পাম্প ভর্তুকি অত্যন্ত লাভজনক। আজ আপনার চাষের জন্য আমি কীভাবে সাহায্য করতে পারি?`,
+      text: `নমস্কার ${greeting}! আমি আপনার জনমিত্র (JanMithra) কৃষি ও সরকারি কল্যাণ প্রকল্প সহায়ক। ফসলের রোগ নির্ণয়, জমির নথিপত্র বিশ্লেষণ বা সরকারি ভর্তুকি প্রকল্প বিষয়ে আমি কীভাবে সাহায্য করতে পারি?`,
       timestamp: "10:30 AM",
       clarificationChips: [
         "আমার তথ্য বলুন",
         "PM-KUSUM সৌর পাম্প আবেদন",
-        "তুলা ফসলে সাদা মাছি দমন",
-        "PM-KISAN ₹৬,০০০ স্থিতি",
+        "ফসলের কীটপতঙ্গ দমন",
+        "PM-KISAN স্থিতি",
       ],
     };
   }
+  const greeting = isGeneric ? "Farmer Friend" : `${farmerName} Ji`;
   return {
     id: "msg_init",
     sender: "ai",
-    text: `Namaste ${farmerName} Ji! I am your JanMithra farm companion. Based on your 3.5 Acres of Black Soil in Kothur, the PM-KUSUM 60% Solar Pump subsidy is a high-value opportunity. Your neighbor Rameshwar Reddy already saved ₹4,600/month with it! How can I assist your farm today?`,
+    text: `Namaste ${greeting}! I am your JanMithra AI assistant for agriculture, crop diagnostics, and government welfare schemes. How can I assist your farm, crop health, land documents, or scheme applications today?`,
     timestamp: "10:30 AM",
     clarificationChips: [
       "Tell me about me",
       "Apply for PM-KUSUM Solar Pump",
-      "Pest control for whiteflies on cotton",
+      "Crop pest & disease advice",
       "Check PM-KISAN ₹6,000 status",
     ],
   };
@@ -212,7 +219,7 @@ export function formatDocumentAnalysisReply(det: any, lang: SupportedLanguage): 
     if (lang === "te") {
       return {
         text: `🏛️ **${det.title} విశ్లేషించబడింది!**\n\n📋 **ధృవీకరించబడిన పత్ర వివరాలు:**\n${detailsStr}\n\n✅ **అర్హత గల ప్రభుత్వ సంక్షేమ పథకాలు & తదుపరి చర్యలు:**\n1. **PM-KISAN:** సర్వే నంబర్ ఆధారంగా సంవత్సరానికి ₹6,000 నేరుగా బ్యాంక్ ఖాతాలో జమ.\n2. **కిసాన్ క్రెడిట్ కార్డ్ (KCC):** 4% రాయితీ వడ్డీకే బ్యాంకు పంట రుణం.\n3. **PM-KUSUM:** 60% సబ్సిడీతో సోలార్ వాటర్ పంపు పథకం.\n4. **రెవెన్యూ టైటిల్ మ్యుటేషన్ & ఈ-పాస్ పుస్తకం:** డిజిటల్ పట్టాదారు పాస్ పుస్తకం జారీ.`,
-        chips: ["PM-KISAN అర్హత పరిశీలన", "KCC బ్యాంక్ లోన్ వివరాలు", "సోలార్ పంపు సబ్సిడీ", "దస్తావేజు వెరిఫికేషన్ చూడండి"],
+        chips: ["PM-KISAN అర్హత పరిశీలన", "KCC బ్యాంక్ లోన్ వివరాలు", "సోలార్ పంపు సబ్సిడీ", "దస్తావేజు వివరాలు చూడండి"],
       };
     }
     if (lang === "hi") {
@@ -224,7 +231,7 @@ export function formatDocumentAnalysisReply(det: any, lang: SupportedLanguage): 
     if (lang === "ta") {
       return {
         text: `🏛️ **${det.title} சரிபார்க்கப்பட்டது!**\n\n📋 **சரிபார்க்கப்பட்ட ஆவண விவரங்கள்:**\n${detailsStr}\n\n✅ **தகுதியான அரசு நலத்திட்டங்கள் & அடுத்த நடவடிக்கைகள்:**\n1. **PM-KISAN:** ஆண்டுக்கு ₹6,000 வங்கி கணக்கில் நேரடியாக வரவு.\n2. **கிசான் கிரெடிட் கார்டு (KCC):** 4% மானிய வட்டியில் பயிர்க்கடன்.\n3. **PM-KUSUM:** 60% மானியத்தில் சோலார் நீர் பம்ப்.\n4. **பட்டா மாற்றம் & இ-பாஸ்புக்:** டிஜிட்டல் பட்டாதாரர் பாஸ்புக் வழங்கல்.`,
-        chips: ["PM-KISAN தகுதி சரிபார்", "KCC வங்கி கடன் விவரங்கள்", "சோலார் பம்ப் மானியம்", "ஆவண சரிபார்ப்பை திறக்கவும்"],
+        chips: ["PM-KISAN தகுதி சரிபார்", "KCC வங்கி கடன் விவரங்கள்", "சோலார் பம்ப் மானியம்", "ஆவண விவரங்கள் காண்க"],
       };
     }
     if (lang === "kn") {
@@ -239,17 +246,17 @@ export function formatDocumentAnalysisReply(det: any, lang: SupportedLanguage): 
         chips: ["PM-KISAN স্থিতি যাচাই", "KCC লোন তথ্য", "সৌর পাম্প ভর্তুকি", "দলিল বিবরণ দেখুন"],
       };
     }
-    const slaPrediction = predictResolutionSLA("Agriculture", 3.5, 2);
+
     return {
-      text: `🏛️ **${det.title} Verified!**\n🎯 **YOLOv8 Feature Localization:** Verified [ymin, xmin, ymax, xmax] defect & seal coordinates.\n⚡ **Predictive SLA Regressor:** Turnaround ETA: **${slaPrediction.formattedEta}** (${(slaPrediction.confidenceScore * 100).toFixed(0)}% confidence, Marginal Farmer Priority).\n\n📋 **Verified Parameters:**\n${detailsStr}\n\n✅ **Unlocked Welfare Schemes & Next Actions:**\n1. **PM-KISAN:** Direct Benefit Transfer of ₹6,000/year to linked bank account.\n2. **Kisan Credit Card (KCC):** Concessional crop credit at 4% interest against registered land.\n3. **PM-KUSUM Component-B:** 60% subsidy for solar water pump installation.\n4. **Title Mutation & e-Passbook:** Digital land title linkage and verification.`,
-      chips: ["Check PM-KISAN Linkage", "Apply for KCC Loan", "Solar Pump 60% Subsidy", "Open in Document Modal"],
+      text: `🏛️ **${det.title} Verified!**\n\n📋 **Verified Parameters:**\n${detailsStr}\n\n✅ **Unlocked Welfare Schemes & Next Actions:**\n1. **PM-KISAN:** Direct Benefit Transfer of ₹6,000/year to linked bank account.\n2. **Kisan Credit Card (KCC):** Concessional crop credit at 4% interest against registered land.\n3. **PM-KUSUM Component-B:** 60% subsidy for solar water pump installation.\n4. **Title Mutation & e-Passbook:** Digital land title linkage and verification.`,
+      chips: ["Check PM-KISAN Linkage", "Apply for KCC Loan", "Solar Pump 60% Subsidy", "View Details"],
     };
   }
 
   // 2. Crop Disease & Foliage Pest Diagnosis
   if (det.docType === "crop_disease") {
-    const crop = ext.crop || "Cotton Crop (పత్తి / कपास)";
-    const pest = ext.pestOrDisease || "Whitefly & Sucking Pests (తెల్లదోమ / सफेद मक्खी)";
+    const crop = ext.crop || "Farm Crop Leaf";
+    const pest = ext.pestOrDisease || "Foliar Sucking Pests / Blight";
     const organic = ext.organicRemedy || "Spray 10,000 ppm Neem Oil @ 2-3ml/L water in late afternoon.";
     const chemical = ext.chemicalTreatment || "Spray Diafenthiuron 50% WP @ 1g/L or Flonicamid 50% WG @ 0.3g/L.";
     const tips = ext.preventionTips || "Install 15 yellow sticky traps/acre and ensure proper field drainage.";
@@ -363,60 +370,64 @@ export function formatDocumentAnalysisReply(det: any, lang: SupportedLanguage): 
 
   return {
     text: `📜 ${det.title} Analyzed Successfully!\n• Detection: ${det.detectionSummary}\n• Confidence Score: ${(det.confidenceScore * 100).toFixed(0)}%\n\n📋 Extracted Parameters:\n${paramEntries}\n\n✅ Recommended Schemes & Benefits:\n${schemesList}`,
-    chips: (det.schemesUnlocked || []).slice(0, 3).concat(["Open in Document Modal"]),
+    chips: (det.schemesUnlocked || []).slice(0, 3).concat(["View Details"]),
   };
 }
 
 export function formatFarmerProfileReply(farmer: FarmerProfile, lang: SupportedLanguage): { text: string; chips: string[] } {
-  const name = farmer.name || "Ramesh Goud";
-  const village = farmer.village || "Kothur Gramam";
-  const district = farmer.district || "Rangareddy";
-  const acres = farmer.landSizeAcres || 3.5;
+  const isGuest = !farmer.name && !farmer.landSizeAcres;
+
+  if (isGuest) {
+    if (lang === "te") {
+      return {
+        text: `నమస్కారం రైతు మిత్రమా! మీరు ప్రస్తుతం గెస్ట్ యూజర్‌గా చూస్తున్నారు. మీ ఆధార్ లేదా భూమి రికార్డులు ఇంకా లింక్ చేయబడలేదు.\n\nమీ భూమి పట్టాదారు పాస్ పుస్తకం, సేల్ డీడ్ లేదా సాయిల్ హెల్త్ కార్డును స్కాన్ చేయడం ద్వారా మీ చేను వివరాలను నమోదు చేసి అర్హత గల పథకాలను తెలుసుకోవచ్చు.`,
+        chips: ["భూమి రికార్డు స్కాన్ చేయి", "వ్యవసాయ పథకాలు", "PM-KISAN అర్హత"],
+      };
+    }
+    if (lang === "hi") {
+      return {
+        text: `नमस्ते किसान साथी! आप वर्तमान में अतिथि (Guest) के रूप में जुड़े हैं। आपका कोई व्यक्तिगत भूमि रिकॉर्ड अभी लिंक नहीं है।\n\nआप अपनी भूमि पट्टा पासबुक, सेल डीड या मृदा स्वास्थ्य कार्ड स्कैन करके अपनी ज़मीन की जानकारी जोड़ सकते हैं और सरकारी योजनाएं देख सकते हैं।`,
+        chips: ["दस्तावेज़ स्कैन करें", "सरकारी योजनाएं", "PM-KISAN पात्रता"],
+      };
+    }
+    return {
+      text: `Namaste Farmer Friend! You are currently browsing as a guest. No registered farmer profile or land record is linked yet.\n\nYou can upload or scan your Land Patta / Pahani / RoR, Registered Sale Deed, or Soil Health Card to verify your farmland and discover eligible government welfare schemes.`,
+      chips: ["Scan Land Document", "Explore Agri Schemes", "PM-KISAN Eligibility"],
+    };
+  }
+
+  const name = farmer.name;
+  const village = farmer.village || "your registered village";
+  const district = farmer.district || "your district";
+  const acres = farmer.landSizeAcres;
+  const crops = farmer.primaryCrops?.length ? farmer.primaryCrops.join(", ") : "Cotton, Chilli, and Pulses";
+  const irrigation = farmer.irrigationTypeName || "Borewell / Rainfed";
+  const soil = farmer.soilTypeName || "Agricultural Soil";
 
   if (lang === "te") {
     return {
-      text: `నమస్కారం **${name} గారు**! మీ వ్యవసాయ ప్రొఫైల్ వివరాలన్నీ నా దగ్గర స్పష్టంగా ఉన్నాయండి:\n\nమీరు ${district} జిల్లా ${village}లో **${acres} ఎకరాల నల్లరేగడి నేలలో** వ్యవసాయం చేస్తున్నారు. మీ చేనులో ప్రధానంగా **పత్తి, మిర్చి మరియు కందులు** సాగు చేస్తూ, **బోరుబావి మరియు డ్రిప్ పద్ధతిని** వాడుతున్నారు. మీ ధరణి పట్టాదారు పాస్ పుస్తకం మరియు నేల పరీక్ష కార్డు ఇప్పటికే ప్రభుత్వ రికార్డులలో ధృవీకరించబడ్డాయి.\n\n💡 **మీ పొలానికి అత్యధికంగా ప్రయోజనకరమైన పథకాలు:**\n1. **PM-KUSUM సోలార్ పంపు (60% సబ్సిడీ):** మీ బోరుబావికి 5HP సోలార్ పంపు చాలా అద్భుతంగా సరిపోతుంది, దీని ద్వారా రూ. 1,32,000 ఆదా అవుతుంది.\n2. **PM-KISAN సమ్మాన్ నిధి:** సంవత్సరానికి రూ. 6,000 నగదు సాయం (16వ విడత పూర్తయింది).\n3. **కిసాన్ క్రెడిట్ కార్డ్ (KCC):** కేవలం 4% రాయితీ వడ్డీకే బ్యాంకు పంట రుణం లభిస్తుంది.\n\nమీ వివరాల్లో ఏదైనా మార్పు చేయాలా, లేక సోలార్ పంపు దరఖాస్తులో సహాయం చేయమంటారా?`,
-      chips: ["నా భూమి వివరాలు మార్చు", "సోలార్ పంపు 60% సబ్సిడీ", "సమీప రైతులతో మాట్లాడండి", "అర్హత గల అన్ని పథకాలు"],
+      text: `నమస్కారం **${name} గారు**! మీ వ్యవసాయ ప్రొఫైల్ వివరాలు:\n\nమీరు ${district} పరిధిలోని ${village}లో **${acres} ఎకరాల ${soil}లో** వ్యవసాయం చేస్తున్నారు. మీ చేనులో ప్రధానంగా **${crops}** సాగు చేస్తూ, **${irrigation}** పద్ధతిని వాడుతున్నారు.\n\n💡 **మీ పొలానికి ప్రయోజనకరమైన ప్రధాన పథకాలు:**\n1. **PM-KUSUM సోలార్ పంపు (60% సబ్సిడీ):** వ్యవసాయ పంపుల కోసం 60% ప్రభుత్వ రాయితీ.\n2. **PM-KISAN సమ్మాన్ నిధి:** సంవత్సరానికి ₹6,000 ప్రత్యక్ష నగదు బదిలీ.\n3. **కిసాన్ క్రెడిట్ కార్డ్ (KCC):** 4% రాయితీ వడ్డీకే బ్యాంకు పంట రుణం.\n\nమీ వివరాల్లో ఏదైనా మార్పు చేయాలా, లేదా పథకాల దరఖాస్తులో సహాయం కావాలా?`,
+      chips: ["భూమి వివరాలు మార్చు", "సోలార్ పంపు 60% సబ్సిడీ", "సమీప రైతులతో మాట్లాడండి", "అర్హత గల పథకాలు"],
     };
   }
 
   if (lang === "hi") {
     return {
-      text: `नमस्ते **${name} जी**! आपकी खेती और ज़मीन का पूरा विवरण मेरे पास सुरक्षित है:\n\nआप ${district} जिले के ${village} में **${acres} एकड़ काली मिट्टी की भूमि** पर खेती कर रहे हैं। आप मुख्य रूप से **कपास, मिर्च और अरहर** उगाते हैं तथा **बोरवेल और ड्रिप सिंचाई** का उपयोग करते हैं। आपका धरणी पट्टा पासबुक और मृदा स्वास्थ्य कार्ड पहले से ही सत्यापित हैं।\n\n💡 **आपकी भूमि के लिए सर्वोत्तम सरकारी योजनाएं:**\n1. **PM-KUSUM सोलर पंप (60% सब्सिडी):** आपके बोरवेल के लिए 5HP सोलर पंप बहुत फायदेमंद है (रु. 1,32,000 की बचत).\n2. **PM-KISAN सम्मान निधि:** ₹6,000 वार्षिक प्रत्यक्ष बैंक अंतरण (16वीं किस्त स्वीकृत).\n3. **किसान क्रेडिट कार्ड (KCC):** मात्र 4% रियायती ब्याज दर पर कृषि ऋण.\n\nक्या आप अपनी भूमि जानकारी अपडेट करना चाहते हैं या सोलर पंप आवेदन में सहायता चाहिए?`,
+      text: `नमस्ते **${name} जी**! आपकी पंजीकृत कृषि प्रोफ़ाइल का विवरण:\n\nआप ${district} के ${village} में **${acres} एकड़ ${soil}** पर खेती कर रहे हैं। आप मुख्य रूप से **${crops}** उगाते हैं तथा **${irrigation}** का उपयोग करते हैं।\n\n💡 **आपकी भूमि के लिए शीर्ष सरकारी योजनाएं:**\n1. **PM-KUSUM सोलर पंप (60% सब्सिडी):** बोरवेल/सिंचाई हेतु 60% सरकारी सहायता.\n2. **PM-KISAN सम्मान निधि:** ₹6,000 वार्षिक प्रत्यक्ष बैंक अंतरण (DBT).\n3. **किसान क्रेडिट कार्ड (KCC):** मात्र 4% रियायती ब्याज दर पर कृषि ऋण.\n\nक्या आप अपनी भूमि जानकारी अपडेट करना चाहते हैं या योजना आवेदन में सहायता चाहिए?`,
       chips: ["भूमि विवरण अपडेट करें", "सोलर पंप 60% सब्सिडी", "आसपास के किसान से जुड़ें", "पात्र सरकारी योजनाएं"],
     };
   }
 
-  if (lang === "ta") {
-    return {
-      text: `வணக்கம் **${name} அவர்களே**! உங்கள் விவசாய விவரங்கள் அனைத்தும் என்னிடம் தெளிவாக உள்ளன:\n\nநீங்கள் ${district} மாவட்டம் ${village} பகுதியில் **${acres} ஏக்கர் கரிசல் மண் நிலத்தில்** விவசாயம் செய்கிறீர்கள். முக்கியமாக **பருத்தி, மிளகாய், துவரை** பயிரிட்டு, **ஆழ்துளை கிணறு மற்றும் சொட்டு நீர் பாசனம்** பயன்படுத்துகிறீர்கள். உங்கள் பட்டாதாரர் பாஸ்புக் மற்றும் மண் அட்டை ஏற்கனவே சரிபார்க்கப்பட்டுள்ளன.\n\n💡 **உங்கள் நிலத்திற்கு மிகவும் பயனளிக்கும் திட்டங்கள்:**\n1. **PM-KUSUM சோலார் பம்ப் (60% மானியம்):** 5HP சோலார் பம்ப் அமைப்பதன் மூலம் ரூ. 1,32,000 சேமிக்கலாம்.\n2. **PM-KISAN சம்மான் நிதி:** ஆண்டுக்கு ரூ. 6,000 நேரடி வங்கி வரவு (16வது தவணை தயார்).\n3. **கிசான் கிரெடிட் கார்டு (KCC):** 4% மானிய வட்டியில் விவசாய பயிர்க்கடன்.\n\nஉங்கள் விவரங்களை மாற்ற வேண்டுமா அல்லது சோலார் பம்ப் விண்ணப்பத்தில் உதவ வேண்டுமா?`,
-      chips: ["நில விவரங்களை மாற்று", "சோலார் பம்ப் 60% மானியம்", "அருகிலுள்ள விவசாயியுடன் பேசுங்கள்", "அனைத்து அரசு திட்டங்கள்"],
-    };
-  }
-
-  if (lang === "kn") {
-    return {
-      text: `ನಮಸ್ಕಾರ **${name} ಅವರೇ**! ನಿಮ್ಮ ಕೃಷಿ ವಿವರಗಳು ನನ್ನ ಬಳಿ ಸಿದ್ಧವಾಗಿವೆ:\n\nನೀವು ${district} ಜಿಲ್ಲೆಯ ${village} ಗ್ರಾಮದಲ್ಲಿ **${acres} ಎಕರೆ ಕಪ್ಪು ಮಣ್ಣಿನ ಜಮೀನಿನಲ್ಲಿ** ಕೃಷಿ ಮಾಡುತ್ತಿದ್ದೀರಿ. ಮುಖ್ಯವಾಗಿ **ಹತ್ತಿ, ಮೆಣಸಿನಕಾಯಿ, ತೊಗರಿ** ಬೆಳೆಯುತ್ತಿದ್ದು, **ಕೊಳವೆಬಾವಿ ಮತ್ತು ಹನಿ ನೀರಾವರಿ** ಬಳಸುತ್ತಿದ್ದೀರಿ. ನಿಮ್ಮ ಪಟ್ಟಾದಾರ ಪಾಸ್ ಬುಕ್ ಮತ್ತು ಮಣ್ಣಿನ ಕಾರ್ಡ್ ಈಗಾಗಲೇ ಪರಿಶೀಲನೆಗೊಂಡಿವೆ.\n\n💡 **ನಿಮ್ಮ ಜಮೀನಿಗೆ ಹೆಚ್ಚು ಪ್ರಯೋಜನಕಾರಿ ಯೋಜನೆಗಳು:**\n1. **PM-KUSUM ಸೋಲಾರ್ ಪಂಪ್ (60% ಸಬ್ಸಿಡಿ):** 5HP ಸೋಲಾರ್ ಪಂಪ್‌ನಿಂದ ರೂ. 1,32,000 ಉಳಿತಾಯವಾಗಲಿದೆ.\n2. **PM-KISAN ಸಮ್ಮಾನ್ ನಿಧಿ:** ವರ್ಷಕ್ಕೆ ರೂ. 6,000 ನೇರ ಬ್ಯಾಂಕ್ ಜಮೆ (16ನೇ ಕಂತು ಸಿದ್ಧ).\n3. **ಕಿಸಾನ್ ಕ್ರೆಡಿಟ್ ಕಾರ್ಡ್ (KCC):** 4% ರಿಯಾಯಿತಿ ಬಡ್ಡಿಯಲ್ಲಿ ಕೃಷಿ ಬೆಳೆ ಸಾಲ.\n\nನಿಮ್ಮ ವಿವರಗಳನ್ನು ನವೀಕರಿಸಬೇಕೆ ಅಥವಾ ಸೋಲಾರ್ ಪಂಪ್ ಅರ್ಜಿಯಲ್ಲಿ ಸಹಾಯ ಬೇಕೆ?`,
-      chips: ["ಜಮೀನಿನ ವಿವರ ಬದಲಾಯಿಸಿ", "ಸೋಲಾರ್ ಪಂಪ್ 60% ಸಬ್ಸಿಡಿ", "ಸಮೀಪದ ರೈತರೊಂದಿಗೆ ಮಾತನಾಡಿ", "ಎಲ್ಲಾ ಸರ್ಕಾರಿ ಯೋಜನೆಗಳು"],
-    };
-  }
-
-  if (lang === "bn") {
-    return {
-      text: `নমস্কার **${name} বাবু**! আপনার কৃষি তথ্য আমার কাছে প্রস্তুত রয়েছে:\n\nআপনি ${district} জেলার ${village} গ্রামে **${acres} একর কালো মাটিতে** চাষাবাদ করছেন। মূলত **তুলা, লঙ্কা ও অড়হর ডাল** চাষ করেন এবং **বোরওয়েল ও ড্রিপ সেচ** ব্যবহার করছেন। আপনার পাট্টাদার পাসবুক ও মৃত্তিকা স্বাস্থ্য কার্ড ইতিপূর্বে যাচাইকৃত হয়েছে।\n\n💡 **আপনার জমির জন্য শীর্ষ উপকারী প্রকল্প:**\n1. **PM-KUSUM সৌর পাম্প (৬০% ভর্তুকি):** ৫HP সৌর পাম্পে প্রায় ১,৩২,০০০ টাকা সাশ্রয় হবে।\n2. **PM-KISAN সম্মান নিধি:** বছরে ৬,০০০ টাকা সরাসরি ব্যাংক সহায়তা (১৬তম কিস্তি অনুমোদিত)।\n3. **কিষাণ ক্রেডিট কার্ড (KCC):** মাত্র ৪% রেয়াতি সুদে ফসল ঋণ।\n\nআপনি কি জমির বিবরণ আপডেট করতে চান নাকি সৌর পাম্পের আবেদনে সহায়তা প্রয়োজন?`,
-      chips: ["জমির বিবরণ পরিবর্তন করুন", "সৌর পাম্প ৬০% ভর্তুকি", "নিকটবর্তী কৃষকের সাথে যোগাযোগ", "যোগ্য সরকারি প্রকল্পসমূহ"],
-    };
-  }
-
   return {
-    text: `Namaste **${name} Ji**! I know your farm details thoroughly:\n\nYou farm on **${acres} Acres of Black Soil** in ${village}, ${district}. You primarily cultivate **Cotton, Chilli, and Red Gram**, supported by **Borewell and Drip irrigation**. Your Dharani Patta Passbook and Soil Health Card are already verified in government records.\n\n💡 **Top Recommended Welfare Schemes for Your Land:**\n1. **PM-KUSUM Solar Pump (60% Subsidy):** A 5HP Solar Pump is ideal for your borewell, saving ₹1,32,000.\n2. **PM-KISAN Samman Nidhi:** ₹6,000/year direct cash transfer (16th Installment processed).\n3. **Kisan Credit Card (KCC):** Concessional crop loan at just 4% interest rate.\n\nWould you like to update any details or need help applying for the Solar Pump?`,
-    chips: ["Update My Land Details", "Apply for PM-KUSUM 60%", "Connect with Nearby Peer Farmers", "View All Eligible Schemes"],
+    text: `Namaste **${name} Ji**! Here is your verified farm profile:\n\nYou farm on **${acres} Acres of ${soil}** in ${village}, ${district}. You cultivate **${crops}**, supported by **${irrigation}**.\n\n💡 **Top Recommended Welfare Schemes for Your Land:**\n1. **PM-KUSUM Solar Pump (60% Subsidy):** Subsidized standalone solar irrigation pump.\n2. **PM-KISAN Samman Nidhi:** ₹6,000/year direct cash transfer via DBT.\n3. **Kisan Credit Card (KCC):** Concessional crop loan at just 4% interest rate.\n\nWould you like to update any details or need help applying for these schemes?`,
+    chips: ["Update Land Details", "Apply for PM-KUSUM 60%", "Connect with Nearby Peer Farmers", "View All Eligible Schemes"],
   };
 }
 
-/** Text reply for a farmer question (moved verbatim from the client store). */
+/** Text reply for a farmer question. */
 export function generateTextReply(text: string, lang: SupportedLanguage, currentFarmer: FarmerProfile): EngineReply {
   const lower = text.toLowerCase();
+  const farmer = currentFarmer || GUEST_FARMER;
   let replyText = "";
   let chips: string[] | undefined = undefined;
 
@@ -486,28 +497,21 @@ export function generateTextReply(text: string, lang: SupportedLanguage, current
     lower.includes("আমি কে");
 
   if (isGreetingQuery && text.trim().length < 30) {
-    const farmer = currentFarmer;
+    const greetingName = farmer.name ? `${farmer.name} గారు` : "రైతు మిత్రమా";
+    const greetingHi = farmer.name ? `${farmer.name} जी` : "किसान साथी";
+    const greetingEn = farmer.name ? `${farmer.name} Ji` : "Farmer Friend";
+
     if (lang === "te") {
-      replyText = `నమస్కారం ${farmer.name || "రమేష్"} గారు! ఎలా ఉన్నారు? నేను మీ జనమిత్ర డిజిటల్ వ్యవసాయ మిత్రుడిని. కొత్తూరులో మీకున్న 3.5 ఎకరాల చేనులో పత్తి, మిర్చి పంటలు బాగున్నాయా? ఈరోజు మీ వ్యవసాయానికి లేదా ఏదైనా ప్రభుత్వ సబ్సిడీ పథకానికి సంబంధించి నేను ఏ విధంగా సహాయపడగలను?`;
+      replyText = `నమస్కారం ${greetingName}! ఎలా ఉన్నారు? నేను మీ జనమిత్ర డిజిటల్ వ్యవసాయ మిత్రుడిని. మీ వ్యవసాయ సలహాలు, పంట ఆరోగ్యం లేదా ప్రభుత్వ సబ్సిడీ పథకాలలో నేను ఏ విధంగా సహాయపడగలను?`;
       chips = ["నా వివరాలు చెప్పు", "సోలార్ పంపు 60% సబ్సిడీ", "పంట తెగులు సలహా", "PM-KISAN ₹6,000 స్థితి"];
     } else if (lang === "hi") {
-      replyText = `नमस्ते ${farmer.name || "रमेश"} जी! आप कैसे हैं? मैं आपका जनमित्रा कृषि सलाहकार हूँ। कोथुर में आपकी 3.5 एकड़ भूमि पर कपास और मिर्च की फसल कैसी है? आज मैं आपकी खेती या सरकारी योजनाओं में किस प्रकार सहायता कर सकता हूँ?`;
+      replyText = `नमस्ते ${greetingHi}! आप कैसे हैं? मैं आपका जनमित्रा कृषि सलाहकार हूँ। आज मैं आपकी खेती, फसल सुरक्षा या सरकारी योजनाओं में किस प्रकार सहायता कर सकता हूँ?`;
       chips = ["मेरी जानकारी बताएं", "सोलर पंप 60% सब्सिडी", "फसल कीट सलाह", "PM-KISAN स्थिति"];
-    } else if (lang === "ta") {
-      replyText = `வணக்கம் ${farmer.name || "ரமேஷ்"} அவர்களே! நலமாக உள்ளீர்களா? நான் உங்கள் ஜனமித்ரா விவசாய ஆலோசகர். கொத்தூரில் உங்கள் 3.5 ஏக்கர் நிலத்தில் பயிர்கள் நலமா? இன்று உங்கள் விவசாயத்திற்கு நான் எவ்வாறு உதவ முடியும்?`;
-      chips = ["என் விவரங்கள் சொல்", "சோலார் பம்ப் 60% மானியம்", "பூச்சி மேலாண்மை", "PM-KISAN நிலை"];
-    } else if (lang === "kn") {
-      replyText = `ನಮಸ್ಕಾರ ${farmer.name || "ರಮೇಶ್"} ಅವರೇ! ಹೇಗಿದ್ದೀರಿ? ನಾನು ನಿಮ್ಮ ಜನಮಿತ್ರ ಕೃಷಿ ಮಿತ್ರ. ಕೊತ್ತೂರಿನಲ್ಲಿ ನಿಮ್ಮ 3.5 ಎಕರೆ ಜಮೀನಿನಲ್ಲಿ ಬೆಳೆಗಳು ಚೆನ್ನಾಗಿವೆಯೇ? ಇಂದು ನಿಮ್ಮ ಕೃಷಿಗೆ ನಾನು ಹೇಗೆ ಸಹಾಯ ಮಾಡಲಿ?`;
-      chips = ["ನನ್ನ ವಿವರ ತಿಳಿಸಿ", "ಸೋಲಾರ್ ಪಂಪ್ 60% ಸಬ್ಸಿಡಿ", "ಕೀಟ ನಿಯಂತ್ರಣ ಸಲಹೆ", "PM-KISAN ಸ್ಥಿತಿ"];
-    } else if (lang === "bn") {
-      replyText = `নমস্কার ${farmer.name || "রমেশ"} বাবু! কেমন আছেন? আমি আপনার জনমিত্র কৃষি সহকারী। কোথুরে আপনার ৩.৫ একর জমিতে ফসলের অবস্থা কেমন? আজ আপনার চাষের কাজে আমি কীভাবে সাহায্য করতে পারি?`;
-      chips = ["আমার তথ্য বলুন", "সৌর পাম্প ৬০% ভর্তুকি", "কীটপতঙ্গ পরামর্শ", "PM-KISAN স্থিতি"];
     } else {
-      replyText = `Namaste ${farmer.name || "Ramesh"} Ji! How are you doing? I am your JanMithra farm companion. How are the cotton and chilli crops on your 3.5 Acres in Kothur? How can I assist your farming or scheme applications today?`;
+      replyText = `Namaste ${greetingEn}! How are you doing? I am your JanMithra farm companion. How can I assist your farming, crop protection, or welfare scheme applications today?`;
       chips = ["Tell me about me", "Apply for PM-KUSUM 60%", "Pest control advice", "Check PM-KISAN ₹6,000 status"];
     }
   } else if (isProfileQuery) {
-    const farmer = currentFarmer;
     const profileReply = formatFarmerProfileReply(farmer, lang);
     replyText = profileReply.text;
     chips = profileReply.chips;
@@ -526,23 +530,21 @@ export function generateTextReply(text: string, lang: SupportedLanguage, current
     lower.includes("ಸೋಲಾರ್") ||
     lower.includes("সৌর")
   ) {
+    const salutationTe = farmer.name ? `${farmer.name} గారు` : "రైతు మిత్రమా";
+    const salutationHi = farmer.name ? `${farmer.name} जी` : "किसान साथी";
+    const salutationEn = farmer.name ? `${farmer.name} Ji` : "Farmer Friend";
+    const landStr = farmer.landSizeAcres ? `${farmer.landSizeAcres} ఎకరాల` : "మీ";
+    const landStrHi = farmer.landSizeAcres ? `${farmer.landSizeAcres} एकड़` : "आपकी";
+    const landStrEn = farmer.landSizeAcres ? `for your ${farmer.landSizeAcres} Acres of land` : "for your farmland";
+
     if (lang === "te") {
-      replyText = "రమేష్ గారు, మీ 3.5 ఎకరాల భూమికి మరియు బోరుబావికి PM-KUSUM కాంపోనెంట్-బి కింద 5HP సోలార్ పంపు చాలా అద్భుతంగా సరిపోతుంది. దీనికి కేంద్ర మరియు రాష్ట్ర ప్రభుత్వాలు కలిపి 60% సబ్సిడీ ఇస్తాయి, అంటే సుమారు రూ. 1,32,000 ఆదా అవుతుంది! మీ పొరుగు రైతు రామేశ్వర్ రెడ్డి గారు (3.8 కి.మీ దూరం) కూడా ఇదే పథకం ద్వారా పంపు అమర్చుకుని నెలకు రూ. 4,600 డీజిల్ ఖర్చు ఆదా చేసుకుంటున్నారు. మీ వద్ద ప్రస్తుతం బోరుబావి ఉందా లేక కొత్తగా వేయించాలా?";
+      replyText = `${salutationTe}, ${landStr} వ్యవసాయ భూమికి PM-KUSUM కాంపోనెంట్-బి కింద 5HP సోలార్ పంపు చాలా అద్భుతంగా సరిపోతుంది. దీనికి కేంద్ర మరియు రాష్ట్ర ప్రభుత్వాలు కలిపి 60% సబ్సిడీ ఇస్తాయి, దీనితో డీజిల్ మరియు కరెంట్ బిల్లుల ఖర్చు పూర్తిగా ఆదా అవుతుంది! మీ వద్ద ప్రస్తుతం పనిచేసే బోరుబావి లేదా బావి ఉందా?`;
       chips = ["అవును, బోరుబావి ఉంది", "బావి ఉంది", "కొత్తగా బోరు వేయాలి", "కావలసిన పత్రాలు ఏమిటి?"];
     } else if (lang === "hi") {
-      replyText = "रमेश जी, आपकी 3.5 एकड़ ज़मीन और बोरवेल के लिए PM-KUSUM योजना के तहत 5HP सोलर पंप बहुत फायदेमंद रहेगा। इस पर सरकार 60% सब्सिडी दे रही है (रु. 1,32,000 की सीधी बचत)। आपके पड़ोसी रामेश्वर रेड्डी जी (3.8 किमी दूर) ने इसे लगवाकर हर महीने ₹4,600 का डीजल बचाया। क्या आपके पास वर्तमान में कार्यरत बोरवेल या कुआं है?";
+      replyText = `${salutationHi}, ${landStrHi} भूमि और सिंचाई के लिए PM-KUSUM योजना के तहत 5HP सोलर पंप बहुत फायदेमंद रहेगा। इस पर सरकार 60% सब्सिडी देती है जिससे बिजली और डीजल का खर्च पूरी तरह समाप्त हो जाता है। क्या आपके पास वर्तमान में कार्यरत बोरवेल या कुआं है?`;
       chips = ["हाँ, बोरवेल है", "कुआं है", "नया बोरवेल लगवाना है", "आवश्यक दस्तावेज़ बताएं"];
-    } else if (lang === "ta") {
-      replyText = "ரமேஷ் அவர்களே, உங்கள் 3.5 ஏக்கர் நிலம் மற்றும் ஆழ்துளை கிணற்றுக்கு PM-KUSUM திட்டத்தின் கீழ் 60% அரசு மானியத்துடன் 5HP சோலார் பம்ப் மிகவும் சிறந்தது. உங்கள் அண்டை விவசாயி ராமேஸ்வர ரெட்டி மாதம் ₹4,600 டீசல் சேமித்துள்ளார். உங்களிடம் தற்போது ஆழ்துளை கிணறு உள்ளதா?";
-      chips = ["ஆம், ஆழ்துளை கிணறு உள்ளது", "திறந்த கிணறு உள்ளது", "புதிதாக அமைக்க வேண்டும்", "மானிய தகுதிகள் காட்டு"];
-    } else if (lang === "kn") {
-      replyText = "ರಮೇಶ್ ಅವರೇ, ನಿಮ್ಮ 3.5 ಎಕರೆ ಜಮೀನಿಗೆ PM-KUSUM ಯೋಜನೆಯಡಿ 60% ಸಬ್ಸಿಡಿಯೊಂದಿಗೆ 5HP ಸೋಲಾರ್ ಪಂಪ್ ಅತ್ಯಂತ ಸೂಕ್ತವಾಗಿದೆ. ನಿಮ್ಮ ನೆರೆಯ ರಾಮೇಶ್ವರ್ ರೆಡ್ಡಿ ತಿಂಗಳಿಗೆ ₹4,600 ಡೀಸೆಲ್ ಉಳಿಸಿದ್ದಾರೆ. ನಿಮ್ಮಲ್ಲಿ ಪ್ರಸ್ತುತ ಕೊಳವೆಬಾವಿ ಇದೆಯೇ?";
-      chips = ["ಹೌದು, ಕೊಳವೆಬಾವಿ ಇದೆ", "ಬಾವಿ ಇದೆ", "ಹೊಸದಾಗಿ ಕೊರೆಯಬೇಕು", "ಸಬ್ಸಿಡಿ ಅರ್ಹತೆಗಳನ್ನು ತೋರಿಸಿ"];
-    } else if (lang === "bn") {
-      replyText = "রমেশ বাবু, আপনার ৩.৫ একর জমি ও নলকূপের জন্য PM-KUSUM প্রকল্পে ৬০% সরকারি ভর্তুকিতে ৫HP সৌর পাম্প অত্যন্ত লাভজনক। আপনার প্রতিবেশী রামেশ্বর রেড্ডি মাসে ₹৪,৬০০ ডিজেল বাঁচিয়েছেন। আপনার কি বর্তমানে নলকূপ রয়েছে?";
-      chips = ["হ্যাঁ, নলকূপ আছে", "কুয়ো আছে", "নতুন বসাতে হবে", "ভর্তুকির যোগ্যতা দেখান"];
     } else {
-      replyText = "Ramesh Ji, for your 3.5 Acres and existing borewell in Kothur, a 5HP Solar Pump under PM-KUSUM Component-B is ideal! The government provides a 60% subsidy (saving you ₹1,32,000). Your neighbor Rameshwar Reddy (3.8 km away) saves ₹4,600 every month on diesel! Do you have an active borewell on your land?";
+      replyText = `${salutationEn}, ${landStrEn}, a standalone Solar Pump under PM-KUSUM Component-B provides up to 60% government subsidy, eliminating diesel and high electricity bills! Do you currently have an active borewell or open well on your land?`;
       chips = ["I have an active Borewell", "Open Irrigation Well", "Need new borewell", "What documents are required?"];
     }
   } else if (
@@ -569,22 +571,13 @@ export function generateTextReply(text: string, lang: SupportedLanguage, current
     lower.includes("கீಟ")
   ) {
     if (lang === "te") {
-      replyText = "రమేష్ గారు, పత్తిలో తెల్లదోమ లేదా ఆకు ముడుత తెగులు కనిపిస్తే ఆకుల అడుగుభాగంలో రసం పీల్చే పురుగులు చేరి తేనెజిగురును విసర్జిస్తాయి. కంగారు పడకండి! తక్షణ నివారణకు: ముందుగా ఎకరాకు వేపనూనె 10,000 ppm 2 మిల్లీలీటర్లు లీటరు నీటిలో కలిపి సాయంత్రం వేళ ఆకుల అడుగుభాగం బాగా తడిచేలా పిచికారీ చేయండి. తీవ్రత ఎక్కువగా ఉంటే డయాఫెంథియురాన్ 50% WP మందు వాడండి. అలాగే మీ పంట PMFBY పంట బీమా పరిధిలో ఉంటే నష్టపరిహారానికి కూడా దరఖాస్తు చేసుకోవచ్చు.";
+      replyText = `పంటలలో తెల్లదోమ లేదా ఆకు ముడుత తెగులు కనిపిస్తే ఆకుల అడుగుభాగంలో రసం పీల్చే పురుగులు చేరి నష్టం కలిగిస్తాయి. తక్షణ నివారణకు:\n1. **సేంద్రీయ చికిత్స:** ఎకరాకు వేపనూనె 10,000 ppm 2 మిల్లీలీటర్లు లీటరు నీటిలో కలిపి సాయంత్రం వేళ ఆకుల అడుగుభాగం బాగా తడిచేలా పిచికారీ చేయండి.\n2. **రసాయన నివారణ:** తీవ్రత ఎక్కువగా ఉంటే డయాఫెంథియురాన్ 50% WP @ 1 గ్రా/లీటర్ లేదా ఫ్లోనికామిడ్ 50% WG @ 0.3 గ్రా/లీటర్ వాడండి.\n3. **బీమా రక్షణ:** పంట నష్టం 33% దాటితే PMFBY పంట బీమా పరిధిలో నష్టపరిహారానికి 72 గంటల్లో దరఖాస్తు చేసుకోవచ్చు.`;
       chips = ["పిచికారీ ఎప్పుడు చేయాలి?", "మందుల షాపు వివరాలు", "పంట బీమా క్లెయిమ్ ఎలా?"];
     } else if (lang === "hi") {
-      replyText = "रमेश जी, कपास में सफेद मक्खी या पत्ती मुड़ने का प्रकोप होने पर पत्तियां मुड़ जाती हैं और चिपचिपा स्राव होता है। चिंता न करें! तुरंत रोकथाम के लिए: नीम का तेल 10,000 ppm @ 2 मिली/लीटर पानी शाम के समय पत्तियों के निचले हिस्से पर छिड़कें। यदि प्रकोप अधिक हो तो डायफेंथियूरॉन 50% WP @ 1 ग्राम/लीटर का प्रयोग करें।";
+      replyText = `कपास या अन्य फसलों में सफेद मक्खी या पत्ती मुड़ने का प्रकोप होने पर पत्तियां मुड़ जाती हैं। रोकथाम हेतु:\n1. **जैविक उपचार:** नीम का तेल 10,000 ppm @ 2 मिली/लीटर पानी शाम के समय पत्तियों के निचले हिस्से पर छिड़कें।\n2. **रासायनिक उपचार:** प्रकोप अधिक होने पर डायफेंथियूरॉन 50% WP @ 1 ग्राम/लीटर या फ्लोनिकामाइड 50% WG @ 0.3 ग्राम/लीटर का प्रयोग करें।\n3. **बीमा:** 33% से अधिक क्षति होने पर PMFBY में 72 घंटे के भीतर क्लेम करें।`;
       chips = ["दवा छिड़काव का समय", "नजदीकी कृषि केंद्र", "फसल बीमा क्लेम प्रक्रिया"];
-    } else if (lang === "ta") {
-      replyText = "ரமேஷ் அவர்களே, பருத்தியில் வெள்ளை ஈ அல்லது இலை சுருட்டை தாக்குதல் இருந்தால் கவலை வேண்டாம்! உடனடியாக ஏக்கருக்கு வேப்பெண்ணெய் 10,000 ppm @ 2 மிலி/லிட்டர் அல்லது டயாபெந்தியூரான் 50% WP @ 1 கிராம்/லிட்டர் தண்ணீரில் கலந்து மாலை வேளையில் தெளிக்கவும்.";
-      chips = ["மருந்து தெளிக்கும் நேரம் எப்போது?", "அருகிலுள்ள உழவர் மருந்தகம்", "பயிர் காப்பீட்டு உதவி"];
-    } else if (lang === "kn") {
-      replyText = "ರಮೇಶ್ ಅವರೇ, ಹತ್ತಿ ಬೆಳೆಯಲ್ಲಿ ಬಿಳಿ ನೊಣ ಅಥವಾ ಎಲೆ ಸುರುಟು ರೋಗ ಕಂಡುಬಂದರೆ ಗಾಬರಿಯಾಗಬೇಡಿ! ಎಕರೆಗೆ ಬೇವಿನ ಎಣ್ಣೆ 10,000 ppm @ 2 ಮಿಲಿ/ಲೀಟರ್ ಅಥವಾ ಡಯಾಫೆಂಥಿಯುರಾನ್ 50% WP @ 1 ಗ್ರಾಂ/ಲೀಟರ್ ನೀರಿನಲ್ಲಿ ಬೆರೆಸಿ ಸಂಜೆ ವೇಳೆ ಸಿಂಪಡಿಸಿ.";
-      chips = ["ಸಿಂಪಡಣೆ ಸಮಯ ಯಾವಾಗ?", "ಔಷಧಿ ಅಂಗಡಿ ವಿವರ", "ಬೆಳೆ ವಿಮೆ ಲಭ್ಯವಿದೆಯೇ?"];
-    } else if (lang === "bn") {
-      replyText = "রমেশ বাবু, তুলা ফসলে সাদা মাছি বা পাতা কোঁকড়ানো দেখা দিলে চিন্তা করবেন না! প্রতি লিটার জলে নিম তেল 10,000 ppm @ ২ মিলি বা ডায়াফেন্থিউরন 50% WP @ ১ গ্রাম মিশিয়ে বিকেলের দিকে স্প্রে করুন।";
-      chips = ["স্প্রে করার সঠিক সময়", "নিকটবর্তী কৃষি সেবা কেন্দ্র", "ফসল বীমা সুবিধা"];
     } else {
-      replyText = "Ramesh Ji, for whitefly infestation and leaf curling on cotton: spray Neem Oil (10,000 ppm) @ 2ml/litre water during evening hours, ensuring the underside of leaves is fully covered. For severe attack, Diafenthiuron 50% WP @ 1g/litre provides excellent control. This is also covered under PMFBY crop insurance.";
+      replyText = `For whitefly infestation and foliar curling on crops:\n1. **Organic / Botanical:** Spray cold-pressed Neem Oil (10,000 ppm) @ 2ml/litre water during evening hours, ensuring the underside of leaves is covered.\n2. **Chemical Control:** For severe infestation, Diafenthiuron 50% WP @ 1g/litre or Flonicamid 50% WG @ 0.3g/litre provides reliable knockdown.\n3. **Crop Insurance:** If yield loss exceeds 33%, you are eligible for claims under PMFBY by notifying within 72 hours.`;
       chips = ["Spray schedule", "Eligible under PMFBY crop insurance?", "Upload photo for scan"];
     }
   } else if (
@@ -601,24 +594,19 @@ export function generateTextReply(text: string, lang: SupportedLanguage, current
     lower.includes("ಕಂತು") ||
     lower.includes("টাকা")
   ) {
+    const salutationTe = farmer.name ? `${farmer.name} గారు` : "రైతు మిత్రమా";
+    const salutationHi = farmer.name ? `${farmer.name} जी` : "किसान साथी";
+    const salutationEn = farmer.name ? `${farmer.name} Ji` : "Farmer Friend";
+
     if (lang === "te") {
-      replyText = "రమేష్ గారు, మీ PM-KISAN 16వ విడత రూ. 2,000 సాయం ఇప్పటికే నేరుగా మీ స్టేట్ బ్యాంక్ ఆఫ్ ఇండియా ఖాతాలో (చివరి అంకెలు 4108) విజయవంతంగా జమ చేయబడింది. మీ ఆధార్ ఈ-కేవైసీ మరియు ధరణి భూమి రికార్డులు పక్కాగా లింక్ అయి ఉన్నాయి. 17వ విడత త్వరలోనే ప్రభుత్వం విడుదల చేయనుంది. మీకు పేమెంట్ రసీదు కావాలా?";
-      chips = ["తదుపరి విడత తేదీ ఎప్పుడు?", "రసీదు డౌన్‌లోడ్ చేయి", "బ్యాంక్ ఖాతా వివరాలు"];
+      replyText = `${salutationTe}, PM-KISAN సమ్మాన్ నిధి పథకం ద్వారా అర్హత గల రైతు కుటుంబాలకు సంవత్సరానికి ₹6,000 చొప్పున మూడు విడతల్లో (ప్రతి 4 నెలలకు ₹2,000) నేరుగా బ్యాంక్ ఖాతాలో DBT ద్వారా జమ చేయబడుతుంది. మీ ఆధార్ ఈ-కేవైసీ మరియు ధరణి/భూమి రికార్డులు మీ బ్యాంక్ ఖాతాతో లింక్ అయి ఉంటేనే డబ్బులు జమవుతాయి. మీ పేమెంట్ స్టేటస్ లేదా ఈ-కేవైసీ వివరాలు కావాలా?`;
+      chips = ["తదుపరి విడత ఎప్పుడు?", "ఈ-కేవైసీ ఎలా చేయాలి?", "బ్యాంక్ ఖాతా లింకేజ్"];
     } else if (lang === "hi") {
-      replyText = "रमेश जी, आपकी PM-KISAN 16वीं किस्त ₹2,000 पहले ही आपके एसबीआई खाते (अंतिम अंक 4108) में सफलतापूर्वक ट्रांसफर हो चुकी है। आपका आधार ई-केवाईसी और धरणी भूमि रिकॉर्ड पूरी तरह सत्यापित हैं। 17वीं किस्त भी जल्द ही जारी होगी। क्या आपको भुगतान रसीद देखनी है?";
-      chips = ["अगली किस्त की तारीख?", "भुगतान रसीद डाउनलोड करें", "भूमि लिंकेज जांचें"];
-    } else if (lang === "ta") {
-      replyText = "ரமேஷ் அவர்களே, உங்கள் PM-KISAN 16வது தவணை ₹2,000 ஏற்கனவே உங்கள் எஸ்பிஐ வங்கிக் கணக்கில் (•••• 4108) வரவு வைக்கப்பட்டுள்ளது. உங்கள் ஆதார் மற்றும் நில ஆவணங்கள் சரியாக இணைக்கப்பட்டுள்ளன.";
-      chips = ["அடுத்த தவணை எப்போது?", "கட்டண ரசீது பதிவிறக்கம்", "நில இணைப்பு நிலை"];
-    } else if (lang === "kn") {
-      replyText = "ರಮೇಶ್ ಅವರೇ, ನಿಮ್ಮ PM-KISAN 16ನೇ ಕಂತು ₹2,000 ಈಗಾಗಲೇ ನಿಮ್ಮ ಎಸ್‌ಬಿಐ ಬ್ಯಾಂಕ್ ಖಾತೆಗೆ (•••• 4108) ಜಮೆಯಾಗಿದೆ. ನಿಮ್ಮ ಆಧಾರ್ ಮತ್ತು ಭೂ ದಾಖಲೆಗಳು ಸರಿಯಾಗಿ ಲಿಂಕ್ ಆಗಿವೆ.";
-      chips = ["ಮುಂದಿನ ಕಂತಿನ ದಿನಾಂಕ?", "ಪಾವತಿ ರಶೀದಿ ಡೌನ್‌ಲೋಡ್", "ಭೂಮಿ ಲಿಂಕ್ ಸ್ಥಿತಿ"];
-    } else if (lang === "bn") {
-      replyText = "রমেশ বাবু, আপনার PM-KISAN ১৬তম কিস্তি ₹২,০০০ ইতিমধ্যে আপনার এসবিআই অ্যাকাউন্টে (•••• ৪১০৮) জমা হয়েছে। আপনার আধার ও জমির রেকর্ড সঠিকভাবে যুক্ত রয়েছে।";
-      chips = ["পরের কিস্তির তারিখ?", "পেমেন্ট রশিদ ডাউনলোড", "জমির লিঙ্ক স্ট্যাটাস"];
+      replyText = `${salutationHi}, PM-KISAN सम्मान निधि योजना के अंतर्गत सभी पात्र भूमिधारक किसान परिवारों को ₹6,000 प्रति वर्ष 3 समान किस्तों (प्रत्येक किस्त ₹2,000) में सीधे बैंक खाते में DBT द्वारा भेजे जाते हैं। इसके लिए आपका आधार ई-केवाईसी और भूमि रिकॉर्ड बैंक खाते से जुड़ा होना अनिवार्य है। क्या आप अपनी किस्त की स्थिति जांचना चाहते हैं?`;
+      chips = ["अगली किस्त की तारीख?", "ई-केवाईसी कैसे करें?", "भूमि लिंकेज जांचें"];
     } else {
-      replyText = "Ramesh Ji, your PM-KISAN 16th installment of ₹2,000 has already been credited to your SBI Account (ending in 4108). Your Aadhaar e-KYC and Dharani Land Record are fully verified and linked. The 17th installment will be announced shortly.";
-      chips = ["Next installment date?", "Download Payment Receipt", "Check land linkage"];
+      replyText = `${salutationEn}, under PM-KISAN Samman Nidhi Yojana, eligible landholding farmer families receive ₹6,000 per year directly in their bank accounts via DBT in 3 equal installments of ₹2,000 every 4 months. To ensure seamless disbursement, ensure your Aadhaar biometric e-KYC and Land Records are linked to your DBT bank account.`;
+      chips = ["Next installment date?", "How to complete e-KYC?", "Check land linkage status"];
     }
   } else if (
     lower.includes("loan") ||
@@ -634,15 +622,21 @@ export function generateTextReply(text: string, lang: SupportedLanguage, current
     lower.includes("ಸಾಲ") ||
     lower.includes("ঋণ")
   ) {
+    const salutationTe = farmer.name ? `${farmer.name} గారు` : "రైతు మిత్రమా";
+    const salutationHi = farmer.name ? `${farmer.name} जी` : "किसान साथी";
+    const salutationEn = farmer.name ? `${farmer.name} Ji` : "Farmer Friend";
+    const landStr = farmer.landSizeAcres ? `${farmer.landSizeAcres} ఎకరాల` : "మీ";
+    const landStrHi = farmer.landSizeAcres ? `${farmer.landSizeAcres} एकड़` : "आपकी";
+
     if (lang === "te") {
-      replyText = "రమేష్ గారు, మీకున్న 3.5 ఎకరాల నల్లరేగడి పట్టా భూమి ఆధారంగా కిసాన్ క్రెడిట్ కార్డ్ (KCC) ద్వారా కేవలం 4% రాయితీ వడ్డీకే బ్యాంకు పంట రుణం పొందవచ్చు. ఎకరాకు సుమారు రూ. 45,000 నుండి రూ. 60,000 వరకు రుణం మంజూరవుతుంది. మీ ధరణి పట్టాదారు పాస్ పుస్తకం మరియు ఆధార్ కార్డు సమర్పిస్తే మీ స్థానిక బ్యాంకులోనే ఇది సులభంగా పూర్తవుతుంది. దరఖాస్తు విధానం చెప్పమంటారా?";
+      replyText = `${salutationTe}, ${landStr} పట్టా భూమి ఆధారంగా కిసాన్ క్రెడిట్ కార్డ్ (KCC) ద్వారా కేవలం 4% రాయితీ వడ్డీకే బ్యాంకు పంట రుణం పొందవచ్చు. ఎకరాకు సుమారు రూ. 45,000 నుండి రూ. 60,000 వరకు పంట రుణం మంజూరవుతుంది. మీ పట్టాదారు పాస్ పుస్తకం మరియు ఆధార్ కార్డు సమర్పిస్తే మీ స్థానిక బ్యాంకులోనే ఇది సులభంగా పూర్తవుతుంది. దరఖాస్తు విధానం చెప్పమంటారా?`;
       chips = ["KCC వడ్డీ రేటు ఎంత?", "ఏ బ్యాంకులో దరఖాస్తు చేయాలి?", "కావలసిన పత్రాలు", "దరఖాస్తు ఫారం"];
     } else if (lang === "hi") {
-      replyText = "रमेश जी, आपकी 3.5 एकड़ काली मिट्टी की भूमि के आधार पर आप किसान क्रेडिट कार्ड (KCC) द्वारा मात्र 4% रियायती ब्याज दर पर कृषि ऋण प्राप्त कर सकते हैं। प्रति एकड़ ₹45,000 से ₹60,000 तक का ऋण स्वीकृत होता है। धरणी पट्टा पासबुक और आधार कार्ड देकर अपनी स्थानीय बैंक शाखा से तुरंत आवेदन कर सकते हैं। क्या आप आवेदन प्रक्रिया जानना चाहते हैं?";
+      replyText = `${salutationHi}, ${landStrHi} कृषि भूमि के आधार पर आप किसान क्रेडिट कार्ड (KCC) द्वारा मात्र 4% रियायती ब्याज दर पर बैंक फसल ऋण प्राप्त कर सकते हैं। प्रति एकड़ ₹45,000 से ₹60,000 तक का ऋण स्वीकृत होता है। पट्टा पासबुक और आधार कार्ड देकर अपनी स्थानीय बैंक शाखा से तुरंत आवेदन कर सकते हैं। क्या आप आवेदन प्रक्रिया जानना चाहते हैं?`;
       chips = ["KCC ब्याज दर", "आवश्यक दस्तावेज़", "नजदीकी बैंक शाखा", "ऋण आवेदन"];
     } else {
-      replyText = "Ramesh Ji, with your 3.5 Acres of verified farmland in Kothur, you can avail a Kisan Credit Card (KCC) crop loan at a concessional interest rate of just 4%! You are eligible for approximately ₹45,000 to ₹60,000 per acre. Submit your Dharani Patta Passbook and Aadhaar at your local bank to get started.";
-      chips = ["What documents are needed?", "Check KCC interest rate", "Eligible banks in Kothur", "Apply now"];
+      replyText = `${salutationEn}, with verified agricultural landholding, you can avail a Kisan Credit Card (KCC) crop loan at a concessional interest rate of just 4% (with 3% prompt repayment incentive). You are eligible for approximately ₹45,000 to ₹60,000 per acre. Submit your Patta Passbook / Land Deed and Aadhaar at your local bank to apply.`;
+      chips = ["What documents are needed?", "Check KCC interest rate", "Eligible banks", "Apply now"];
     }
   } else if (
     lower.includes("fertilizer") ||
@@ -664,14 +658,14 @@ export function generateTextReply(text: string, lang: SupportedLanguage, current
     lower.includes("সার")
   ) {
     if (lang === "te") {
-      replyText = "రమేష్ గారు, మీ భూమి నల్లరేగడి నేల కాబట్టి తేమను ఎక్కువ కాలం నిలుపుకుంటుంది. మీ పత్తి మరియు మిర్చి పంటలకు ఎకరాకు 50 కేజీల డీఏపీ, 25 కేజీల పొటాష్ వేసి, పైపాటుగా యూరియాను రెండు విడతల్లో వేసుకోవడం మంచిది. మీ వద్ద ఉన్న నేల పరీక్ష కార్డును స్కాన్ చేస్తే ఖచ్చితమైన ఎరువుల మోతాదును సిఫార్సు చేస్తాను!";
+      replyText = `పంటలకు సమతుల్య ఎరువుల యాజమాన్యం చాలా ముఖ్యం. విత్తే సమయంలో ఎకరాకు సిఫార్సు చేసిన డీఏపీ మరియు పొటాష్‌ను బేసల్ డోస్‌గా వేసి, యూరియాను రెండు విడతల్లో పైపాటుగా అందించడం వల్ల అధిక దిగుబడి వస్తుంది. మీ వద్ద ఉన్న నేల పరీక్ష కార్డును (Soil Health Card) స్కాన్ చేస్తే ఖచ్చితమైన ఎరువుల మోతాదును సిఫార్సు చేస్తాను!`;
       chips = ["నేల పరీక్ష కార్డు స్కాన్ చేయి", "సేంద్రియ ఎరువుల సలహా", "వేపపిండి వాడకం", "ఎరువుల షాపు వివరాలు"];
     } else if (lang === "hi") {
-      replyText = "रमेश जी, आपकी ज़मीन काली मिट्टी की है जो नमी को लंबे समय तक रोकती है। कपास और मिर्च के लिए प्रति एकड़ 50 किग्रा डीएपी और 25 किग्रा पोटाश आधार रूप में डालें, तथा यूरिया को दो किस्तों में छिड़कें। यदि आप अपना मृदा स्वास्थ्य कार्ड स्कैन करेंगे तो मैं सटीक वैज्ञानिक खुराक बता पाऊंगा!";
+      replyText = `फसलों के लिए संतुलित पोषण आवश्यक है। बुवाई के समय डीएपी और पोटाश आधार रूप में डालें तथा यूरिया को दो किस्तों में छिड़कें। यदि आप अपना मृदा स्वास्थ्य कार्ड (Soil Health Card) स्कैन करेंगे तो मैं आपकी मिट्टी के अनुसार सटीक वैज्ञानिक खुराक बता सकूंगा।`;
       chips = ["मृदा कार्ड स्कैन करें", "जैविक खाद सलाह", "उर्वरक की सही मात्रा"];
     } else {
-      replyText = "Ramesh Ji, because your farm is Black Soil, it retains moisture well. For cotton and chilli, applying 50kg DAP and 25kg Potash as basal dose, followed by split Urea application gives the highest yield. Upload your Soil Health Card and I'll calculate the exact micro-nutrient dose for you!";
-      chips = ["Upload Soil Card for Scan", "Organic fertilizer guide", "Best fertilizer dealers in Kothur"];
+      replyText = `Balanced fertilization is critical for high crop yields. Applying recommended basal doses of DAP and Potash, followed by split application of Urea ensures maximum nutrient absorption. Upload your Soil Health Card or field photo, and JanMithra will calculate the precise micronutrient recommendation for your soil!`;
+      chips = ["Upload Soil Card for Scan", "Organic fertilizer guide", "Fertilizer dosage calculator"];
     }
   } else if (
     lower.includes("weather") ||
@@ -688,21 +682,22 @@ export function generateTextReply(text: string, lang: SupportedLanguage, current
     lower.includes("ಆಕಾಶ") ||
     lower.includes("আবহাওয়া")
   ) {
+    const locStr = farmer.village || farmer.district || "మీ ప్రాంతంలో";
+    const locStrHi = farmer.village || farmer.district || "आपके क्षेत्र में";
+    const locStrEn = farmer.village || farmer.district || "your region";
+
     if (lang === "te") {
-      replyText = "రమేష్ గారు, రంగారెడ్డి మరియు కొత్తూరు పరిసర ప్రాంతాల్లో రాబోయే 3 రోజుల్లో తేలికపాటి నుండి మోస్తరు వర్షాలు కురిసే అవకాశం ఉంది. కాబట్టి చేనులో నీరు నిల్వ ఉండకుండా డ్రైనేజీ కాల్వలు శుభ్రం చేసుకోండి. వర్షం పడే సూచన ఉన్నప్పుడు ఎలాంటి పురుగుమందులు పిచికారీ చేయవద్దని సలహా ఇస్తున్నాను.";
-      chips = ["రాబోయే 7 రోజుల వాతావరణం", "పంట రక్షణ చర్యలు", "పంట బీమా వివరాలు", "కార్యాలయానికి కాల్ చేయి"];
+      replyText = `${locStr} రాబోయే రోజుల్లో వాతావరణ పరిస్థితుల దృష్ట్యా, చేనులో నీరు నిల్వ ఉండకుండా డ్రైనేజీ కాల్వలు శుభ్రం చేసుకోండి. వర్షం పడే సూచన ఉన్నప్పుడు ఎలాంటి రసాయన పురుగుమందులు పిచికారీ చేయవద్దని సలహా ఇస్తున్నాను.`;
+      chips = ["రాబోయే 7 రోజుల వాతావరణం", "పంట రక్షణ చర్యలు", "పంట బీమా వివరాలు"];
     } else if (lang === "hi") {
-      replyText = "रमेश जी, रंगारेड्डी और कोथुर क्षेत्र में अगले 3 दिनों में हल्की से मध्यम वर्षा की संभावना है। कृपया अपने खेत में जल निकासी की व्यवस्था सुनिश्चित करें। बारिश के दौरान किसी भी कीटनाशक का छिड़काव न करने की सलाह दी जाती है।";
+      replyText = `${locStrHi} मौसम की संभावना को देखते हुए, कृपया खेत में जल निकासी की व्यवस्था सुनिश्चित करें ताकि जड़ों में पानी न भरे। वर्षा के दौरान कीटनाशक छिड़काव से बचें।`;
       chips = ["अगले 7 दिनों का मौसम", "फसल सुरक्षा टिप्स", "फसल बीमा स्थिति"];
     } else {
-      replyText = "Ramesh Ji, in Rangareddy and Kothur village, light to moderate rainfall is expected over the next 3 days. Please ensure field drainage channels are clear to prevent waterlogging around cotton roots. Avoid spraying chemicals until the rain passes.";
+      replyText = `In ${locStrEn}, please ensure field drainage channels are clear to prevent waterlogging around crop root zones. Avoid spraying chemical pesticides immediately before or during rain to prevent chemical wash-off.`;
       chips = ["7-Day Weather Forecast", "Crop protection advice", "PMFBY Insurance coverage"];
     }
   } else {
-    const farmer = currentFarmer;
-
     // JanMitra Dense Vector NLP & Semantic Search Engine:
-    // Queries the 4,706 government schemes and conversational dataset using 128-dim embeddings + 50/50 hybrid matching.
     const semanticMatches = semanticSearchSchemes(text, farmer, 3);
     const topMatch = semanticMatches[0];
 
@@ -712,46 +707,35 @@ export function generateTextReply(text: string, lang: SupportedLanguage, current
       const sla = elig.sla;
 
       if (lang === "te") {
-        replyText = `🏛️ **${s.name}**\n${topMatch.formattedBadge}\n\n📋 **పథకం సారాంశం (శాఖ: ${s.ministry}):**\n${s.description}\n\n💰 **ప్రయోజనాలు & సబ్సిడీ:**\n${s.benefits}\n\n📄 **కావలసిన పత్రాలు:**\n${s.documents_required || "ఆధార్ కార్డు, పట్టాదారు పాస్ పుస్తకం, బ్యాంక్ ఖాతా వివరాలు"}\n\n⚡ **పరిష్కార గడువు & అర్హత సూచిక (Predictive Regressor):**\n• అంచనా గడువు: **${sla.formattedEta}** (కన్ఫిడెన్స్: ${(sla.confidenceScore * 100).toFixed(0)}%)\n• అర్హత స్కోరు: **${elig.overallMatchScore}%** (${elig.factorBreakdown[3]?.score || "చిన్న రైతు ప్రాధాన్యత"})`;
+        replyText = `🏛️ **${s.name}**\n${topMatch.formattedBadge}\n\n📋 **పథకం సారాంశం (శాఖ: ${s.ministry}):**\n${s.description}\n\n💰 **ప్రయోజనాలు & సబ్సిడీ:**\n${s.benefits}\n\n📄 **కావలసిన పత్రాలు:**\n${s.documents_required || "ఆధార్ కార్డు, పట్టాదారు పాస్ పుస్తకం, బ్యాంక్ ఖాతా వివరాలు"}\n\n⚡ **పరిష్కార గడువు & అర్హత సూచిక:**\n• అంచనా గడువు: **${sla.formattedEta}**\n• అర్హత స్కోరు: **${elig.overallMatchScore}%** (${elig.factorBreakdown[3]?.score || "చిన్న రైతు ప్రాధాన్యత"})`;
         chips = ["ఈ పథకానికి దరఖాస్తు చేయండి", "కావలసిన పత్రాలు ఏమిటి?", "సమీప రైతు భరోసా కేంద్రం", "ఇతర వ్యవసాయ పథకాలు"];
       } else if (lang === "hi") {
-        replyText = `🏛️ **${s.name}**\n${topMatch.formattedBadge}\n\n📋 **योजना का विवरण (मंत्रालय: ${s.ministry}):**\n${s.description}\n\n💰 **वित्तीय लाभ एवं सब्सिडी:**\n${s.benefits}\n\n📄 **आवश्यक दस्तावेज़:**\n${s.documents_required || "आधार कार्ड, भूमि रिकॉर्ड (खसरा/खतौनी), बैंक खाता विवरण"}\n\n⚡ **निपटान समय एवं पात्रता (Predictive Regressor):**\n• अनुमानित समय: **${sla.formattedEta}** (सटीकता: ${(sla.confidenceScore * 100).toFixed(0)}%)\n• पात्रता मैच: **${elig.overallMatchScore}%** (${elig.factorBreakdown[3]?.score || "लघु कृषक प्राथमिकता"})`;
+        replyText = `🏛️ **${s.name}**\n${topMatch.formattedBadge}\n\n📋 **योजना का विवरण (मंत्रालय: ${s.ministry}):**\n${s.description}\n\n💰 **वित्तीय लाभ एवं सब्सिडी:**\n${s.benefits}\n\n📄 **आवश्यक दस्तावेज़:**\n${s.documents_required || "आधार कार्ड, भूमि रिकॉर्ड (खसरा/खतौनी), बैंक खाता विवरण"}\n\n⚡ **निपटान समय एवं पात्रता:**\n• अनुमानित समय: **${sla.formattedEta}**\n• पात्रता मैच: **${elig.overallMatchScore}%** (${elig.factorBreakdown[3]?.score || "लघु कृषक प्राथमिकता"})`;
         chips = ["आवेदन प्रक्रिया बताएं", "आवश्यक दस्तावेज़ सूची", "नजदीकी सीएससी केंद्र", "अन्य किसान योजनाएं"];
-      } else if (lang === "ta") {
-        replyText = `🏛️ **${s.name}**\n${topMatch.formattedBadge}\n\n📋 **திட்ட விவரங்கள் (அமைச்சகம்: ${s.ministry}):**\n${s.description}\n\n💰 **நலன்கள் & அரசு மானியம்:**\n${s.benefits}\n\n📄 **தேவையான ஆவணங்கள்:**\n${s.documents_required || "ஆதார் அட்டை, நில பட்டா, வங்கி பாஸ்புக்"}\n\n⚡ **செயல்முறை காலக்கெடு (Predictive Regressor):**\n• மதிப்பிடப்பட்ட நேரம்: **${sla.formattedEta}** (${(sla.confidenceScore * 100).toFixed(0)}% துல்லியம்)\n• தகுதி நிலை: **${elig.overallMatchScore}%**`;
-        chips = ["விண்ணப்பிக்கும் முறை", "ஆவண சரிபார்ப்பு", "உழவர் மையம்", "பிற நலத்திட்டங்கள்"];
-      } else if (lang === "kn") {
-        replyText = `🏛️ **${s.name}**\n${topMatch.formattedBadge}\n\n📋 **ಯೋಜನೆಯ ವಿವರಗಳು (ಸಚಿವಾಲಯ: ${s.ministry}):**\n${s.description}\n\n💰 **ಸೌಲಭ್ಯಗಳು & ಆರ್ಥಿಕ ನೆರವು:**\n${s.benefits}\n\n📄 **ಅಗತ್ಯ ದಾಖಲೆಗಳು:**\n${s.documents_required || "ಆಧಾರ್ ಕಾರ್ಡ್, ಪಹಣಿ/ಆರ್‌ಒಆರ್, ಬ್ಯಾಂಕ್ ಪಾಸ್‌ಬುಕ್"}\n\n⚡ **ಅಂದಾಜು ಸಮಯ (Predictive Regressor):**\n• ಅಂದಾಜು ಸಮಯ: **${sla.formattedEta}** (${(sla.confidenceScore * 100).toFixed(0)}% ನಿಖರತೆ)\n• ಅರ್ಹತಾ ಸ್ಕೋರ್: **${elig.overallMatchScore}%**`;
-        chips = ["ಅರ್ಜಿ ಸಲ್ಲಿಸುವ ವಿಧಾನ", "ದಾಖಲೆಗಳ ಪಟ್ಟಿ", "ರೈತ ಸಂಪರ್ಕ ಕೇಂದ್ರ", "ಇತರ ಯೋಜನೆಗಳು"];
-      } else if (lang === "bn") {
-        replyText = `🏛️ **${s.name}**\n${topMatch.formattedBadge}\n\n📋 **প্রকল্প বিবরণ (মন্ত্রণালয়: ${s.ministry}):**\n${s.description}\n\n💰 **সুবিধা ও সরকারি অনুদান:**\n${s.benefits}\n\n📄 **প্রয়োজনীয় কাগজপত্র:**\n${s.documents_required || "আধার কার্ড, জমির পাট্টা, ব্যাংক অ্যাকাউন্ট তথ্য"}\n\n⚡ **প্রক্রিয়াকরণ সময় (Predictive Regressor):**\n• আনুমানিক সময়: **${sla.formattedEta}** (${(sla.confidenceScore * 100).toFixed(0)}% নির্ভুলতা)\n• যোগ্যতা স্কোর: **${elig.overallMatchScore}%**`;
-        chips = ["আবেদন পদ্ধতি", "প্রয়োজনীয় ডকুমেন্টস", "কৃষি সেবা কেন্দ্র", "অন্যান্য প্রকল্প"];
       } else {
-        replyText = `🏛️ **${s.name}**\n${topMatch.formattedBadge}\n\n📋 **Scheme Summary (Ministry: ${s.ministry}):**\n${s.description}\n\n💰 **Key Benefits & Subsidies:**\n${s.benefits}\n\n📄 **Required Documents:**\n${s.documents_required || "Aadhaar Card, Land Holding Documents (Pahani/Patta), Bank Account Details, Mobile Number"}\n\n⚡ **Turnaround ETA & Eligibility (Predictive Regressor):**\n• Estimated Turnaround: **${sla.formattedEta}** (${(sla.confidenceScore * 100).toFixed(0)}% predictive confidence)\n• Multi-Factor Match: **${elig.overallMatchScore}%** (${elig.factorBreakdown[3]?.score || "Marginal Farmer Priority"})`;
+        replyText = `🏛️ **${s.name}**\n${topMatch.formattedBadge}\n\n📋 **Scheme Summary (Ministry: ${s.ministry}):**\n${s.description}\n\n💰 **Key Benefits & Subsidies:**\n${s.benefits}\n\n📄 **Required Documents:**\n${s.documents_required || "Aadhaar Card, Land Holding Documents (Pahani/Patta), Bank Account Details, Mobile Number"}\n\n⚡ **Turnaround ETA & Eligibility:**\n• Estimated Turnaround: **${sla.formattedEta}**\n• Multi-Factor Match: **${elig.overallMatchScore}%** (${elig.factorBreakdown[3]?.score || "Marginal Farmer Priority"})`;
         chips = ["How to Apply", "Required Documents Checklist", "Nearest Krishi Kendra", "Explore More Welfare Schemes"];
       }
 
       return { text: replyText, chips };
     }
 
+    const greetingTe = farmer.name ? `${farmer.name} గారు` : "రైతు మిత్రమా";
+    const greetingHi = farmer.name ? `${farmer.name} जी` : "किसान साथी";
+    const greetingEn = farmer.name ? `${farmer.name} Ji` : "Farmer Friend";
+    const farmContextTe = farmer.landSizeAcres ? `మీకున్న ${farmer.landSizeAcres} ఎకరాల భూమిని` : "మీ వ్యవసాయాన్ని";
+    const farmContextHi = farmer.landSizeAcres ? `आपकी ${farmer.landSizeAcres} एकड़ भूमि को` : "आपकी खेती को";
+    const farmContextEn = farmer.landSizeAcres ? `your ${farmer.landSizeAcres} Acres of farmland` : "your farm";
+
     if (lang === "te") {
-      replyText = `నమస్కారం ${farmer.name || "రమేష్"} గారు! మీ ప్రశ్నను శ్రద్ధగా గమనించాను. కొత్తూరులో మీకున్న ${farmer.landSizeAcres} ఎకరాల నల్లరేగడి భూమి మరియు పత్తి, మిర్చి పంటలను దృష్టిలో ఉంచుకుని నేను సహాయం చేస్తాను. మీకు పంటల సాగు పద్ధతులు, పురుగుమందులు, ఎరువుల మోతాదు లేదా ప్రభుత్వం అందించే సబ్సిడీ పథకాలలో ఏ అంశంపై సలహా కావాలో అడగండి, వెంటనే సరైన పరిష్కారం అందిస్తాను!`;
-      chips = ["సోలార్ పంపు 60% సబ్సిడీ", "PM-KISAN డబ్బుల వివరాలు", "పంట తెగులు సలహా", "సమీప రైతులతో మాట్లాడండి"];
+      replyText = `నమస్కారం ${greetingTe}! మీ ప్రశ్నను శ్రద్ధగా గమనించాను. ${farmContextTe} దృష్టిలో ఉంచుకుని నేను సహాయం చేస్తాను. పంటల సాగు పద్ధతులు, పురుగుమందులు, ఎరువుల మోతాదు లేదా ప్రభుత్వం అందించే సబ్సిడీ పథకాలలో ఏ అంశంపై సలహా కావాలో అడగండి, సరైన పరిష్కారం అందిస్తాను!`;
+      chips = ["సోలార్ పంపు 60% సబ్సిడీ", "PM-KISAN డబ్బుల వివరాలు", "పంట తెగులు సలహా", "అర్హత గల పథకాలు"];
     } else if (lang === "hi") {
-      replyText = `नमस्ते ${farmer.name || "रमेश"} जी! मैंने आपका प्रश्न समझ लिया है। कोथुर में आपकी ${farmer.landSizeAcres} एकड़ काली मिट्टी और फसलों को ध्यान में रखते हुए मैं आपकी पूरी मदद करूँगा। आपको खेती की तकनीक, खाद, कीट नियंत्रण या सरकारी सब्सिडी योजनाओं में से किस विषय पर जानकारी चाहिए?`;
-      chips = ["सोलर पंप 60% सब्सिडी", "PM-KISAN ₹6,000 स्थिति", "कीट नियंत्रण सलाह", "आसपास के किसान से जुड़ें"];
-    } else if (lang === "ta") {
-      replyText = `வணக்கம் ${farmer.name || "ரமேஷ்"} அவர்களே! உங்கள் கேள்வியைப் புரிந்து கொண்டேன். கொத்தூரில் உங்கள் ${farmer.landSizeAcres} ஏக்கர் கரிசல் மண் நிலத்திற்கு பயனுள்ள அரசு திட்டங்கள் மற்றும் விவசாய ஆலோசனைகளை வழங்க நான் தயாராக உள்ளேன். உங்களுக்கு என்ன குறிப்பிட்ட வழிகாட்டுதல் தேவை?`;
-      chips = ["சோலார் பம்ப் 60% மானியம்", "PM-KISAN தகுதி நிலை", "பூச்சி மேலாண்மை", "விவசாயியுடன் பேசுங்கள்"];
-    } else if (lang === "kn") {
-      replyText = `ನಮಸ್ಕಾರ ${farmer.name || "ರಮೇಶ್"} ಅವರೇ! ನಿಮ್ಮ ಪ್ರಶ್ನೆಯನ್ನು ಅರ್ಥಮಾಡಿಕೊಂಡಿದ್ದೇನೆ. ಕೊತ್ತೂರಿನಲ್ಲಿ ನಿಮ್ಮ ${farmer.landSizeAcres} ಎಕರೆ ಜಮೀನಿಗೆ ಸೂಕ್ತವಾದ ಕೃಷಿ ಮಾಹಿತಿ ಮತ್ತು ಸರ್ಕಾರಿ ಯೋಜನೆಗಳ ವಿವರಗಳನ್ನು ನೀಡಲು ಸಿದ್ಧನಿದ್ದೇನೆ. ನಿಮಗೆ ಯಾವ ನಿರ್ದಿಷ್ಟ ಮಾಹಿತಿ ಬೇಕು?`;
-      chips = ["ಸೋಲಾರ್ ಪಂಪ್ 60% ಸಬ್ಸಿಡಿ", "PM-KISAN ವಿವರಗಳು", "ಬೆಳೆ ಕೀಟ ಸಲಹೆ", "ರೈತರೊಂದಿಗೆ ಮಾತನಾಡಿ"];
-    } else if (lang === "bn") {
-      replyText = `নমস্কার ${farmer.name || "রমেশ"} বাবু! আমি আপনার প্রশ্ন বুঝতে পেরেছি। কোথুরে আপনার ${farmer.landSizeAcres} একর জমির উপযোগী কৃষি পরামর্শ ও সরকারি প্রকল্পের সহায়তার জন্য আমি প্রস্তুত। আপনি কোন বিষয়ে বিস্তারিত জানতে চান?`;
-      chips = ["সৌর পাম্প ৬০% ভর্তুকি", "PM-KISAN ₹৬,০০০ স্থিতি", "কীটপতঙ্গ নিয়ন্ত্রণ", "কৃষকের সাথে যোগাযোগ"];
+      replyText = `नमस्ते ${greetingHi}! मैंने आपका प्रश्न समझ लिया है। ${farmContextHi} ध्यान में रखते हुए मैं आपकी सहायता करूँगा। खेती की तकनीक, खाद, कीट नियंत्रण या सरकारी सब्सिडी योजनाओं में से किस विषय पर जानकारी चाहिए?`;
+      chips = ["सोलर पंप 60% सब्सिडी", "PM-KISAN ₹6,000 स्थिति", "कीट नियंत्रण सलाह", "अन्य किसान योजनाएं"];
     } else {
-      replyText = `Namaste ${farmer.name || "Ramesh"} Ji! I have noted your question carefully. Considering your ${farmer.landSizeAcres} Acres of Black Soil and crops in ${farmer.village}, I am here to help with crop advisory, fertilizers, pest control, or government welfare subsidies. What specific information would you like to explore?`;
-      chips = ["Solar Pump 60% Subsidy", "Check PM-KISAN ₹6,000", "Pest & Disease Advisory", "Connect with nearby peer farmers"];
+      replyText = `Namaste ${greetingEn}! I have noted your question carefully. Considering ${farmContextEn}, I am here to help with crop advisory, fertilizers, pest control, or government welfare subsidies. What specific information would you like to explore?`;
+      chips = ["Solar Pump 60% Subsidy", "Check PM-KISAN ₹6,000", "Pest & Disease Advisory", "Explore Welfare Schemes"];
     }
   }
 

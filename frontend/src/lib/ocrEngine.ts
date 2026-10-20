@@ -71,7 +71,11 @@ const AGRI_DOMAIN_KEYWORDS = [
   "gypsum", "sprayer", "minikit", "beneficiary", "paddy", "cotton", "maize",
   "chilli", "horticulture", "irrigation", "borwell", "solar pump", "kusum",
   "pm-kisan", "pmfby", "kcc", "shc", "icar", "extension", "officer", "aao",
-  "vendee", "vendor", "purchaser", "pattadar", "allotment", "barani", "cultivable"
+  "vendee", "vendor", "purchaser", "pattadar", "allotment", "barani", "cultivable",
+  "university", "counseling", "recruitment", "assam", "birsa", "ranchi", "pathak",
+  "director", "passbook", "schedule", "sub-registrar", "stamp", "registration",
+  "admission", "candidate", "verification", "marksheet", "degree", "diploma",
+  "identity", "election", "voter", "ration"
 ];
 
 /**
@@ -325,10 +329,79 @@ export async function analyzeDocumentComprehensive(
       ],
     };
   }
+
+  // -------------------------------------------------------------------------
+  // 1B. STRICT OUT-OF-SCOPE REJECTION: Selfies / People / Empty Non-Agri Photos
+  // -------------------------------------------------------------------------
+  const isCropVisual =
+    classification?.detectedType === "crop_disease" ||
+    lowerName.includes("crop") ||
+    lowerName.includes("leaf") ||
+    lowerName.includes("pest") ||
+    (classification?.metrics?.greenVegetationRatio && classification.metrics.greenVegetationRatio >= 8);
+
+  const isSoilVisual =
+    classification?.detectedType === "soil_health" ||
+    lowerName.includes("soil") ||
+    (classification?.metrics?.soilToneRatio && classification.metrics.soilToneRatio >= 15);
+
+  const isDocumentFile = [".pdf", ".doc", ".docx", ".txt", ".rtf"].some((ext) => lowerName.endsWith(ext));
+
+  if (!isCropVisual && !isSoilVisual && !isDocumentFile) {
+    const isExplicitlyOutOfScope =
+      classification?.isAgriRelated === false || classification?.detectedType === "out_of_scope";
+
+    if (isExplicitlyOutOfScope && ocrRawText.trim().length < 25) {
+      return {
+        docType: "land_record",
+        title: "Out of Scope (Not Related to Agriculture or Schemes)",
+        confidenceScore: 0.96,
+        isAgriRelated: false,
+        scopeStatus: "out_of_scope",
+        detectionSummary: "The uploaded photo does not appear to be related to agriculture, crops, or government welfare schemes.",
+        reason:
+          classification?.message ||
+          "The captured image appears to show a person, portrait, or indoor surroundings rather than agricultural crops, plant leaves, soil samples, or official government welfare documents.",
+        extractedTextSnippet: ocrRawText.slice(0, 200),
+        extractedData: {},
+        boundingBoxes: [],
+        schemesUnlocked: [],
+        suggestions: [
+          "Capture a photo of a farm crop leaf, pest, or field for disease diagnosis.",
+          "Upload an official agricultural document (Registered Sale Deed, Land Patta / Pahani / RoR, Soil Health Card, or Farmer ID).",
+        ],
+      };
+    }
+  }
+
   // -------------------------------------------------------------------------
   // 2. MULTIMODAL NLP ANALYSIS SUITE (BERT + HMM + CRF + TF-IDF)
   // -------------------------------------------------------------------------
   const nlpResult = analyzeDocumentWithNlpSuite(ocrRawText, fileName, classification);
+
+  // If NLP suite flagged out-of-scope (e.g. non-agri text or selfie without document)
+  if (nlpResult.isAgriRelated === false || nlpResult.scopeStatus === "out_of_scope") {
+    return {
+      docType: "land_record",
+      title: nlpResult.title || "Out of Scope (Not Related to Agriculture or Schemes)",
+      confidenceScore: nlpResult.confidenceScore || 0.96,
+      isAgriRelated: false,
+      scopeStatus: "out_of_scope",
+      detectionSummary: nlpResult.detectionSummary || "The uploaded photo does not appear to be related to agriculture, crops, or government welfare schemes.",
+      reason:
+        nlpResult.reason ||
+        "The captured image appears to show a person, portrait, or indoor surroundings rather than agricultural crops, plant leaves, soil samples, or official government welfare documents.",
+      extractedTextSnippet: ocrRawText.slice(0, 200),
+      extractedData: nlpResult.extractedData || {},
+      boundingBoxes: [],
+      schemesUnlocked: [],
+      suggestions: nlpResult.suggestions || [
+        "Capture a photo of a farm crop leaf, pest, or field for disease diagnosis.",
+        "Upload an official agricultural document (Registered Sale Deed, Land Patta / Pahani / RoR, Soil Health Card, or Farmer ID).",
+      ],
+      nlpBreakdown: nlpResult.nlpBreakdown,
+    };
+  }
 
   // Augment with regex extractions if available
   const ownerName = extractDynamicName(ocrRawText, cleanLines);
