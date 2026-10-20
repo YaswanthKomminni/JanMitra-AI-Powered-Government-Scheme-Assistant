@@ -30,7 +30,8 @@ export default function LiveCameraCapture({
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const [stream, setStream] = useState<MediaStream | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const cameraRequest = useRef(0);
   const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
   const [hasMultipleCameras, setHasMultipleCameras] = useState(false);
   const [cameraLoading, setCameraLoading] = useState(true);
@@ -53,21 +54,19 @@ export default function LiveCameraCapture({
 
   // Stop active camera stream tracks
   const stopStream = useCallback(() => {
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
-      setStream(null);
-    }
-  }, [stream]);
+    cameraRequest.current++;
+    streamRef.current?.getTracks().forEach(track => track.stop());
+    streamRef.current = null;
+    if (videoRef.current) videoRef.current.srcObject = null;
+  }, []);
 
   // Start live camera stream
   const startCamera = useCallback(async () => {
     setCameraLoading(true);
     setCameraError(null);
 
-    // Stop existing stream first
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
-    }
+    stopStream();
+    const requestId = cameraRequest.current;
 
     try {
       if (!navigator?.mediaDevices?.getUserMedia) {
@@ -84,7 +83,11 @@ export default function LiveCameraCapture({
       };
 
       const newStream = await navigator.mediaDevices.getUserMedia(constraints);
-      setStream(newStream);
+      if (requestId !== cameraRequest.current) {
+        newStream.getTracks().forEach(track => track.stop());
+        return;
+      }
+      streamRef.current = newStream;
 
       if (videoRef.current) {
         videoRef.current.srcObject = newStream;
@@ -94,6 +97,7 @@ export default function LiveCameraCapture({
       }
       setCameraLoading(false);
     } catch (err: any) {
+      if (requestId !== cameraRequest.current) return;
       console.error("Camera access failed:", err);
       let errorMsg = "Could not access the camera.";
       if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
@@ -108,23 +112,18 @@ export default function LiveCameraCapture({
       setCameraError(errorMsg);
       setCameraLoading(false);
     }
-  }, [facingMode, stream]);
+  }, [facingMode, stopStream]);
 
-  // Initialize camera on mount and when facingMode changes
+  // Cleanup also invalidates a permission request that resolves after closing/switching cameras.
   useEffect(() => {
-    startCamera();
-    return () => {
-      // Cleanup tracks on unmount
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
-      }
-    };
-  }, [facingMode]);
+    void startCamera();
+    return stopStream;
+  }, [startCamera, stopStream]);
 
   // Capture frame to canvas
   const handleSnap = () => {
     const video = videoRef.current;
-    if (!video) return;
+    if (!video || video.readyState < 2 || !video.videoWidth || !video.videoHeight) return;
 
     // Trigger visual shutter flash
     setIsFlashing(true);

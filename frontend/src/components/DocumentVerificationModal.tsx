@@ -200,7 +200,7 @@ export default function DocumentVerificationModal() {
                   <div className="absolute inset-0 bg-red-950/40 flex items-center justify-center">
                     <span className="px-2.5 py-1 rounded-lg bg-red-600 text-white font-black text-xs uppercase shadow-md flex items-center gap-1">
                       <X className="w-3.5 h-3.5" />
-                      Not Agricultural
+                      Image not analyzed
                     </span>
                   </div>
                 </div>
@@ -215,12 +215,13 @@ export default function DocumentVerificationModal() {
 
                   <div className="pt-1">
                     <p className="font-black text-stone-800 uppercase tracking-wider text-[11px] mb-1.5">
-                      Accepted Agricultural Content:
+                      Supported images and documents:
                     </p>
                     <ul className="space-y-1 text-stone-600 list-disc list-inside">
                       <li><strong>Crop leaves & pest symptoms:</strong> Cotton, Paddy, Chilli leaves for AI disease diagnosis.</li>
                       <li><strong>Revenue land records:</strong> Land Patta, Pahani / RoR 1B passbooks for PM-KISAN & KUSUM.</li>
-                      <li><strong>Soil Health Cards:</strong> ICAR laboratory chemical tests for free fertilizer kits.</li>
+                      <li><strong>Soil Health Cards:</strong> Laboratory results and crop-specific recommendations.</li>
+                      <li><strong>Government welfare:</strong> Scheme notices, pensions, scholarships, application forms and benefit letters.</li>
                       <li><strong>Farmer KYC:</strong> Aadhaar / Farmer ID card for DBT benefit linking.</li>
                     </ul>
                   </div>
@@ -1272,14 +1273,15 @@ export default function DocumentVerificationModal() {
             )}
           </div>
 
+          {verificationResult && (verificationResult as any).saveError && <p role="alert" className="text-sm text-red-700">{(verificationResult as any).saveError}</p>}
           {verificationResult && (
             <button
               onClick={confirmExtractedData}
-              disabled={(verificationResult as any).analysisQuality === "partial"}
+              disabled={(verificationResult as any).analysisQuality === "partial" || !(verificationResult as any).analysisRecordId}
               className="px-5 sm:px-7 py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs sm:text-sm shadow-md flex items-center gap-2 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <ShieldCheck className="w-4 h-4 text-emerald-300" />
-              <span>{(verificationResult as any).analysisQuality === "partial" ? "Clearer copy needed to confirm details" : t.confirmAndUpdate}</span>
+              <span>{(verificationResult as any).analysisQuality === "partial" ? "Clearer copy needed to confirm details" : !(verificationResult as any).analysisRecordId ? "Preview only — scan an upload to save" : "Confirm my review"}</span>
             </button>
           )}
         </div>

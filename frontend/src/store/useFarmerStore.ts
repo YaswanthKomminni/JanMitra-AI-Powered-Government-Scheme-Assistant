@@ -877,46 +877,21 @@ export const useFarmerStore = create<FarmerState>((set, get) => {
     return false;
   },
 
-  confirmExtractedData: () => {
-    const result = get().verificationResult;
-    if (!result) return;
-    if ((result as any).analysisQuality === "partial") return;
-
-    // Send to backend PostgreSQL JanMithra
+  confirmExtractedData: async () => {
+    const result = get().verificationResult as any;
+    if (!result || result.analysisQuality === "partial") return;
     try {
-      fetch("/api/verify-doc", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          docType: result.docType,
-          title: result.title,
-          confidenceScore: result.confidenceScore,
-          extractedData: result.extractedData,
-          previewUrl: result.previewUrl,
-        }),
-      }).catch((err) => console.warn("Background verify-doc sync notice:", err));
-    } catch (e) {
-      // ignore
-    }
-
-    // If land record, update farmer land size
-    if (result.extractedData.landAreaAcres) {
-      set((state) => ({
-        currentFarmer: {
-          ...state.currentFarmer,
-          landSizeAcres: result.extractedData.landAreaAcres || state.currentFarmer.landSizeAcres,
-          verifiedDocsCount: state.currentFarmer.verifiedDocsCount + 1,
-        },
-        verificationModalOpen: false,
-      }));
-    } else {
-      set((state) => ({
-        currentFarmer: {
-          ...state.currentFarmer,
-          verifiedDocsCount: state.currentFarmer.verifiedDocsCount + 1,
-        },
-        verificationModalOpen: false,
-      }));
+      if (!result.analysisRecordId) throw new Error("This analysis could not be saved. Please scan again before confirming.");
+      const response = await fetch("/api/verify-doc", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ analysisRecordId: result.analysisRecordId }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) throw new Error(data.message || "Could not save your review.");
+      await get().initAuth({ silent: true });
+      set({ verificationModalOpen: false });
+    } catch (error) {
+      set({ verificationResult: { ...result, saveError: error instanceof Error ? error.message : "Could not save your review. Please retry." } as any });
     }
   },
 

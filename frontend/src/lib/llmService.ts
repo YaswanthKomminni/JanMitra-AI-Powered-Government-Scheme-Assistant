@@ -339,7 +339,8 @@ export async function generateIntelligentChatReply(
     .slice(-12).map((turn) => ({ ...turn, content: turn.content.slice(0, 2500) }));
   const memory = req.conversationMemory || buildConversationMemory(req.history || [], query);
   const latestDocument = memory.topic ? memory.topic.kind === "document" : req.documentContextIsLatestTopic !== false;
-  const useDocument = shouldUseDocument(query, req.documentContext, latestDocument, req.forceDocumentContext);
+  const useDocument = (memory.latestUploadAvailable !== false || req.forceDocumentContext === true)
+    && shouldUseDocument(query, req.documentContext, latestDocument, req.forceDocumentContext);
   const documentContext = useDocument ? req.documentContext : undefined;
   if (documentContext?.analysisQuality === "partial") {
     return { ...answerDocumentQuestion(query, documentContext, language), provider: "campusone_copilot", usedDocument: true,

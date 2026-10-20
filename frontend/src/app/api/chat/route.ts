@@ -206,6 +206,7 @@ export async function POST(request: Request) {
                 return { text: outcome.message, chips: ["Upload a clearer image", "Paste the document text"] };
               }
               if (outcome.success && outcome.detection) {
+                conversationMemory.latestUploadAvailable = true;
                 // Grounded Question-Answering, Summaries & Actionable Suggestions via Multimodal LLM / CampusOne Copilot:
                 const llmAnswer = await generateIntelligentChatReply({
                   query: storedText,
@@ -232,19 +233,21 @@ export async function POST(request: Request) {
           // Use the latest analyzed attachment in THIS conversation, preserving its OCR and facts.
           // Never attach another chat's most recent land record or inject default scheme benefits.
           let activeDocContext: any = undefined;
-          try {
-            const recent = await dbQuery<any[]>(
-              `SELECT metadata FROM chat_logs
-               WHERE user_id = $1 AND conversation_id = $2 AND id < $3 AND sender = 'ai'
-                 AND metadata->'docDetection' IS NOT NULL
-               ORDER BY id DESC LIMIT 1`,
-              [userId, convId, userRow.id]
-            );
-            const metadata = recent[0]?.metadata;
-            const parsed = typeof metadata === "string" ? JSON.parse(metadata) : metadata;
-            activeDocContext = parsed?.docDetection;
-          } catch (error) {
-            console.warn("[chat] document context lookup failed:", (error as Error).message);
+          if (conversationMemory.latestUploadAvailable !== false) {
+            try {
+              const recent = await dbQuery<any[]>(
+                `SELECT metadata FROM chat_logs
+                 WHERE user_id = $1 AND conversation_id = $2 AND id < $3 AND sender = 'ai'
+                   AND metadata->'docDetection' IS NOT NULL
+                 ORDER BY id DESC LIMIT 1`,
+                [userId, convId, userRow.id]
+              );
+              const metadata = recent[0]?.metadata;
+              const parsed = typeof metadata === "string" ? JSON.parse(metadata) : metadata;
+              activeDocContext = parsed?.docDetection;
+            } catch (error) {
+              console.warn("[chat] document context lookup failed:", (error as Error).message);
+            }
           }
 
           // Unified Conversational LLM Engine (Gemini 2.0 / Groq Llama 3 / OpenAI with CampusOne Copilot Fallback):

@@ -8,6 +8,7 @@ export interface ConversationMemory {
   topic?: { kind: "scheme" | "crop" | "document"; query: string; crop?: string; scheme?: string; intent?: string };
   pendingQuestion?: string;
   options?: string[];
+  latestUploadAvailable?: boolean;
 }
 
 const cropPattern = /\b(cotton|paddy|rice|maize|corn|chilli|wheat|tomato|groundnut|sugarcane|millet|soybean|potato|onion)\b/gi;
@@ -31,7 +32,8 @@ export function readConversationMemory(raw: unknown): ConversationMemory | undef
     ? { kind: value.topic.kind, query: value.topic.query.slice(0, 1000), crop: typeof value.topic.crop === "string" ? value.topic.crop.slice(0, 100) : undefined,
       intent: typeof value.topic.intent === "string" ? value.topic.intent.slice(0, 30) : undefined,
       scheme: typeof value.topic.scheme === "string" ? value.topic.scheme.slice(0, 180) : undefined } : undefined;
-  return { version: 1, facts, topic, pendingQuestion: typeof value.pendingQuestion === "string" ? value.pendingQuestion.slice(0, 500) : undefined,
+  return { version: 1, facts, topic, latestUploadAvailable: typeof value.latestUploadAvailable === "boolean" ? value.latestUploadAvailable : undefined,
+    pendingQuestion: typeof value.pendingQuestion === "string" ? value.pendingQuestion.slice(0, 500) : undefined,
     options: Array.isArray(value.options) ? value.options.filter((item: unknown) => typeof item === "string").slice(0, 8).map((item: string) => item.slice(0, 180)) : [] };
 }
 
@@ -41,6 +43,7 @@ function lastMatch(text: string, pattern: RegExp): string | undefined {
 }
 
 function updateUser(memory: ConversationMemory, query: string, attachment = false) {
+  if (attachment) memory.latestUploadAvailable = false; // Set true only after successful server analysis.
   const q = query.trim();
   const facts = memory.facts;
   const pending = memory.pendingQuestion || "";

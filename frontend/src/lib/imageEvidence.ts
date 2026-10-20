@@ -30,6 +30,12 @@ export function reconcileImageEvidence(cloud: VisionAnalysisResult | null, local
     return cloud?.scopeStatus === "out_of_scope" && cloud.confidenceScore >= 0.85 ? cloud : local;
   }
   if (cloud.docType === "crop_disease") {
+    if (local.scopeStatus === "out_of_scope" && local.confidenceScore >= 0.85) {
+      return { ...local, scopeStatus: "uncertain", isAgriRelated: false, confidenceScore: 0,
+        title: "Image needs a clearer view", extractedData: {}, schemesUnlocked: [],
+        detectionSummary: "The visual readings disagree about whether a crop is visible. Please send a close-up with the crop clearly in focus.",
+        suggestions: ["Include the whole plant and a close-up of the affected part in good light."] };
+    }
     // Readable document content takes precedence over mistaking a poster's plant picture for a crop sample.
     if (local.scopeStatus === "in_scope" && local.docType !== "crop_disease" && (local.extractedTextSnippet || "").length > 80) return local;
     return { ...cloud, schemesUnlocked: [], suggestions: (cloud.cropAnalysis?.nextSteps || cloud.suggestions).filter(s => !chemicalDose.test(s)),
@@ -85,10 +91,15 @@ export function answerCropImage(query: string, detection: any, facts: FarmerFact
   const checks = yellow ? "Compare older and younger leaves, uniform yellowing versus green veins, and wet versus dry root-zone soil. Root stress can resemble nutrient deficiency; check the soil report before adding fertilizer." : "";
   const question = analysis?.questions.find(q => !(facts.crop && /what crop|which crop/i.test(q)) && !(facts.cropAge && /how old|crop age/i.test(q)))
     || (!facts.crop ? "What crop is this?" : "How much of the field is affected, and when did it start?");
+  const cropIdentity = /(?:what|which).*(?:crop|plant)|(?:crop|plant) name|identify (?:the |this )?(?:crop|plant)/i.test(query);
+  if (cropIdentity) return { text: analysis?.cropName
+    ? `The image may show ${analysis.cropName}. This is a tentative visual identification; confirm with the whole plant, leaves and farmer's crop information.`
+    : `I cannot reliably identify the crop from this image. ${facts.crop ? `You told me you grow ${facts.crop}; that does not by itself confirm the pictured plant.` : "Please share the crop name or a clearer view of the whole plant."}`, chips: ["What symptoms are visible?", "What should I check next?"] };
+  const actionsOnly = /suggest|recommend|next|should i do|safely do|treat|remed|what can i do|check.*causes/i.test(query);
   const text = [
     ...(known ? [`Using the farm details you shared: ${known}.`] : []),
     `**What is visible**\n${observations.map(s => `• ${s}`).join("\n")}`,
-    causes.length ? `**Possible causes to check**\n${causes.map(c => `• ${c.name}: ${c.evidence} Check: ${c.check}`).join("\n")}` : "The image alone does not identify a disease or nutrient deficiency.",
+    causes.length ? `**Possible causes to check**\n${causes.map(c => `• ${c.name}: ${actionsOnly ? c.check : `${c.evidence} Check: ${c.check}`}`).join("\n")}` : "The image alone does not identify a disease or nutrient deficiency.",
     `**Next steps**\n${steps.map((s: string) => `• ${s}`).join("\n")}`,
     ...(checks ? [checks, "General diagnostic reference: https://ipm.ucanr.edu/home-and-landscape/common-nutrient-deficiency-symptoms/"] : []),
     ...(analysis?.limitations || []),

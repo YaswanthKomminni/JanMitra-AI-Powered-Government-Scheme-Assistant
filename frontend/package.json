@@ -13,7 +13,7 @@
     "db:setup": "node scripts/db-migrate.mjs --setup",
     "user:set-password": "node scripts/set-password.mjs",
     "test:api": "node --test --test-concurrency=1 tests/api.test.mjs",
-    "test:ai": "node --test tests/ai.test.cjs",
+    "test:ai": "node --test tests/ai.test.cjs tests/documentConfirmation.test.cjs",
     "db:transfer-mysql": "node scripts/migrate-mysql-data.mjs"
   },
   "dependencies": {

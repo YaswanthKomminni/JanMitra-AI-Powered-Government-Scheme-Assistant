@@ -248,6 +248,7 @@ test('new farming topics replace scheme topics and ordinal scheme choices stay c
 test('document follow-ups retain their source even when the upload question names a scheme', async () => {
   const doc = { parsedDetails: parseAndSummarizeDocumentContent(notice) };
   let memory = buildConversationMemory([], 'Explain PM-KISAN in this document', undefined, true);
+  memory.latestUploadAvailable = true; // Simulate successful server analysis.
   assert.equal(memory.topic.kind, 'document');
   memory = finishConversationMemory(memory, 'The applicant is Meena Devi.');
   memory = buildConversationMemory([], 'What documents are required?', memory);
@@ -516,4 +517,48 @@ test('official retrieval strips scripts and never fetches arbitrary user URLs', 
     assert.equal(passages[0].url, 'https://pmkisan.gov.in/');
     assert.equal(requests, 1);
   } finally { global.fetch = realFetch; }
+});
+
+test('short crop details remain attached to the analyzed image across follow-ups', async () => {
+  const detection = {docType: 'crop_disease', detectionSummary: 'Yellow leaves are visible.', suggestions: ['Check drainage.'],
+    cropAnalysis: {observations: ['Older leaves look yellow.'], possibleCauses: [], nextSteps: ['Check drainage.'], questions: ['What crop is this?']} };
+  let memory = buildConversationMemory([], 'Analyze this image', undefined, true);
+  memory.latestUploadAvailable = true;
+  memory = finishConversationMemory(memory, 'Yellow leaves are visible. What crop is this?');
+  memory = buildConversationMemory([], 'Cotton, 40 days old', memory);
+  let answer = await generateIntelligentChatReply({query: 'Cotton, 40 days old', language: 'en', documentContext: detection, conversationMemory: memory});
+  assert.equal(answer.usedDocument, true);
+  assert.match(answer.text, /Cotton; 40 days/);
+  assert.match(answer.text, /Older leaves look yellow/);
+  memory = finishConversationMemory(memory, answer.text);
+  memory = buildConversationMemory([], 'What should I do next?', memory);
+  answer = await generateIntelligentChatReply({query: 'What should I do next?', language: 'en', documentContext: detection, conversationMemory: memory});
+  assert.equal(answer.usedDocument, true);
+  assert.match(answer.text, /Check drainage/);
+});
+
+test('an unreadable or rejected new upload cannot silently reuse an older document', async () => {
+  let memory = buildConversationMemory([], 'Read this document', undefined, true);
+  memory.latestUploadAvailable = true;
+  memory = buildConversationMemory([], 'Analyze this new photo', memory, true);
+  assert.equal(memory.latestUploadAvailable, false);
+  memory = finishConversationMemory(memory, 'Irrelevant image. Please upload a crop or scheme document.');
+  memory = buildConversationMemory([], 'Who is the owner in this image?', memory);
+  const answer = await generateIntelligentChatReply({query: 'Who is the owner in this image?', language: 'en', documentContext: {parsedDetails: parseAndSummarizeDocumentContent(notice)}, conversationMemory: memory});
+  assert.doesNotMatch(answer.text, /Meena Devi/);
+  assert.notEqual(answer.usedDocument, true);
+});
+
+test('contradictory visual readings do not turn a clearly unrelated room into a crop diagnosis', () => {
+  const result = reconcileImageEvidence({isAgriRelated: true, scopeStatus: 'in_scope', docType: 'crop_disease', confidenceScore: .99, detectionSummary: 'Cotton disease', suggestions: ['Use pesticide.']},
+    {isAgriRelated: false, scopeStatus: 'out_of_scope', confidenceScore: .95, detectionSummary: 'A ceiling fan and room.', suggestions: []});
+  assert.equal(result.scopeStatus, 'uncertain');
+  assert.equal(result.isAgriRelated, false);
+  assert.deepEqual(result.extractedData, {});
+});
+
+test('crop identification answers distinguish the pictured plant from the saved farm crop', () => {
+  const reply = answerCropImage('Which crop is shown?', {docType: 'crop_disease', detectionSummary: 'Some leaves are visible.'}, {crop: 'cotton'});
+  assert.match(reply.text, /cannot reliably identify/);
+  assert.match(reply.text, /does not by itself confirm/);
 });
