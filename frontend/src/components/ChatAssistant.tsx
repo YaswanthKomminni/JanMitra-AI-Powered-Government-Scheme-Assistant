@@ -284,8 +284,7 @@ export default function ChatAssistant({ variant = "full" }: { variant?: "full" |
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                       <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                     </span>
-                    <span>YOLOv8 Reticle Active</span>
-                    <span className="text-stone-400 font-mono text-[9px]">[ymin, xmin, ymax, xmax]</span>
+                    <span>Document Verified</span>
                   </div>
                 </div>
               ) : (
@@ -306,134 +305,21 @@ export default function ChatAssistant({ variant = "full" }: { variant?: "full" |
             )}
             <p className="whitespace-pre-line break-words">{msg.text}</p>
 
-            {/* YOLOv8 Feature Localization & Predictive SLA Regressor Breakdown */}
+            {/* Document Verification Status Pill */}
             {!isUser && msg.docDetection && (
-              <div className="mt-3 p-3 rounded-2xl bg-emerald-950/5 border border-emerald-500/20 text-xs">
-                <div className="flex items-center justify-between mb-2 pb-2 border-b border-emerald-500/10 font-bold text-emerald-900">
-                  <span className="flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-                    YOLOv8-VisionNet Feature Segmentation
-                  </span>
-                  <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-mono font-black">
-                    {msg.docDetection.boundingBoxes?.length || 0} Entities Mapped
-                  </span>
-                </div>
-                {msg.docDetection.boundingBoxes?.map((bb: any, idx: number) => {
-                  const coords = bb.normalizedCoords || [
-                    Math.round(bb.box?.top || 15),
-                    Math.round(bb.box?.left || 10),
-                    Math.round((bb.box?.top || 15) + (bb.box?.height || 25)),
-                    Math.round((bb.box?.left || 10) + (bb.box?.width || 80)),
-                  ];
-                  const visState = bb.visibilityState || (bb.confidence >= 0.85 ? "critical" : "moderate");
-                  return (
-                    <div key={idx} className="flex items-center justify-between py-1 text-[11px] text-stone-700">
-                      <span className="flex items-center gap-1.5 truncate max-w-[210px]">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>
-                        <span className="font-bold truncate">{bb.label?.startsWith("YOLOv8") ? bb.label : `YOLOv8: ${bb.label}`}</span>
-                      </span>
-                      <div className="flex items-center gap-1.5 shrink-0 font-mono text-[10px]">
-                        <span className={`px-1.5 py-0.2 rounded font-bold uppercase ${
-                          visState === "critical" ? "bg-rose-100 text-rose-700" : "bg-amber-100 text-amber-800"
-                        }`}>
-                          {visState}
-                        </span>
-                        <span className="bg-stone-100 text-stone-600 px-1 rounded font-mono">
-                          [{coords.join(",")}]
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Multimodal NLP Suite (BERT + HMM + CRF + TF-IDF) Breakdown */}
-            {!isUser && msg.docDetection && (
-              <div className="mt-2.5 p-3 rounded-2xl bg-stone-900 text-stone-100 border border-emerald-500/30 text-xs space-y-2.5 shadow-md">
-                <div className="flex items-center justify-between pb-1.5 border-b border-white/10 font-black text-emerald-400">
-                  <span className="flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5" />
-                    Multimodal NLP Analysis Suite
-                  </span>
-                  <span className="text-[10px] bg-emerald-950 text-emerald-300 border border-emerald-700/60 px-2 py-0.5 rounded-full font-mono font-bold">
-                    BERT • HMM • CRF • TF-IDF
-                  </span>
-                </div>
-
-                {/* HMM Section Flow */}
-                <div className="space-y-1">
-                  <span className="text-[10px] uppercase font-black text-emerald-300 tracking-wider block">
-                    📜 HMM Document Section Sequence (Viterbi Decoded):
-                  </span>
-                  <div className="flex flex-wrap items-center gap-1 text-[10px]">
-                    <span className="px-2 py-0.5 rounded bg-emerald-800/80 text-emerald-100 font-bold">Header & Seal</span>
-                    <span className="text-stone-400">➔</span>
-                    <span className="px-2 py-0.5 rounded bg-emerald-800/80 text-emerald-100 font-bold">Beneficiary ID</span>
-                    <span className="text-stone-400">➔</span>
-                    <span className="px-2 py-0.5 rounded bg-emerald-800/80 text-emerald-100 font-bold">Parcel & Crop</span>
-                    <span className="text-stone-400">➔</span>
-                    <span className="px-2 py-0.5 rounded bg-emerald-800/80 text-emerald-100 font-bold">Valuation Stamp</span>
-                    <span className="text-stone-400">➔</span>
-                    <span className="px-2 py-0.5 rounded bg-emerald-800/80 text-emerald-100 font-bold">Authority Sign</span>
-                  </div>
-                </div>
-
-                {/* CRF Named Entities */}
-                <div className="space-y-1">
-                  <span className="text-[10px] uppercase font-black text-cyan-300 tracking-wider block">
-                    🏷️ CRF Extracted Named Entities:
-                  </span>
-                  <div className="flex flex-wrap gap-1.5 text-[10px]">
-                    {msg.docDetection.extractedData?.ownerName && (
-                      <span className="px-2 py-0.5 rounded-lg bg-cyan-950/80 text-cyan-200 border border-cyan-800 font-medium">
-                        <strong className="text-cyan-400 font-bold">B-BENEFICIARY:</strong> {msg.docDetection.extractedData.ownerName}
-                      </span>
-                    )}
-                    {msg.docDetection.extractedData?.citizenName && (
-                      <span className="px-2 py-0.5 rounded-lg bg-cyan-950/80 text-cyan-200 border border-cyan-800 font-medium">
-                        <strong className="text-cyan-400 font-bold">B-BENEFICIARY:</strong> {msg.docDetection.extractedData.citizenName}
-                      </span>
-                    )}
-                    {msg.docDetection.extractedData?.surveyNumber && (
-                      <span className="px-2 py-0.5 rounded-lg bg-amber-950/80 text-amber-200 border border-amber-800 font-medium">
-                        <strong className="text-amber-400 font-bold">B-LAND_ID:</strong> {msg.docDetection.extractedData.surveyNumber}
-                      </span>
-                    )}
-                    {msg.docDetection.extractedData?.landAreaAcres && (
-                      <span className="px-2 py-0.5 rounded-lg bg-emerald-950/80 text-emerald-200 border border-emerald-800 font-medium">
-                        <strong className="text-emerald-400 font-bold">B-EXTENT:</strong> {msg.docDetection.extractedData.landAreaAcres}
-                      </span>
-                    )}
-                    {msg.docDetection.extractedData?.considerationAmount && (
-                      <span className="px-2 py-0.5 rounded-lg bg-purple-950/80 text-purple-200 border border-purple-800 font-medium">
-                        <strong className="text-purple-400 font-bold">B-AMOUNT:</strong> {msg.docDetection.extractedData.considerationAmount}
-                      </span>
-                    )}
-                    {msg.docDetection.extractedData?.cropDetected && (
-                      <span className="px-2 py-0.5 rounded-lg bg-emerald-950/80 text-emerald-200 border border-emerald-800 font-medium">
-                        <strong className="text-emerald-400 font-bold">B-CROP:</strong> {msg.docDetection.extractedData.cropDetected}
-                      </span>
-                    )}
-                    {msg.docDetection.extractedData?.pestIdentified && (
-                      <span className="px-2 py-0.5 rounded-lg bg-rose-950/80 text-rose-200 border border-rose-800 font-medium">
-                        <strong className="text-rose-400 font-bold">B-PEST_DISEASE:</strong> {msg.docDetection.extractedData.pestIdentified}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* BERT & SLA Stats */}
-                <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-white/10 text-[10px] text-stone-300">
-                  <span className="flex items-center gap-1 font-mono text-emerald-300">
-                    <span>🎯 BERT 128-Dim Dense Match:</span>
-                    <strong>89% Cosine Similarity</strong>
-                  </span>
-                  <span className="flex items-center gap-1 font-mono text-amber-300">
-                    <span>⚡ SLA Regressor:</span>
-                    <strong>48 hrs (91% confidence)</strong>
-                  </span>
-                </div>
+              <div className="mt-3 pt-2.5 border-t border-stone-200/80 flex items-center justify-between gap-2">
+                <span className="text-[11px] font-bold text-stone-500 flex items-center gap-1.5">
+                  <CheckCheck className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Document Verified</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setVerificationModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-bold transition shadow-xs"
+                >
+                  <FileText className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>View Details</span>
+                </button>
               </div>
             )}
 

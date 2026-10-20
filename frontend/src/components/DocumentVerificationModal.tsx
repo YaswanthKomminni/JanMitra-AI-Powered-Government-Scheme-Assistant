@@ -1095,6 +1095,24 @@ export default function DocumentVerificationModal() {
                       </span>
                     </div>
                   )}
+
+                  {/* Dynamic Key-Value Parameter Rendering for Any Document */}
+                  {Object.entries(verificationResult.extractedData || {})
+                    .filter(([k]) => ![
+                      "ownerName", "surveyNumber", "landAreaAcres", "considerationAmount",
+                      "issuingAuthority", "soilType", "soilPh", "nitrogenStatus",
+                      "phosphorusStatus", "cropDetected", "pestIdentified", "diseaseSymptoms",
+                      "recommendedAction", "citizenName", "dbtLinkedBank", "districtMandal",
+                      "waterSource", "revenueStatus", "organization", "noticeSubject",
+                      "venue", "dates", "authority", "institution", "admissionDegree",
+                      "affiliatedColleges"
+                    ].includes(k))
+                    .map(([k, v]) => (
+                      <div key={k} className="p-3 rounded-xl bg-white border border-stone-200">
+                        <span className="text-stone-400 font-bold block">{k}:</span>
+                        <span className="font-extrabold text-stone-900 text-sm whitespace-pre-line">{String(v)}</span>
+                      </div>
+                    ))}
                 </div>
               </div>
 
