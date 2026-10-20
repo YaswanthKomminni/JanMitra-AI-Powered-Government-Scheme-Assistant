@@ -106,3 +106,22 @@ frontend/
 ├── tailwind.config.ts
 └── next.config.mjs
 ```
+
+## Document and image AI
+
+Government welfare notices (including pensions and scholarships), agricultural admissions/recruitment, land records, KYC and crop photos are supported. A portrait printed on an ID card, hands holding a notice, or a document displayed on a screen does not make the document irrelevant.
+
+Configure at least one server-side provider key in `.env.local` for multimodal reasoning and full translated responses: `GEMINI_API_KEY`, `GROQ_API_KEY`, or `OPENAI_API_KEY`. Optional text/vision model overrides are listed in `.env.example`. Defaults were checked against the Google and Groq model catalogs on 2026-10-20; deployments can override these as availability changes. Restart the app after changing settings.
+
+Cloud attempts share bounded deadlines and fall back to literal local extraction. Without a cloud key, readable images use Tesseract, searchable PDFs use PDF text extraction, and plain text is read directly. Local OCR defaults to English; enable installed Indic language packs with `OCR_LANGUAGES` and `OCR_LANG_PATH`. Local extraction preserves source wording; it is not a substitute for a multilingual generative model. Scanned PDFs need Gemini vision or a clear image of each page. Other unsupported or unreadable formats request clearer input instead of inventing a summary or rejecting them as selfies.
+
+Only positively unrelated content is rejected. Local document text can override a mistaken model rejection. Uncertain uploads are not recorded as successful analyses. Document follow-up context comes from the current conversation's analyzed attachment, retaining the extracted text and structured facts. Local fallback lists schemes explicitly mentioned in the source; it does not declare eligibility.
+
+Run `npm run test:ai` for isolated AI regression tests (no database or cloud keys needed). To include a real-image OCR check in PowerShell:
+
+```powershell
+$env:TEST_REAL_OCR = '1'
+npm run test:ai
+```
+
+The optional `TEST_OCR_FILE` environment variable selects another image. This OCR check uses the bundled English language data. `npm run typecheck` and `npm run build` validate the application. The separate `test:api` suite requires a running app and configured PostgreSQL database.

@@ -182,6 +182,9 @@ export async function POST(request: Request) {
               if (!outcome.success && outcome.isOutOfScope) {
                 return buildOutOfScopeReply(language, outcome.reason);
               }
+              if (!outcome.success) {
+                return { text: outcome.message, chips: ["Upload a clearer image", "Paste the document text"] };
+              }
               if (outcome.success && outcome.detection) {
                 // Grounded Question-Answering, Summaries & Actionable Suggestions via Multimodal LLM / CampusOne Copilot:
                 const llmAnswer = await generateIntelligentChatReply({
@@ -198,42 +201,27 @@ export async function POST(request: Request) {
                 };
               }
             } catch (ocrErr) {
-              console.warn("[chat] document analysis failed, using text engine:", (ocrErr as Error).message);
+              console.warn("[chat] document analysis failed:", (ocrErr as Error).message);
+              return { text: "I could not read this upload. Please send a clearer image, a searchable PDF, or paste its text so I can answer your question.", chips: [] };
             }
           }
 
-          // If no attachment in current message, check if user is asking questions about a document
-          // or asking for summary/analysis/suggestions of their previously uploaded document:
-          const isDocQuestion =
-            /summar|analy|suggest|recommen|advice|remed|overview|explain|brief|detail|owner|pattadar|applicant|beneficiary|whose\s*name|survey|khata|khasra|dag|passbook|extent|acres?|guntas?|hectare|bigha|how\s*much\s*land|size\s*of\s*land|amount|cost|price|consideration|stamp\s*duty|subsidy|fee|scheme|eligible|apply|pm-kisan|kusum|kcc|crop|pest|disease|remedy|spray|fungicide|document|paper|file|పత్రం|దస్తావేజు|సారాంశ|వివరించు|విశ్లేషణ|సలహా|సూచన|పేరు|యజమాని|సర్వే|ఖాతా|విస్తీర్ణం|ఎకరాలు|ధర|మొత్తం|పథకాలు|సబ్సిడీ|తెగులు|మందు|दस्तावेज़|कागजात|सारांश|विश्लेषण|सुझाव|सलाह|मालिक|किसान|सर्वे|खसरा|रकबा|जमीन|राशि|योजना|सब्सिडी|कीट|रोग/i.test(
-              storedText
-            );
-
+          // Use the latest analyzed attachment in THIS conversation, preserving its OCR and facts.
+          // Never attach another chat's most recent land record or inject default scheme benefits.
           let activeDocContext: any = undefined;
-          if (isDocQuestion) {
-            try {
-              const recentDocs = await dbQuery<any[]>(
-                "SELECT doc_type, title, confidence_score, extracted_data FROM document_verifications WHERE user_id = $1 ORDER BY id DESC LIMIT 1",
-                [userId]
-              );
-              if (recentDocs && recentDocs.length > 0) {
-                const docRow = recentDocs[0];
-                activeDocContext = {
-                  docType: docRow.doc_type,
-                  title: docRow.title,
-                  confidenceScore: Number(docRow.confidence_score) || 0.95,
-                  extractedData: typeof docRow.extracted_data === "object" ? docRow.extracted_data : JSON.parse(docRow.extracted_data || "{}"),
-                  schemesUnlocked: [
-                    "PM-KISAN ₹6,000 Annual Direct Benefit Transfer (DBT)",
-                    "Kisan Credit Card (KCC) 4% Concessional Farm Credit against Registered Land",
-                    "PM-KUSUM Component-B 60% Solar Water Pump Subsidy",
-                    "PMFBY Comprehensive Crop Loss & Natural Calamity Insurance",
-                  ],
-                };
-              }
-            } catch (docErr) {
-              console.warn("[chat] failed to lookup recent document:", (docErr as Error).message);
-            }
+          try {
+            const recent = await dbQuery<any[]>(
+              `SELECT metadata FROM chat_logs
+               WHERE user_id = $1 AND conversation_id = $2 AND sender = 'ai'
+                 AND metadata->'docDetection' IS NOT NULL
+               ORDER BY id DESC LIMIT 1`,
+              [userId, convId]
+            );
+            const metadata = recent[0]?.metadata;
+            const parsed = typeof metadata === "string" ? JSON.parse(metadata) : metadata;
+            activeDocContext = parsed?.docDetection;
+          } catch (error) {
+            console.warn("[chat] document context lookup failed:", (error as Error).message);
           }
 
           // Unified Conversational LLM Engine (Gemini 2.0 / Groq Llama 3 / OpenAI with CampusOne Copilot Fallback):

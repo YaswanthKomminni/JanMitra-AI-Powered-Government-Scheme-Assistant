@@ -11,6 +11,7 @@ export type DocumentAnalysisOutcome =
       reason: string;
       suggestions: string[];
     }
+  | { success: false; isOutOfScope: false; scopeStatus: "uncertain"; message: string; reason: string; suggestions: string[] }
   | { success: true; message: string; detection: any };
 
 /**
@@ -38,7 +39,13 @@ export async function analyzeAndRecordDocument(opts: {
     customApiKey,
   });
 
-  // 2. Strict Agricultural & Scheme Scope Enforcement:
+  if (outcome.scopeStatus === "uncertain") {
+    return { success: false, isOutOfScope: false, scopeStatus: "uncertain",
+      message: outcome.detectionSummary, reason: outcome.reason || outcome.detectionSummary,
+      suggestions: outcome.suggestions };
+  }
+
+  // 2. Reject only content positively identified as unrelated.
   if (!outcome.isAgriRelated || outcome.scopeStatus === "out_of_scope") {
     return {
       success: false,

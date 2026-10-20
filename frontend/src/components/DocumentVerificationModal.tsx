@@ -153,7 +153,7 @@ export default function DocumentVerificationModal() {
               <ScanLine className="w-4 h-4 text-emerald-300" />
             </span>
             <span className="text-xs uppercase font-extrabold tracking-wider text-emerald-300">
-              Llama 3.2 Vision OCR & Spatial Entity Extraction
+              Document and crop image analysis
             </span>
           </div>
           <h2 className="text-xl sm:text-2xl font-black">{t.verifyDocsTitle}</h2>
@@ -175,17 +175,17 @@ export default function DocumentVerificationModal() {
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] uppercase font-black px-2 py-0.5 rounded-full bg-amber-200 text-amber-900 border border-amber-300">
-                        Out of Scope • పరిధి వెలుపల
+                        {outOfScopeError.title}
                       </span>
                     </div>
                     <h3 className="text-lg sm:text-xl font-black text-stone-900 mt-0.5">
-                      {t.outOfScopeTitle || outOfScopeError.title}
+                      {outOfScopeError.title}
                     </h3>
                   </div>
                 </div>
 
                 <div className="px-3 py-1.5 rounded-xl bg-amber-100 border border-amber-300 text-xs font-bold text-amber-900">
-                  Status: Non-Agricultural (Rejected)
+                  Please review and try again
                 </div>
               </div>
 

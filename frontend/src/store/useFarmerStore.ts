@@ -924,7 +924,7 @@ export const useFarmerStore = create<FarmerState>((set, get) => {
           verificationScanning: false,
           verificationResult: null,
           outOfScopeError: {
-            title: "Image Out of Scope",
+            title: data.isOutOfScope ? "Image Out of Scope" : "Could not read this upload",
             message: data.message || "Image does not appear to be related to agriculture or government schemes.",
             reason: data.reason || "The uploaded photo does not contain identifiable farm crops, soil, or official farmer documents.",
             previewUrl: fileBase64,
