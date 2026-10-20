@@ -24,14 +24,28 @@ export interface ExtractedDocumentResult {
   analysisQuality?: "partial" | "complete";
 }
 
-export async function performOcr(fileBase64: string, timeoutMs = 20000): Promise<string> {
+export async function performOcr(fileBase64: string, timeoutMs = 20000, reportQuality?: (confidence: number) => void): Promise<string> {
   const bytes = Buffer.from(fileBase64.replace(/^data:[^;]+;base64,/, ""), "base64");
   if (fileBase64.startsWith("data:text/plain")) return bytes.toString("utf8").slice(0, 40000);
   if (bytes.subarray(0, 5).toString() === "%PDF-") {
     try {
       const { PDFParse } = await import("pdf-parse");
       const parser = new PDFParse({ data: new Uint8Array(bytes) });
-      try { return (await parser.getText({ first: 20 })).text.slice(0, 40000).trim(); }
+      try {
+        const extracted = (await parser.getText({ first: 20 })).text.slice(0, 40000).trim();
+        if (extracted.replace(/-- \d+ of \d+ --/g, "").trim().length >= 40) return extracted;
+        // Scanned PDFs have no text layer. Render a bounded number of pages for the same OCR engine.
+        const started = Date.now();
+        const pages = await parser.getScreenshot({ first: 3, desiredWidth: 2000, imageDataUrl: false, imageBuffer: true });
+        const readings: string[] = [];
+        for (const page of pages.pages) {
+          const remaining = timeoutMs - (Date.now() - started);
+          if (remaining < 1000) break;
+          const reading = await performOcr(`data:image/png;base64,${Buffer.from(page.data).toString("base64")}`, remaining, reportQuality);
+          if (reading.trim()) readings.push(`[Page ${page.pageNumber}]\n${reading}`);
+        }
+        return readings.join("\n\n").slice(0, 40000);
+      }
       finally { await parser.destroy(); }
     } catch { return ""; }
   }
@@ -64,17 +78,27 @@ export async function performOcr(fileBase64: string, timeoutMs = 20000): Promise
     });
     if (expired) { await worker.terminate(); return ""; }
     const image = await sharp(bytes, { limitInputPixels: 40_000_000 }).rotate()
-      .resize({ width: 1600, height: 2200, fit: "inside" }).grayscale().normalize().sharpen().png().toBuffer();
+      .resize({ width: 2400, height: 3400, fit: "inside" }).grayscale().normalize().sharpen().png().toBuffer();
     // Read English first for dense tables; add Telugu only when the first pass needs help.
     await worker.reinitialize(codes.includes("eng") ? "eng" : codes.join("+"));
-    const first = (await worker.recognize(image)).data.text.trim();
+    const firstPass = (await worker.recognize(image)).data;
+    const first = firstPass.text.trim();
     bestText = first;
-    if (assessUploadText(first) === "in_scope" || expired) return first.slice(0, 40000);
+    reportQuality?.(firstPass.confidence || 0);
+    if (expired || (assessUploadText(first) === "in_scope" && first.length > 500 && firstPass.confidence >= 80)) return first.slice(0, 40000);
     // Posters and collages often need sparse text segmentation instead of a page layout.
     await worker.setParameters({ tessedit_pageseg_mode: Tesseract.PSM.SPARSE_TEXT });
     if (codes.length > 1) await worker.reinitialize(codes.join("+"));
-    const second = (await worker.recognize(image)).data.text.trim();
-    bestText = `${first}\n${second}`.trim().slice(0, 40000);
+    const secondPass = (await worker.recognize(image)).data;
+    const second = secondPass.text.trim();
+    // Pick a reading rather than concatenating conflicting copies of dates/amounts.
+    const regionalWords = /ప్రభుత్వ|పథక|రైతు|వ్యవసాయ|మహాలక్ష|భరోసా/.test(second);
+    const better = secondPass.confidence >= 55 && secondPass.confidence > firstPass.confidence;
+    if (second && (better || regionalWords || !first.trim())) {
+      bestText = second;
+      reportQuality?.(secondPass.confidence || 0);
+    }
+    bestText = bestText.slice(0, 40000);
     return bestText;
   })();
   try {
@@ -88,7 +112,8 @@ export async function performOcr(fileBase64: string, timeoutMs = 20000): Promise
 export async function analyzeDocumentComprehensive(fileBase64: string, fileName = "", _fileType = "", _classification?: any): Promise<ExtractedDocumentResult & {
   isAgriRelated: boolean; scopeStatus: "in_scope" | "out_of_scope" | "uncertain"; reason?: string;
 }> {
-  const text = await performOcr(fileBase64);
+  let ocrConfidence: number | undefined;
+  const text = await performOcr(fileBase64, 20000, confidence => { ocrConfidence = confidence; });
   const scope = assessUploadText(text);
   let predictions: Awaited<ReturnType<typeof classifyImageObjects>> = [];
   if (scope === "uncertain" && fileBase64.startsWith("data:image/")) {
@@ -132,5 +157,11 @@ export async function analyzeDocumentComprehensive(fileBase64: string, fileName 
       detectionSummary: reason, reason, extractedData: {}, extractedTextSnippet: text,
       boundingBoxes: [], schemesUnlocked: [], suggestions: ["Upload a clear view of the full document page, or paste the document text."] };
   }
-  return { ...analyzeDocumentWithNlpSuite(text, fileName), isAgriRelated: true, scopeStatus: "in_scope", extractedTextSnippet: text };
+  const parsed = analyzeDocumentWithNlpSuite(text, fileName);
+  if (ocrConfidence !== undefined && ocrConfidence < 55) {
+    return { ...parsed, isAgriRelated: true, scopeStatus: "in_scope", analysisQuality: "partial", extractedTextSnippet: text,
+      extractedData: {}, schemesUnlocked: [], detectionSummary: `This appears to be a relevant document headed "${parsed.title}". The fine print is too unclear to reliably confirm names, figures or conditions.`,
+      suggestions: ["Upload a close-up of the specific scheme panel or table row, or the original PDF. I can use the readable heading to discuss the topic, but cannot confirm unreadable benefits or eligibility."] };
+  }
+  return { ...parsed, isAgriRelated: true, scopeStatus: "in_scope", extractedTextSnippet: text };
 }

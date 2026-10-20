@@ -25,6 +25,9 @@ const { classifyImageObjects, clearlyIrrelevantObject } = require('../src/lib/lo
 const { shouldUseDocument, queryWithHistory } = require('../src/lib/chatRouting.ts');
 const { farmerChatReply } = require('../src/lib/farmerChat.ts');
 const { buildConversationMemory, finishConversationMemory, knownFarmerFacts, readConversationMemory } = require('../src/lib/conversationMemory.ts');
+const { retrieveDocumentEvidence, validateGroundedAnswer } = require('../src/lib/documentEvidence.ts');
+const { reconcileImageEvidence, normalizeCropAnalysis, answerCropImage } = require('../src/lib/imageEvidence.ts');
+const { retrieveOfficialGuidance, readableOfficialHtml } = require('../src/lib/officialGuidance.ts');
 const env = { ...process.env };
 const realFetch = global.fetch;
 after(() => { process.env = env; global.fetch = realFetch; Module._resolveFilename = resolve; });
@@ -372,4 +375,138 @@ test('real agricultural support table from the screenshot is analyzed', { skip: 
   assert.match(reply.text, /seed|maize|gypsum|agricultur|document\/table/i);
   assert.doesNotMatch(reply.text, /^Not specified|could not confidently/i);
   if (result.analysisQuality === 'partial') assert.deepEqual(result.extractedData, {});
+});
+
+test('BM25 retrieval finds a specific condition late in a long document', () => {
+  const source = 'Government agriculture notice\n' + Array.from({length: 30}, (_, i) => `Section ${i}: General administrative information. `.repeat(8)).join('\n')
+    + '\nEligibility for tenant farmers: tenant cultivators may apply with the prescribed cultivation proof.\nLast date: 30.11.2026';
+  const passages = retrieveDocumentEvidence('Are tenant farmers eligible?', source, 2);
+  assert.match(passages[0].text, /tenant cultivators/);
+  const summary = retrieveDocumentEvidence('Summarize this document', source);
+  assert.match(summary.at(-1).text, /30.11.2026/);
+});
+
+test('grounding rejects invented quotes, altered amounts, mismatched crop rows and eligibility guarantees', () => {
+  const passages = [{ id: 'D1', text: 'Certified maize seeds: maximum Rs. 120/q.\nGypsum: maximum Rs. 500. Excluded applicants are not eligible.', score: 1 }];
+  const make = (text, quote) => JSON.stringify({claims: [{text, quote, sourceId: 'D1'}], suggestions: [], missingInformation: [], chips: []});
+  assert.ok(validateGroundedAnswer(make('Maize seeds: Rs. 120/q.', 'Certified maize seeds: maximum Rs. 120/q.'), passages));
+  assert.equal(validateGroundedAnswer(make('Maize seeds: Rs. 500.', 'Certified maize seeds: maximum Rs. 120/q.'), passages), null);
+  assert.equal(validateGroundedAnswer(make('Maize seeds: Rs. 500.', 'Gypsum: maximum Rs. 500.'), passages), null);
+  assert.equal(validateGroundedAnswer(make('Maize seeds: Rs. 120 per acre.', 'Certified maize seeds: maximum Rs. 120/q.'), passages), null);
+  assert.equal(validateGroundedAnswer(make('Rs. 900.', 'Assistance is Rs. 900.'), passages), null);
+  assert.equal(validateGroundedAnswer(make('You are eligible.', 'Excluded applicants are not eligible.'), passages), null);
+});
+
+test('cloud document answers must pass evidence checks or use the literal fallback', async () => {
+  process.env.GROQ_API_KEY = 'test-key';
+  const detection = { parsedDetails: parseAndSummarizeDocumentContent(notice) };
+  let payload;
+  global.fetch = async (_url, options) => {
+    payload = JSON.parse(options.body);
+    return Response.json({choices: [{message: {content: JSON.stringify({ claims: [{text: 'The applicant is Meena Devi.', sourceId: 'D1', quote: 'Applicant: Meena Devi'}], suggestions: [], missingInformation: [], chips: ['When is the deadline?'] })}}]});
+  };
+  try {
+    const answer = await generateIntelligentChatReply({query: 'Who is the applicant?', language: 'en', documentContext: detection});
+    assert.equal(answer.provider, 'groq');
+    assert.match(answer.text, /Meena Devi.*\[D1\]/);
+    assert.equal(payload.response_format.type, 'json_object');
+    global.fetch = async () => Response.json({choices: [{message: {content: 'You will definitely get Rs. 9000 tomorrow.'}}]});
+    const rejected = await generateIntelligentChatReply({query: 'Who is the applicant?', language: 'en', documentContext: detection});
+    assert.equal(rejected.provider, 'campusone_copilot');
+    assert.match(rejected.text, /Meena Devi/);
+    assert.doesNotMatch(rejected.text, /9000|tomorrow/);
+  } finally { delete process.env.GROQ_API_KEY; global.fetch = realFetch; }
+});
+
+test('independent readings flag conflicting owner names and remove inferred fields', () => {
+  const cloud = normalizeVisionResult({scopeStatus: 'in_scope', docType: 'land_record', confidenceScore: .99, extractedTextSnippet: 'Government land record\nOwner: Rani Devi\nSurvey Number: 18/B', extractedData: {ownerName: 'Rani Devi', bankAccount: 'invented account'}, suggestions: ['Claim Rs. 9000.']});
+  const local = {isAgriRelated: true, scopeStatus: 'in_scope', docType: 'land_record', confidenceScore: .6, detectionSummary: '', extractedTextSnippet: 'Government land record\nOwner: Meena Devi\nSurvey Number: 18/B', suggestions: []};
+  const conflict = reconcileImageEvidence(cloud, local);
+  assert.equal(conflict.analysisQuality, 'partial');
+  assert.ok(conflict.readingConflicts.includes('Owner / Applicant'));
+  assert.deepEqual(conflict.extractedData, {});
+  const agreed = reconcileImageEvidence({...cloud, extractedTextSnippet: local.extractedTextSnippet}, local);
+  assert.equal(agreed.extractedData.bankAccount, undefined);
+  assert.doesNotMatch(agreed.suggestions.join(' '), /9000/);
+  const unreadable = reconcileImageEvidence({...cloud, extractedTextSnippet: ''}, {...local, extractedTextSnippet: ''});
+  assert.equal(unreadable.analysisQuality, 'partial');
+});
+
+test('crop advice separates observations and hypotheses and filters chemical doses', () => {
+  const cropAnalysis = normalizeCropAnalysis({observations: ['Older leaves appear yellow.'], possibleCauses: [{name: 'Nutrient uptake problem', evidence: 'Yellow foliage', check: 'Compare leaf age and root-zone moisture.'}], nextSteps: ['Check drainage.', 'Spray pesticide 2 ml per litre.'], questions: ['What crop is this?']});
+  const reply = answerCropImage('What should I do?', {docType: 'crop_disease', cropAnalysis}, {crop: 'cotton', cropAge: '40 days', district: 'Warangal'});
+  assert.match(reply.text, /What is visible/);
+  assert.match(reply.text, /Possible causes to check/);
+  assert.match(reply.text, /cotton; 40 days/);
+  assert.match(reply.text, /Check drainage/);
+  assert.doesNotMatch(reply.text, /2 ml|What crop is this|application deadline/);
+});
+
+test('document types get relevant suggestions and person questions select the right role', () => {
+  const deed = parseAndSummarizeDocumentContent('Sale Deed\nVendor: Arun\nVendee: Meena\nSurvey Number: 18/B');
+  assert.match(answerDocumentQuestion('Who is the seller?', {parsedDetails: deed}, 'en').text, /Arun/);
+  assert.doesNotMatch(answerDocumentQuestion('Who is the seller?', {parsedDetails: deed}, 'en').text, /Meena/);
+  assert.match(deed.actionableSuggestions.join(' '), /title|ownership/);
+  assert.doesNotMatch(deed.actionableSuggestions.join(' '), /application deadline|application checklist/);
+  const soil = parseAndSummarizeDocumentContent('Soil Health Card\npH: 7.2\nNitrogen: low');
+  assert.match(soil.actionableSuggestions.join(' '), /units|laboratory/);
+  assert.doesNotMatch(soil.actionableSuggestions.join(' '), /application deadline/);
+  const checklist = parseAndSummarizeDocumentContent('Government Scheme\nAadhaar number: redacted\nRequired Documents:\nIncome certificate\nAadhaar card not required');
+  assert.deepEqual(checklist.requiredDocuments, ['Income certificate']);
+});
+
+test('weak OCR retries even if the first pass already contains agriculture keywords', async () => {
+  const tesseract = require('tesseract.js');
+  const original = tesseract.createWorker;
+  let calls = 0;
+  tesseract.createWorker = async () => ({ reinitialize: async () => {}, setParameters: async () => {}, terminate: async () => {}, recognize: async () => ({data: ++calls === 1 ? {text: 'Government scheme blurry heading', confidence: 35} : {text: notice, confidence: 85}}) });
+  try {
+    const png = await require('sharp')({create: {width: 20, height: 20, channels: 3, background: '#fff'}}).png().toBuffer();
+    const text = await performOcr('data:image/png;base64,' + png.toString('base64'));
+    assert.equal(calls, 2);
+    assert.match(text, /Meena Devi/);
+  } finally { tesseract.createWorker = original; }
+});
+
+test('a scanned PDF with no text layer is rendered and passed to OCR', async () => {
+  const tesseract = require('tesseract.js');
+  const original = tesseract.createWorker;
+  let calls = 0;
+  tesseract.createWorker = async () => ({ reinitialize: async () => {}, setParameters: async () => {}, terminate: async () => {}, recognize: async () => { calls++; return {data: {text: notice, confidence: 95}}; } });
+  try {
+    const jpeg = await require('sharp')({create: {width: 20, height: 20, channels: 3, background: '#fff'}}).jpeg().toBuffer();
+    const content = 'q 500 0 0 700 0 0 cm /Im1 Do Q';
+    const objects = [
+      Buffer.from('<< /Type /Catalog /Pages 2 0 R >>'), Buffer.from('<< /Type /Pages /Kids [3 0 R] /Count 1 >>'),
+      Buffer.from('<< /Type /Page /Parent 2 0 R /MediaBox [0 0 500 700] /Resources << /XObject << /Im1 4 0 R >> >> /Contents 5 0 R >>'),
+      Buffer.concat([Buffer.from(`<< /Type /XObject /Subtype /Image /Width 20 /Height 20 /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpeg.length} >>\nstream\n`), jpeg, Buffer.from('\nendstream')]),
+      Buffer.from(`<< /Length ${content.length} >>\nstream\n${content}\nendstream`),
+    ];
+    let pdf = Buffer.from('%PDF-1.4\n'); const offsets = [];
+    objects.forEach((object, i) => { offsets.push(pdf.length); pdf = Buffer.concat([pdf, Buffer.from(`${i + 1} 0 obj\n`), object, Buffer.from('\nendobj\n')]); });
+    const xref = pdf.length;
+    pdf = Buffer.concat([pdf, Buffer.from(`xref\n0 6\n0000000000 65535 f \n${offsets.map(n => `${String(n).padStart(10, '0')} 00000 n \n`).join('')}trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`)]);
+    const text = await performOcr('data:application/pdf;base64,' + pdf.toString('base64'));
+    assert.ok(calls > 0, 'a page image reached OCR');
+    assert.match(text, /Page 1/);
+    assert.match(text, /Meena Devi/);
+  } finally { tesseract.createWorker = original; }
+});
+
+test('official retrieval strips scripts and never fetches arbitrary user URLs', async () => {
+  assert.doesNotMatch(readableOfficialHtml('<script>invent fake rules</script><p>PM-KISAN provides farmer support through official processes.</p>'), /fake/);
+  let requests = 0;
+  global.fetch = async url => {
+    requests++;
+    assert.equal(url, 'https://pmkisan.gov.in/');
+    return new Response('<p>PM-KISAN farmer support scheme information.</p><p>Application registration and beneficiary status are available through the official Farmers Corner.</p>', {headers: {'content-type': 'text/html'}});
+  };
+  try {
+    assert.deepEqual(await retrieveOfficialGuidance('Read http://127.0.0.1/admin'), []);
+    assert.equal(requests, 0);
+    const passages = await retrieveOfficialGuidance('How to apply for PM-KISAN?');
+    assert.ok(passages.length);
+    assert.equal(passages[0].url, 'https://pmkisan.gov.in/');
+    assert.equal(requests, 1);
+  } finally { global.fetch = realFetch; }
 });

@@ -4,7 +4,7 @@
 [![TailwindCSS](https://img.shields.io/badge/UI-Tailwind%20CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](LICENSE)
 
-An accessible, mobile-first, and voice-first conversational AI platform designed to bridge the rural digital divide in India. **JanMithra** empowers farmers, smallholders, and rural citizens to discover personalized government welfare schemes, verify land/soil records with AI Vision OCR, and connect with nearby peer farmers who successfully claimed subsidies.
+An accessible, mobile-first, and voice-first conversational AI platform designed to bridge the rural digital divide in India. **JanMithra** empowers farmers, smallholders, and rural citizens to discover personalized government welfare schemes, read land/soil records with AI Vision OCR, and connect with nearby peer farmers who successfully claimed subsidies.
 
 ---
 
@@ -15,7 +15,7 @@ An accessible, mobile-first, and voice-first conversational AI platform designed
 - **Voice Accessibility:** Push-to-Talk Speech-to-Text (STT) and Audio Read-out (TTS) in regional dialects.
 - **Personalized Scheme Discovery:** Match scoring based on land size, soil classification, irrigation type, and geographic location (PM-KISAN, PM-KUSUM, PMFBY, Soil Health Cards).
 - **PostGIS Peer Network:** Connects farmers with nearby successful peers within 5km, 10km, and 25km radii.
-- **Vision OCR Document Verification:** Powered by Llama 3.2 Vision to scan land records (Pahani/Patta), soil health cards, and crop disease photos.
+- **Evidence-based image and document help:** Configurable Gemini, Groq and OpenAI vision, independent English/Telugu OCR, scanned-PDF reading, document passage retrieval and source-checked answers. Crop observations and possible causes are presented separately; a photo does not verify a diagnosis, document authenticity or eligibility.
 
 ---
 
@@ -166,6 +166,16 @@ npm run test:api                # in another: 15 end-to-end API tests against th
 To exercise the AI-failure path manually: `JANMITRA_SIMULATE_AI_FAILURE=1 npm run dev`, send a message (it is saved, the reply fails), restart without the flag, and press **Retry**.
 
 ---
+
+## Image reading and answer grounding
+
+- Cloud defaults: Gemini `gemini-3.8-flash`; Groq text `openai/gpt-oss-120b` with `qwen/qwen3.8-27b` fallback/vision; OpenAI `gpt-4.1` with `gpt-4.1-mini` fallback. Server environment overrides remain supported. Groq's retired Llama text IDs are no longer defaults. See the [Groq deprecation notice](https://console.groq.com/docs/deprecations), [Gemini catalog](https://ai.google.dev/gemini-api/docs/models), and [OpenAI model capabilities](https://developers.openai.com/api/docs/models/gpt-4.1).
+- Image reading compares vision transcription with independent local OCR. Conflicting critical fields or table figures trigger a request for a clearer source. Unsupported extracted fields are dropped. OCR retries weak readings even when a government keyword was already found.
+- Searchable PDFs use their text layer. Scanned PDFs render and OCR up to three pages within the OCR deadline. Longer scans require the relevant page or original text; blank/failed extraction is never proof of irrelevance.
+- BM25 retrieves relevant passages using multilingual tokens, query expansion and length normalization. Cloud document answers use JSON claims with exact supporting quotes. Validation checks citations, literal quotes, numbers, units and basic crop/item consistency. Failed validation falls back to literal source extraction. This is a reliability check, not a guarantee of semantic correctness or calibrated accuracy.
+- General questions about PM-KISAN, PMFBY and PM-KUSUM can retrieve public HTML from their fixed official portals when a cloud key is configured. Redirects, unreadable/oversized responses and failures are not evidence. Responses are cached for 15 minutes. Set `JANMITRA_FETCH_OFFICIAL_SOURCES=0` to disable. There is no unrestricted web search or claim that every scheme rule has been checked live.
+- Crop vision requests visible symptoms, possible causes with distinguishing checks, limitations and low-risk next actions. It cannot measure soil nutrients or validate a pesticide label. Dose recommendations are filtered from local crop suggestions.
+- Run `npm run test:ai` from `frontend` for offline and mocked-provider regressions. To include the local image fixtures, set `TEST_REAL_OCR=1`, `TEST_ROOM_IMAGE`, `TEST_POSTER_IMAGE` and `TEST_TABLE_IMAGE` to the relevant test files. Provider mocks test handling and grounding; they do not measure a live model's agronomic accuracy.
 
 ## ⚠️ Known limitations
 - **Cloud AI requires a working provider key.** Without one, chat uses a limited local agriculture/scheme guide and grounded document extraction. It cannot provide unrestricted generative answers, live prices, weather, payment status or verified eligibility.

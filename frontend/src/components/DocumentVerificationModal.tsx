@@ -595,9 +595,7 @@ export default function DocumentVerificationModal() {
                       {verificationResult.title}
                     </h4>
                     <p className="text-xs text-emerald-800 font-bold flex items-center gap-2">
-                      <span>Confidence Score: {(verificationResult.confidenceScore * 100).toFixed(0)}%</span>
-                      <span>•</span>
-                      <span>Verified in PostgreSQL JanMithra</span>
+                      <span>AI reading — confirm important details against the original</span>
                     </p>
                   </div>
                 </div>
@@ -648,13 +646,6 @@ export default function DocumentVerificationModal() {
                     <img
                       src={verificationResult.previewUrl}
                       alt="Document visual analysis"
-                      onError={(e) => {
-                        const target = e.currentTarget;
-                        if (!target.dataset.failed) {
-                          target.dataset.failed = "true";
-                          target.src = "/documents/rajasthan_land_certificate.jpg";
-                        }
-                      }}
                       className="w-full h-full min-h-[320px] max-h-[440px] object-contain select-none"
                     />
                   ) : (
@@ -663,10 +654,10 @@ export default function DocumentVerificationModal() {
                         <FileText className="w-8 h-8" />
                       </div>
                       <p className="text-sm font-bold text-stone-200">
-                        {verificationResult.title || "Government Document Verified"}
+                        {verificationResult.title || "Document reading"}
                       </p>
                       <span className="text-xs text-emerald-400 bg-emerald-950/80 px-3 py-1 rounded-full border border-emerald-700/50">
-                        Extracted {Object.keys(verificationResult.extractedData || {}).length} Verified Parameters
+                        Extracted {Object.keys(verificationResult.extractedData || {}).length} fields from this upload
                       </span>
                     </div>
                   )}
@@ -795,7 +786,7 @@ export default function DocumentVerificationModal() {
                         hoveredBoxId === "b2" ? "border-emerald-600 ring-2 ring-emerald-400/30 bg-emerald-50/50" : "border-stone-200"
                       }`}
                     >
-                      <span className="text-stone-400 font-bold block">Verified Land Area:</span>
+                      <span className="text-stone-400 font-bold block">Land area read:</span>
                       <span className="font-black text-emerald-800 text-base">
                         {String(verificationResult.extractedData.landAreaAcres).replace(/\s*acres?/i, "")} Acres
                       </span>

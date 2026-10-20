@@ -1,5 +1,6 @@
 import type { SupportedLanguage } from "@/lib/i18n";
 import type { ExtractedBoundingBox } from "@/lib/ocrEngine";
+import { retrieveDocumentEvidence } from "@/lib/documentEvidence";
 
 export type DocumentGenre = "sale_deed" | "education_admission" | "recruitment_notice" | "research_publication" | "land_record" | "soil_health" | "crop_disease" | "identity_card" | "general_document" | "out_of_scope";
 export interface ParsedDocumentDetails {
@@ -58,7 +59,10 @@ export function parseAndSummarizeDocumentContent(ocrText: string, _fileName = "d
     const match = line.match(/^([^:]{2,65}):\s*(.{1,300})$/);
     if (match && !parameters[match[1]]) parameters[match[1]] = match[2];
   }
-  const requiredDocuments = lines.filter((line) => /certificate|marksheet|mark sheet|passbook|aadha?ar|photocop|allotment letter|admit card|CLC\s*\/\s*SLC|photograph/i.test(line));
+  const checklistStart = lines.findIndex(line => /required documents|documents required|documents to (?:submit|bring)|checklist|enclosures|పత్రాలు|दस्तावेज/i.test(line));
+  const checklistLines = checklistStart >= 0 ? lines.slice(checklistStart + 1).slice(0, 20) : [];
+  const requiredDocuments = checklistLines.filter((line) => /certificate|marksheet|mark sheet|passbook|aadha?ar|photocop|allotment letter|admit card|CLC\s*\/\s*SLC|photograph|proof|పత్ర|ధ్రువ|प्रमाण/i.test(line)
+    && !/not required|not necessary|optional|నవసరం లేదు|आवश्यक नहीं/i.test(line));
   // Scheme names are suggestions only when explicitly mentioned in the source.
   const unlockedSchemes = Array.from(new Set(text.match(/PM[-\s]?KISAN|PMFBY|PM[-\s]?KUSUM|Kisan Credit Card|Soil Health Card|\bSMAM\b|Maha\s*lakshmi|Rythu\s*Bharosa|Gruha\s*Jyothi|Indiramma\s*(?:Indlu|Housing)|Cheyutha|మహాలక్ష్మి|రైతు భరోసా|గృహ జ్యోతి|ఇందిరమ్మ ఇండ్లు|చేయూత/gi) || []));
   const heading = lines.find((line) => /government|govt|schemes? and policies|agricultur|admission|directorate|sale deed|soil health|ప్రభుత్వ|పథకాల/i.test(line));
@@ -73,6 +77,18 @@ export function parseAndSummarizeDocumentContent(ocrText: string, _fileName = "d
     requiredDocuments.length ? "Prepare the documents listed in this notice and confirm any missing requirements with its issuing office." : "Ask the issuing office for the application checklist; no explicit checklist was identified in the readable text.",
   ] : ["Upload a sharp, well-lit image of the entire page, or paste its text."];
   if (isPoster) actionableSuggestions.unshift("Send a close-up of the specific scheme panel you are interested in so its benefits, eligibility and application instructions can be read accurately.");
+  if (genre === "sale_deed" || genre === "land_record") actionableSuggestions.splice(0, actionableSuggestions.length,
+    "Compare the readable owner/buyer/seller names, survey number and land extent with the original revenue record; a deed and a current land record serve different purposes.",
+    "Ask the issuing revenue or registration office to clarify missing fields or discrepancies. Reading this copy does not establish title, authenticity, current ownership or scheme eligibility.");
+  if (genre === "soil_health") actionableSuggestions.splice(0, actionableSuggestions.length,
+    "Check the sample date, field identifier, pH, EC and nutrient readings together with their units and the laboratory's reference ranges.",
+    "Share the crop, growth stage and fertilizers already used. Use the laboratory's crop-specific recommendation; a photo or an isolated nutrient value is insufficient to calculate a fertilizer dose.");
+  if (genre === "identity_card") actionableSuggestions.splice(0, actionableSuggestions.length,
+    "Check the readable name and issuing authority against the original card; an image cannot verify the identity or authenticity of its holder.",
+    "Use the issuing authority's official correction process for mismatches. Keep full identity numbers and OTPs private.");
+  if (genre === "research_publication") actionableSuggestions.splice(0, actionableSuggestions.length,
+    "Identify the crop, location and experimental conditions before applying the publication's findings to your farm.",
+    "Ask for a summary of the relevant section and discuss locally applicable practices with your agricultural extension officer.");
   const tableSummary = schemeEntries.length >= 2
     ? `This document lists agricultural support for ${schemeEntries.map((item) => item.name).join(", ")}. The entries below quote the readable text; verify unclear figures and current availability with the issuing agriculture office.\n\n${schemeEntries.map((item) => `• ${item.source}`).join("\n\n")}` : summary;
   return { genre, title, summary: tableSummary, extractedParameters: parameters, requiredDocuments, schemeEntries,
@@ -115,6 +131,10 @@ export function answerDocumentQuestion(query: string, detection: any, lang: Supp
   }
   const bullets = (entries: Array<[string, any]>) => entries.map(([key, value]) => `• **${key}:** ${typeof value === "object" ? JSON.stringify(value) : value}`).join("\n") || l.missing;
   const select = (pattern: RegExp) => Object.entries(p).filter(([key]) => pattern.test(key));
+  const literalAnswer = () => {
+    const passages = retrieveDocumentEvidence(query, source, 2);
+    return passages.length ? passages.map(p => p.text).join("\n\n") : l.missing;
+  };
   const suggestedText = `**${l.suggestions}**\n${suggestions.map((s, i) => `${i + 1}. ${s}`).join("\n")}\n\n**${l.schemes}**\n${schemes.join("\n") || l.missing}`;
   if (base.schemeEntries?.length && /subsid|benefit|eligible|maize|seed|gypsum|sprayer|minikit|equipment|how much|amount/i.test(q)) {
     const words = q.match(/[a-z]{4,}/g) || [];
@@ -129,12 +149,19 @@ export function answerDocumentQuestion(query: string, detection: any, lang: Supp
     return { text: Array.isArray(checklist) && checklist.length ? checklist.map((item: string) => `• ${item}`).join("\n") : l.missing, chips };
   }
   const intentFields: Array<[RegExp, RegExp]> = [
-    [/owner|buyer|seller|vendor|vendee|applicant|whose|who|name|యజమాని|పేరు|मालिक|नाम|உரிமையாளர்|ಮಾಲೀಕ|মালিক/i, /owner|buyer|seller|vendor|vendee|purchaser|applicant|beneficiary|name|author|institution|department/i],
+    [/seller|vendor/i, /seller|vendor/i],
+    [/buyer|vendee|purchaser/i, /buyer|vendee|purchaser/i],
+    [/department|institution|issuing authority/i, /institution|department|authority/i],
+    [/owner|applicant|whose|who|name|యజమాని|పేరు|मालिक|नाम|உரிமையாளர்|ಮಾಲೀಕ|মালিক/i, /owner|applicant|beneficiary|name|author/i],
     [/survey|extent|acre|hectare|land area|సర్వే|విస్తీర్ణ|सर्वे|रकबा/i, /survey|extent|acre|hectare|land.?area|khata|khasra/i],
     [/amount|fee|cost|consideration|valuation|ధర|మొత్తం|राशि|कीमत/i, /amount|fee|cost|consideration|valuation/i],
-    [/when|date|schedule|deadline|venue|where|తేదీ|समय|தேதி|ದಿನಾಂಕ|তারিখ/i, /date|schedule|deadline|venue|location/i],
+    [/venue|where/i, /venue|location/i],
+    [/when|date|schedule|deadline|తేదీ|समय|தேதி|ದಿನಾಂಕ|তারিখ/i, /date|schedule|deadline/i],
   ];
-  for (const [intent, fields] of intentFields) if (intent.test(q)) return { text: bullets(select(fields)), chips };
+  for (const [intent, fields] of intentFields) if (intent.test(q)) {
+    const selected = select(fields);
+    return { text: selected.length ? bullets(selected) : /amount|fee|cost|when|date|deadline/i.test(q) ? literalAnswer() : l.missing, chips };
+  }
   if (/how.*apply|application.*process|దరఖాస్తు|आवेदन|விண்ணப்ப|ಅರ್ಜಿ|আবেদন/i.test(q)) {
     const instructions = select(/apply|application|submission|portal|url|website|procedure|instructions/i);
     return { text: `${bullets(instructions)}\n\n${suggestedText}`, chips };
@@ -144,7 +171,5 @@ export function answerDocumentQuestion(query: string, detection: any, lang: Supp
   }
   if (/scheme|subsid|eligible|benefit|పథక|योजना|திட்ட|ಯೋಜನೆ|প্রকল্প/i.test(q)) return { text: `**${l.schemes}**\n${schemes.join("\n") || summary}\n\n${suggestedText}`, chips };
   // Unknown questions retrieve literal source lines rather than inventing an answer.
-  const terms = q.match(/[a-zA-Z0-9\u0900-\u0d7f]{4,}/g) || [];
-  const lines = source.split(/\r?\n/).filter((line: string) => terms.some((term) => line.toLowerCase().includes(term))).slice(0, 8);
-  return { text: lines.length ? lines.join("\n") : l.missing, chips };
+  return { text: literalAnswer(), chips };
 }

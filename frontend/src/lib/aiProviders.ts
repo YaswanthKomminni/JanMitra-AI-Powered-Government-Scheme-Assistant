@@ -20,8 +20,8 @@ export function providerKeys(customKey?: string): Array<{ provider: AiProvider; 
 // Defaults verified against provider catalogs; overrides allow account-specific models.
 export function providerModels(provider: AiProvider, vision = false): string[] {
   const defaults = provider === "gemini" ? ["gemini-3.8-flash", "gemini-3.5-flash-lite"]
-    : provider === "groq" ? (vision ? ["qwen/qwen3.8-27b"] : ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"])
-    : ["gpt-4o-mini", "gpt-4o"];
+    : provider === "groq" ? (vision ? ["qwen/qwen3.8-27b"] : ["openai/gpt-oss-120b", "qwen/qwen3.8-27b"])
+    : ["gpt-4.1", "gpt-4.1-mini"];
   const override = process.env[`${provider.toUpperCase()}_${vision ? "VISION_" : ""}MODEL`];
   return override?.trim() ? [override.trim()] : defaults;
 }

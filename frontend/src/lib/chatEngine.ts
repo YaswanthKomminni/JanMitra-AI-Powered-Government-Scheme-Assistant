@@ -1,4 +1,5 @@
 import { farmerChatReply } from "@/lib/farmerChat";
+import { answerCropImage } from "@/lib/imageEvidence";
 import { answerDocumentQuestion } from "@/lib/nlpDocumentAnalyzer";
 /**
  * JanMithra conversational reply engine.
@@ -146,7 +147,7 @@ export function formatDocumentAnalysisReply(det: any, lang: SupportedLanguage): 
     const reply = buildOutOfScopeReply(lang, det?.reason);
     return { text: reply.text, chips: reply.chips || [] };
   }
-  return answerDocumentQuestion("Summarize this document", det, lang);
+  return det.docType === "crop_disease" ? answerCropImage("Summarize", det) : answerDocumentQuestion("Summarize this document", det, lang);
 }
 
 export function formatFarmerProfileReply(farmer: FarmerProfile, lang: SupportedLanguage): { text: string; chips: string[] } {
