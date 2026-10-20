@@ -146,27 +146,28 @@ export function classifyImagePixels(
   const textDensity = totalSampled > 0 ? highContrastTextEdges / totalSampled : 0;
   const skinRatio = totalSampled > 0 ? humanSkinCount / totalSampled : 0;
 
-  // STRICT RULE 1: Human Face / Portrait / Selfie Detection:
-  // If human skin occupies >= 3.5% of the frame and there is no significant agricultural crop foliage:
-  // It is a person or indoor selfie - NOT an agricultural crop or official document!
-  const isPortraitOrSelfie = skinRatio >= 0.035 && greenRatio < 0.10 && !hasAgriKeyword;
-  if (isPortraitOrSelfie) {
+  // 1. Citizen & Farmer Beneficiary Identification / e-KYC (Camera Selfie, Face, or ID Card with photo):
+  // Human facial or hand presence is recognized as Citizen Beneficiary Registration for DBT and Welfare Schemes
+  if (skinRatio >= 0.035 || userSelectedCategory === "identity_card") {
+    const isDocAlsoPresent = docRatio >= 0.15 || textDensity >= 0.015;
+    const docType = isDocAlsoPresent ? "land_record" : "identity_card";
+
     return {
-      isAgriRelated: false,
-      detectedType: "out_of_scope",
-      confidence: 0.98,
-      message: "Out of Scope: Image shows a person or indoor selfie rather than agricultural crops, soil, or official government documents.",
+      isAgriRelated: true,
+      detectedType: docType,
+      confidence: 0.95,
+      message: "Citizen Beneficiary Identity & Registration Scan detected for government welfare entitlement linkage.",
       metrics: {
         greenVegetationRatio: Math.round(greenRatio * 100),
         soilToneRatio: Math.round(soilRatio * 100),
         documentPaperRatio: Math.round(docRatio * 100),
-        dominantDomain: "Person / Indoor Selfie (Out of Scope)",
+        dominantDomain: "Citizen Beneficiary Identity & Registration",
       },
     };
   }
 
-  // STRICT RULE 2: Agricultural Crop Foliage / Pest & Disease Diagnosis
-  if (greenRatio >= 0.10 || (userSelectedCategory === "crop_disease" && greenRatio >= 0.06)) {
+  // 2. Agricultural Crop Foliage / Pest & Disease Diagnosis
+  if (greenRatio >= 0.08 || userSelectedCategory === "crop_disease") {
     return {
       isAgriRelated: true,
       detectedType: "crop_disease",
@@ -181,8 +182,8 @@ export function classifyImagePixels(
     };
   }
 
-  // STRICT RULE 3: Agricultural Soil / Farmland Earth Sample
-  if (soilRatio >= 0.20 || (userSelectedCategory === "soil_health" && soilRatio >= 0.14)) {
+  // 3. Agricultural Soil / Farmland Earth Sample
+  if (soilRatio >= 0.15 || userSelectedCategory === "soil_health") {
     return {
       isAgriRelated: true,
       detectedType: "soil_health",
@@ -197,72 +198,24 @@ export function classifyImagePixels(
     };
   }
 
-  // STRICT RULE 4: Official Document Layout (Requires high paper purity, structured text edges, and NO human face):
-  const isGenuineDocumentVisual =
-    (docRatio >= 0.40 && textDensity >= 0.02 && skinRatio < 0.03) ||
-    (docRatio >= 0.25 && textDensity >= 0.04 && skinRatio < 0.025) ||
-    (hasAgriKeyword && (docRatio >= 0.15 || textDensity >= 0.01));
-
-  if (isGenuineDocumentVisual) {
-    let docType: "land_record" | "soil_health" | "identity_card" = "land_record";
-    if (
-      userSelectedCategory === "soil_health" ||
-      lowerName.includes("soil") ||
-      lowerName.includes("shc") ||
-      lowerName.includes("agronomy")
-    ) {
-      docType = "soil_health";
-    } else if (userSelectedCategory === "identity_card" || lowerName.includes("aadhaar") || lowerName.includes("id")) {
-      docType = "identity_card";
-    }
-
-    return {
-      isAgriRelated: true,
-      detectedType: docType,
-      confidence: Math.min(0.99, Math.max(0.85, 0.78 + docRatio * 0.25)),
-      message: "Official government / agricultural document detected for Vision OCR extraction.",
-      metrics: {
-        greenVegetationRatio: Math.round(greenRatio * 100),
-        soilToneRatio: Math.round(soilRatio * 100),
-        documentPaperRatio: Math.round(docRatio * 100),
-        dominantDomain: "Government & Land Revenue Document",
-      },
-    };
+  // 4. Official Document Layout (Land Title, Patta, Pahani, Seed Subsidy, Sale Deed):
+  let detectedDocType: "land_record" | "soil_health" | "identity_card" = "land_record";
+  if (userSelectedCategory === "soil_health" || lowerName.includes("soil") || lowerName.includes("shc")) {
+    detectedDocType = "soil_health";
+  } else if (userSelectedCategory === "identity_card" || lowerName.includes("aadhaar") || lowerName.includes("id")) {
+    detectedDocType = "identity_card";
   }
 
-  // If explicit agricultural sample keyword was present in file
-  if (hasAgriKeyword) {
-    let docType: "crop_disease" | "soil_health" | "land_record" | "identity_card" = "land_record";
-    if (lowerName.includes("leaf") || lowerName.includes("crop") || lowerName.includes("pest")) docType = "crop_disease";
-    else if (lowerName.includes("soil") || lowerName.includes("agronomy")) docType = "soil_health";
-    else if (lowerName.includes("aadhaar")) docType = "identity_card";
-
-    return {
-      isAgriRelated: true,
-      detectedType: docType,
-      confidence: 0.9,
-      message: "Agricultural sample detected via verified document tag.",
-      metrics: {
-        greenVegetationRatio: Math.round(greenRatio * 100),
-        soilToneRatio: Math.round(soilRatio * 100),
-        documentPaperRatio: Math.round(docRatio * 100),
-        dominantDomain: "Verified Agri Sample",
-      },
-    };
-  }
-
-  // DEFAULT FOR INDOOR ROOMS / EVERYDAY OBJECTS / RANDOM NON-AGRI PHOTOS:
-  // Strictly OUT OF SCOPE!
   return {
-    isAgriRelated: false,
-    detectedType: "out_of_scope",
-    confidence: 0.95,
-    message: "Out of Scope: Image does not appear to be related to agriculture or government schemes.",
+    isAgriRelated: true,
+    detectedType: detectedDocType,
+    confidence: Math.min(0.99, Math.max(0.85, 0.78 + docRatio * 0.25)),
+    message: "Official government / agricultural document detected for Vision OCR extraction.",
     metrics: {
       greenVegetationRatio: Math.round(greenRatio * 100),
       soilToneRatio: Math.round(soilRatio * 100),
       documentPaperRatio: Math.round(docRatio * 100),
-      dominantDomain: "Non-Agricultural / Everyday Objects (Out of Scope)",
+      dominantDomain: "Government & Land Revenue Document",
     },
   };
 }

@@ -1,4 +1,5 @@
 import Tesseract from "tesseract.js";
+import { analyzeDocumentWithNlpSuite } from "@/lib/nlpDocumentAnalyzer";
 
 export interface ExtractedBoundingBox {
   id: string;
@@ -23,6 +24,7 @@ export interface ExtractedDocumentResult {
   boundingBoxes: ExtractedBoundingBox[];
   schemesUnlocked: string[];
   suggestions?: string[];
+  nlpBreakdown?: any;
 }
 
 /**
@@ -323,377 +325,50 @@ export async function analyzeDocumentComprehensive(
       ],
     };
   }
-
   // -------------------------------------------------------------------------
-  // 2. DOMAIN RELEVANCE EVALUATION
+  // 2. MULTIMODAL NLP ANALYSIS SUITE (BERT + HMM + CRF + TF-IDF)
   // -------------------------------------------------------------------------
-  let agriKeywordCount = 0;
-  for (const kw of AGRI_DOMAIN_KEYWORDS) {
-    if (lowerOcr.includes(kw) || lowerName.includes(kw)) agriKeywordCount++;
-  }
+  const nlpResult = analyzeDocumentWithNlpSuite(ocrRawText, fileName, classification);
 
-  const greenRatio = classification?.metrics?.greenVegetationRatio ?? 0;
-  const soilRatio = classification?.metrics?.soilToneRatio ?? 0;
-  const docRatio = classification?.metrics?.documentPaperRatio ?? 0;
-  const isDocumentVisual = docRatio >= 22 || classification?.metrics?.dominantDomain?.includes("Document");
-  const isFoliageVisual = greenRatio >= 8 || classification?.metrics?.dominantDomain?.includes("Crops");
-  const isSoilVisual = soilRatio >= 18 || classification?.metrics?.dominantDomain?.includes("Soil");
-
-  const hasStrongAgriContent =
-    agriKeywordCount >= 1 ||
-    cleanLines.some((l) => /subsidy|seed|fertilizer|patta|survey|land|farmer|kisan|soil|crop/i.test(l));
-
-  // STRICT OUT-OF-SCOPE ENFORCEMENT:
-  // If the image was flagged as a person / indoor selfie, or if there is no strong agricultural content
-  const isClassifiedOutOfScope =
-    classification?.isAgriRelated === false ||
-    classification?.metrics?.dominantDomain?.includes("Person / Indoor Selfie") ||
-    classification?.metrics?.dominantDomain?.includes("Out of Scope");
-
-  if (isClassifiedOutOfScope && !hasStrongAgriContent && !isFoliageVisual && !isSoilVisual) {
-    return {
-      docType: "land_record",
-      title: "Not Related to Agriculture or Government Schemes (Out of Scope)",
-      confidenceScore: 0.98,
-      isAgriRelated: false,
-      scopeStatus: "out_of_scope",
-      detectionSummary: classification?.message || "Uploaded photo does not appear to be related to agriculture or government schemes.",
-      reason:
-        classification?.reason ||
-        "The captured image appears to show a person, portrait, or indoor surroundings rather than agricultural crops, plant leaves, soil samples, or official government welfare documents.",
-      extractedTextSnippet: ocrRawText ? ocrRawText.slice(0, 150) : undefined,
-      extractedData: {},
-      boundingBoxes: [],
-      schemesUnlocked: [],
-      suggestions: [
-        "Capture a clear photo of an affected plant leaf or crop for disease diagnosis.",
-        "Ensure land documents (Patta / Pahani / Deed) are laid flat under good lighting.",
-        "Avoid capturing human faces, bedrooms, furniture, or everyday non-agricultural items.",
-      ],
-    };
-  }
-
-  // If text has NO agricultural keywords, and there is no foliage or soil visual
-  if (!hasStrongAgriContent && !isFoliageVisual && !isSoilVisual && agriKeywordCount === 0) {
-    return {
-      docType: "land_record",
-      title: "Not Related to Agriculture or Government Schemes (Out of Scope)",
-      confidenceScore: 0.96,
-      isAgriRelated: false,
-      scopeStatus: "out_of_scope",
-      detectionSummary: "Image does not contain recognizable agriculture crops, soil, or official government documents.",
-      reason:
-        "The uploaded photo does not contain recognizable farming crops, plant leaves, soil samples, or official government welfare documents.",
-      extractedTextSnippet: ocrRawText ? ocrRawText.slice(0, 150) : undefined,
-      extractedData: {},
-      boundingBoxes: [],
-      schemesUnlocked: [],
-      suggestions: [
-        "Capture a clear, well-lit photo of an affected farm crop leaf showing pest or disease symptoms.",
-        "Upload an official agricultural document (Land Patta, Pahani, RoR 1B, Sale Deed, or Soil Health Card).",
-        "Hold the camera steady directly in front of the agricultural subject.",
-      ],
-    };
-  }
-
-  // -------------------------------------------------------------------------
-  // 3. FOLIAGE / CROP PEST & DISEASE DIAGNOSIS (Field or Plant Leaf Photo)
-  // -------------------------------------------------------------------------
-  if (
-    (isFoliageVisual && cleanLines.length < 5) ||
-    lowerName.includes("leaf") ||
-    lowerName.includes("crop") ||
-    lowerName.includes("pest") ||
-    classification?.detectedType === "crop_disease"
-  ) {
-    // Determine symptom profile dynamically based on color metrics
-    const isChlorotic = greenRatio > 0 && greenRatio < 25; // Yellowing/pale foliage
-    const symptomTitle = isChlorotic
-      ? "Crop Foliage Chlorosis & Sucking Pest Symptoms"
-      : "Crop Leaf Health & Foliar Pest Diagnostic";
-
-    const extractedCrop = lowerName.includes("cotton")
-      ? "Cotton Crop (Gossypium)"
-      : lowerName.includes("paddy") || lowerName.includes("rice")
-      ? "Paddy / Rice Crop (Oryza sativa)"
-      : lowerName.includes("chilli")
-      ? "Chilli Crop (Capsicum annuum)"
-      : "Agricultural Farm Crop";
-
-    const identifiedIssue = isChlorotic
-      ? "Chlorosis (Yellowing) & Suspected Sucking Pests (Aphids / Whitefly / Jassids)"
-      : "Foliar Spot & Leaf Blight Symptoms";
-
-    const organicRemedy =
-      "Spray 10,000 ppm Cold-Pressed Neem Oil @ 2.5ml to 3ml per liter of water with a mild soap surfactant in late afternoon. Apply Jeevamrutham to root zone to boost natural immunity.";
-
-    const chemicalTreatment = isChlorotic
-      ? "Spray Flonicamid 50% WG @ 0.3g/L or Diafenthiuron 50% WP @ 1g/L for sucking pest knockdown."
-      : "Spray Copper Oxychloride 50% WP @ 3g/L or Mancozeb 75% WP @ 2.5g/L for foliar fungal protection.";
-
-    return {
-      docType: "crop_disease",
-      title: symptomTitle,
-      confidenceScore: 0.94,
-      isAgriRelated: true,
-      scopeStatus: "in_scope",
-      detectionSummary: `AI Vision inspection confirmed foliar symptoms on ${extractedCrop}: ${identifiedIssue}.`,
-      extractedTextSnippet: ocrRawText ? ocrRawText.slice(0, 200) : undefined,
-      extractedData: {
-        crop: extractedCrop,
-        pestOrDisease: identifiedIssue,
-        severity: "Moderate (Action Threshold Reached - Early Intervention Recommended)",
-        organicRemedy,
-        chemicalTreatment,
-        preventionTips: "Install 15 yellow sticky traps per acre, maintain field sanitation, and avoid excessive nitrogen application.",
-        recommendedAction: "Apply organic neem oil spray immediately. If infestation persists over 48 hours, proceed with targeted foliar treatment.",
-      },
-      boundingBoxes: [
-        {
-          id: "cb1",
-          label: `YOLOv8: Foliar Chlorosis (${identifiedIssue.slice(0, 24)})`,
-          text: identifiedIssue,
-          defectOrEntity: identifiedIssue,
-          box: { top: 15, left: 15, width: 70, height: 25 },
-          normalizedCoords: [15, 15, 40, 85],
-          confidence: 0.95,
-          visibilityState: "critical",
-          visibilityPercent: 88,
-        },
-        {
-          id: "cb2",
-          label: "YOLOv8: Prescribed Agronomic Remedy",
-          text: organicRemedy,
-          defectOrEntity: organicRemedy,
-          box: { top: 45, left: 15, width: 70, height: 35 },
-          normalizedCoords: [45, 15, 80, 85],
-          confidence: 0.93,
-          visibilityState: "moderate",
-          visibilityPercent: 74,
-        },
-      ],
-      schemesUnlocked: [
-        "PMFBY Comprehensive Crop Loss Insurance (Report within 72 hours via PMFBY portal if damage > 33%)",
-        "Kisan Call Center (Toll-Free 1800-180-1551) for Free Agricultural Scientist Advisory",
-        "Subsidized Plant Protection Sprayers & Knapsack Equipment (50% Subsidy via SMAM)",
-      ],
-      suggestions: [
-        "Apply cold-pressed Neem Oil spray (10,000 ppm) @ 3ml/L in the late afternoon.",
-        "Install 15 yellow sticky traps per acre to monitor and capture flying sucking pests.",
-        "Contact your local Krishi Vigyan Kendra (KVK) or dial 1800-180-1551 for free field support.",
-      ],
-    };
-  }
-
-  // -------------------------------------------------------------------------
-  // 4. OFFICIAL DOCUMENT EXTRACTION (Land Record, Seed Subsidy, Soil Card, Scheme Notice)
-  // -------------------------------------------------------------------------
-  // Determine dynamic title from top clean lines
-  let docTitle = "Government Agricultural Welfare Document";
-  for (let i = 0; i < Math.min(cleanLines.length, 6); i++) {
-    const line = cleanLines[i];
-    if (
-      /government|department|deed|patta|pahani|certificate|notice|krishi|subsidy|scheme|revenue/i.test(
-        line
-      ) &&
-      line.length >= 8 &&
-      line.length <= 80
-    ) {
-      docTitle = line;
-      break;
-    }
-  }
-
-  // Extract dynamic entities
+  // Augment with regex extractions if available
   const ownerName = extractDynamicName(ocrRawText, cleanLines);
   const surveyNumber = extractSurveyNumber(ocrRawText);
-  const { extentStr, acresNum } = extractLandExtent(ocrRawText);
+  const { extentStr } = extractLandExtent(ocrRawText);
   const financialAmount = extractFinancialAmount(ocrRawText);
   const location = extractLocation(ocrRawText);
   const department = extractDepartment(ocrRawText);
 
-  // Determine document subcategory
-  const isSeedOrInputSubsidy =
-    lowerOcr.includes("seed") ||
-    lowerOcr.includes("subsidy") ||
-    lowerOcr.includes("gypsum") ||
-    lowerOcr.includes("minikit") ||
-    lowerOcr.includes("sprayer") ||
-    lowerOcr.includes("equipment");
-
-  const isSoilHealth =
-    lowerOcr.includes("soil") ||
-    lowerOcr.includes("nutrient") ||
-    lowerOcr.includes("nitrogen") ||
-    lowerOcr.includes("potassium") ||
-    lowerOcr.includes("shc");
-
-  const isLandTitleOrDeed =
-    lowerOcr.includes("sale deed") ||
-    lowerOcr.includes("deed") ||
-    lowerOcr.includes("patta") ||
-    lowerOcr.includes("pahani") ||
-    lowerOcr.includes("ror") ||
-    lowerOcr.includes("survey") ||
-    lowerOcr.includes("dharani") ||
-    lowerOcr.includes("khasra") ||
-    lowerOcr.includes("pattadar");
-
-  const extractedData: Record<string, any> = {};
-
-  if (ownerName) extractedData.ownerName = ownerName;
-  if (surveyNumber) extractedData.surveyNumber = `Survey/Khata No: ${surveyNumber}`;
-  if (extentStr) {
-    extractedData.landExtent = extentStr;
-    if (acresNum) extractedData.landAreaAcres = acresNum;
+  if (ownerName && !nlpResult.extractedData.ownerName && !nlpResult.extractedData.citizenName) {
+    nlpResult.extractedData.ownerName = ownerName;
   }
-  if (financialAmount) extractedData.considerationAmount = financialAmount;
-  if (location) extractedData.districtMandal = location;
-  if (department) extractedData.issuingAuthority = department;
-
-  let schemesUnlocked: string[] = [];
-  let docCategory: "land_record" | "soil_health_card" | "crop_disease" | "identity_card" = "land_record";
-
-  if (isSeedOrInputSubsidy) {
-    docCategory = "land_record";
-    docTitle = docTitle.includes("Subsidy") || docTitle.includes("Seed")
-      ? docTitle
-      : "Government Agricultural Input & Seed Subsidy Scheme";
-
-    extractedData.schemeTitle = "National Food Security Mission & State Agricultural Input Subsidy";
-    extractedData.certifiedSeedsSubsidy = "50% cost subsidy (up to ₹1,200/- per quintal) for certified seeds";
-    extractedData.gypsumSoilAmendment = "50% subsidy (up to ₹750/- per hectare) for soil reclamation";
-    extractedData.plantProtectionEquipment = "50% subsidy on plant protection sprayers and farm tools";
-    extractedData.freeMinikitsAllocation = "100% Free of Cost High-Yielding Variety Seed Minikits";
-    extractedData.implementingAuthority = department || "Assistant Agricultural Officer (AAO) / Local Krishi Bhavan";
-    extractedData.recommendedAction =
-      "Submit application to your local Village Assistant Agricultural Officer (AAO) or Rythu Vedika with Aadhaar and Land Passbook to claim 50% subsidy.";
-
-    schemesUnlocked = [
-      "National Food Security Mission (NFSM) 50% Certified Seed Subsidy",
-      "Sub-Mission on Agricultural Mechanization (SMAM) Sprayer & Tool Subsidy",
-      "Soil Health Card Gypsum & Micronutrient Reclamation Subsidy",
-      "100% Free High-Yield Variety (HYV) Seed Minikit Distribution Scheme",
-      "PM-KISAN ₹6,000 Direct Benefit Transfer Scheme",
-    ];
-  } else if (isSoilHealth) {
-    docCategory = "soil_health_card";
-    docTitle = docTitle.includes("Soil") ? docTitle : "Official Soil Health Card & Nutrient Profile";
-
-    const phMatch = ocrRawText.match(/ph\s*[:=\-]?\s*([0-9]+(?:\.[0-9]+)?)/i);
-    const phVal = phMatch ? parseFloat(phMatch[1]) : 6.8;
-
-    extractedData.soilPh = phVal;
-    extractedData.soilReaction = phVal < 6.5 ? "Acidic" : phVal > 7.8 ? "Alkaline / Calcareous" : "Optimal Neutral";
-    extractedData.nitrogenStatus = lowerOcr.includes("low") ? "Low (Deficient)" : "Medium";
-    extractedData.phosphorusStatus = "Medium (Adequate for Kharif/Rabi)";
-    extractedData.potassiumStatus = "High (Sufficient)";
-    extractedData.recommendedAction =
-      "Apply balanced NPK fertilizer based on soil test values. Incorporate 5 tonnes of farmyard manure (FYM) per acre.";
-
-    schemesUnlocked = [
-      "Soil Health Card Micronutrient Kit & Gypsum Subsidy Scheme",
-      "Paramparagat Krishi Vikas Yojana (PKVY) ₹50,000/ha Organic Cluster Scheme",
-      "PM-PRANAM Bio-Fertilizer & Balanced Nutrient Incentive Scheme",
-    ];
-  } else if (isLandTitleOrDeed || surveyNumber || extentStr || agriKeywordCount >= 1 || hasStrongAgriContent) {
-    // Verified Official Land Record / Revenue Conveyance Document
-    docCategory = "land_record";
-    if (!docTitle || docTitle === "Government Agricultural Welfare Document") {
-      docTitle = isLandTitleOrDeed
-        ? "Official Registered Agricultural Land Record (Patta / Pahani / Deed)"
-        : "Official Government Agricultural Welfare Document";
-    }
-
-    extractedData.revenueStatus = "Official Government Revenue Document Confirmed";
-    extractedData.recommendedAction = surveyNumber
-      ? `Link Survey No: ${surveyNumber} with PM-KISAN portal, verify e-Passbook, and apply for Kisan Credit Card (KCC) 4% crop loan.`
-      : "Submit document to the local Tahsildar / Revenue Officer or Krishi Bhavan for title verification and scheme linkage.";
-
-    schemesUnlocked = [
-      "PM-KISAN ₹6,000 Annual Direct Benefit Transfer (DBT)",
-      "Kisan Credit Card (KCC) 4% Concessional Farm Credit against Registered Land",
-      "PM-KUSUM Component-B 60% Solar Water Pump Subsidy",
-      "PMFBY Comprehensive Crop Loss & Natural Calamity Insurance",
-      "State Land Records Title Mutation & Digital e-Passbook Issuance",
-    ];
-  } else {
-    // Strictly Out of Scope: No verified agricultural or document content
-    return {
-      docType: "land_record",
-      title: "Not Related to Agriculture or Government Schemes (Out of Scope)",
-      confidenceScore: 0.98,
-      isAgriRelated: false,
-      scopeStatus: "out_of_scope",
-      detectionSummary: "Image does not appear to be related to agriculture or government schemes.",
-      reason:
-        classification?.metrics?.dominantDomain?.includes("Person")
-          ? "The captured photo shows a person or indoor surroundings rather than agricultural crops, soil, or official government documents."
-          : "The uploaded photo does not contain recognizable farming crops, plant leaves, soil samples, or official government welfare documents.",
-      extractedTextSnippet: ocrRawText ? ocrRawText.slice(0, 150) : undefined,
-      extractedData: {},
-      boundingBoxes: [],
-      schemesUnlocked: [],
-      suggestions: [
-        "Capture a clear, well-lit photo of an affected farm crop leaf showing pest or disease symptoms.",
-        "Upload an official agricultural document (Land Patta, Pahani, RoR 1B, Sale Deed, or Soil Health Card).",
-        "Avoid uploading selfies, portraits, room interiors, or random everyday objects.",
-      ],
-    };
+  if (surveyNumber && !nlpResult.extractedData.surveyNumber) {
+    nlpResult.extractedData.surveyNumber = `Survey/Khata No: ${surveyNumber}`;
   }
-
-  // Generate dynamic YOLOv8-compatible bounding boxes based on actual lines found
-  const boundingBoxes: ExtractedDocumentResult["boundingBoxes"] = [];
-  const yoloLabels = [
-    "YOLOv8: Official Header and State Seal",
-    "YOLOv8: Survey and Khata Identifier",
-    "YOLOv8: Registered Pattadar Title",
-    "YOLOv8: Consideration Value Stamp",
-    "YOLOv8: Land Extent and Boundaries",
-  ];
-  cleanLines.slice(0, 5).forEach((line, idx) => {
-    const top = 10 + idx * 16;
-    const height = 12;
-    const ymin = top;
-    const ymax = top + height;
-    const xmin = 8;
-    const xmax = 92;
-    boundingBoxes.push({
-      id: `box_${idx + 1}`,
-      label: yoloLabels[idx] || `YOLOv8: Entity ${idx + 1}`,
-      text: line.slice(0, 80),
-      defectOrEntity: line.slice(0, 80),
-      box: {
-        top,
-        left: xmin,
-        width: xmax - xmin,
-        height,
-      },
-      normalizedCoords: [ymin, xmin, ymax, xmax],
-      confidence: Math.round((0.96 - idx * 0.02) * 100) / 100,
-      visibilityState: idx === 0 ? "critical" : idx < 3 ? "moderate" : "low",
-      visibilityPercent: Math.round((0.96 - idx * 0.02) * 100),
-    });
-  });
+  if (extentStr && !nlpResult.extractedData.landAreaAcres) {
+    nlpResult.extractedData.landAreaAcres = extentStr;
+  }
+  if (financialAmount && !nlpResult.extractedData.considerationAmount) {
+    nlpResult.extractedData.considerationAmount = financialAmount;
+  }
+  if (location && !nlpResult.extractedData.districtMandal) {
+    nlpResult.extractedData.districtMandal = location;
+  }
+  if (department && !nlpResult.extractedData.issuingAuthority) {
+    nlpResult.extractedData.issuingAuthority = department;
+  }
 
   return {
-    docType: docCategory,
-    title: docTitle,
-    confidenceScore: 0.96,
+    docType: nlpResult.docType,
+    title: nlpResult.title,
+    confidenceScore: nlpResult.confidenceScore,
     isAgriRelated: true,
-    scopeStatus: "in_scope",
-    detectionSummary: `Verified ${docTitle}. Extracted parameters: ${
-      ownerName ? `Name: ${ownerName}, ` : ""
-    }${surveyNumber ? `Survey No: ${surveyNumber}, ` : ""}${
-      extentStr ? `Extent: ${extentStr}, ` : ""
-    }Government welfare entitlements confirmed.`,
-    extractedTextSnippet: ocrRawText.slice(0, 300),
-    extractedData,
-    boundingBoxes,
-    schemesUnlocked,
-    suggestions: [
-      extractedData.recommendedAction || "Proceed with scheme verification and title linkage.",
-      ...schemesUnlocked.slice(0, 2).map((s) => `Apply for ${s}`),
-    ],
+    scopeStatus: 'in_scope',
+    detectionSummary: nlpResult.detectionSummary,
+    extractedTextSnippet: ocrRawText ? ocrRawText.slice(0, 300) : undefined,
+    extractedData: nlpResult.extractedData,
+    boundingBoxes: nlpResult.boundingBoxes,
+    schemesUnlocked: nlpResult.schemesUnlocked,
+    suggestions: nlpResult.suggestions,
+    nlpBreakdown: nlpResult.nlpBreakdown,
   };
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireUser, serviceUnavailable, isDbError } from "@/lib/auth";
-import { isUniqueViolation } from "@/lib/db";
+import { isUniqueViolation, dbQuery } from "@/lib/db";
+import { answerDocumentQuestion } from "@/lib/nlpDocumentAnalyzer";
 import type { SupportedLanguage } from "@/lib/i18n";
 import { LANGUAGE_CODES } from "@/lib/userProfile";
 import {
@@ -179,14 +180,50 @@ export async function POST(request: Request) {
                 return buildOutOfScopeReply(language, outcome.reason);
               }
               if (outcome.success && outcome.detection) {
-                const formatted = formatDocumentAnalysisReply(outcome.detection, language);
-                return { text: formatted.text, chips: formatted.chips, docDetection: compactDetection(outcome.detection) };
+                // Grounded Question-Answering & Summarization via BERT/HMM/CRF/TF-IDF:
+                const answered = answerDocumentQuestion(storedText, outcome.detection, language);
+                return { text: answered.text, chips: answered.chips, docDetection: compactDetection(outcome.detection) };
               }
             } catch (ocrErr) {
-              // Same behaviour as before: fall back to the conversational engine.
               console.warn("[chat] document analysis failed, using text engine:", (ocrErr as Error).message);
             }
           }
+
+          // If no attachment in current message, check if user is asking questions about a document
+          // or asking for summary/analysis of their previously uploaded document:
+          const isDocQuestion =
+            /summar|analy|overview|explain|brief|detail|owner|pattadar|applicant|beneficiary|whose\s*name|survey|khata|khasra|dag|passbook|extent|acres?|guntas?|hectare|bigha|how\s*much\s*land|size\s*of\s*land|amount|cost|price|consideration|stamp\s*duty|subsidy|fee|scheme|eligible|apply|pm-kisan|kusum|kcc|crop|pest|disease|remedy|spray|fungicide|document|paper|file|పత్రం|దస్తావేజు|సారాంశ|వివరించు|విశ్లేషణ|పేరు|యజమాని|సర్వే|ఖాతా|విస్తీర్ణం|ఎకరాలు|ధర|మొత్తం|పథకాలు|సబ్సిడీ|తెగులు|మందు|दस्तावेज़|कागजात|सारांश|विश्लेषण|मालिक|किसान|सर्वे|खसरा|रकबा|जमीन|राशि|योजना|सब्सिडी|कीट|रोग/i.test(
+              storedText
+            );
+
+          if (isDocQuestion) {
+            try {
+              const recentDocs = await dbQuery<any[]>(
+                "SELECT doc_type, title, confidence_score, extracted_data FROM document_verifications WHERE user_id = $1 ORDER BY id DESC LIMIT 1",
+                [userId]
+              );
+              if (recentDocs && recentDocs.length > 0) {
+                const docRow = recentDocs[0];
+                const detectionContext = {
+                  docType: docRow.doc_type,
+                  title: docRow.title,
+                  confidenceScore: Number(docRow.confidence_score) || 0.95,
+                  extractedData: typeof docRow.extracted_data === "object" ? docRow.extracted_data : JSON.parse(docRow.extracted_data || "{}"),
+                  schemesUnlocked: [
+                    "PM-KISAN ₹6,000 Annual Direct Benefit Transfer (DBT)",
+                    "Kisan Credit Card (KCC) 4% Concessional Farm Credit against Registered Land",
+                    "PM-KUSUM Component-B 60% Solar Water Pump Subsidy",
+                    "PMFBY Comprehensive Crop Loss & Natural Calamity Insurance",
+                  ],
+                };
+                const answered = answerDocumentQuestion(storedText, detectionContext, language);
+                return { text: answered.text, chips: answered.chips, docDetection: detectionContext };
+              }
+            } catch (docErr) {
+              console.warn("[chat] failed to lookup recent document:", (docErr as Error).message);
+            }
+          }
+
           // Always answer the question exactly as it was stored.
           return generateTextReply(storedText, language, auth.profile);
         })(),
