@@ -1,11 +1,45 @@
 import { NextResponse } from "next/server";
 import { queryDatabase } from "@/lib/db";
-import { SCHEMES_DATABASE } from "@/lib/mockData";
+import { SCHEMES_DATABASE, GUEST_FARMER } from "@/lib/mockData";
+import { semanticSearchSchemes } from "@/lib/aiCopilotService";
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const category = searchParams.get("category");
+    const query = searchParams.get("q") || searchParams.get("query");
+
+    // Semantic Dense Vector Search if query is provided
+    if (query && query.trim()) {
+      const matches = semanticSearchSchemes(query.trim(), GUEST_FARMER, 12);
+      const results = matches.map((m) => ({
+        id: m.scheme.id,
+        code: m.scheme.id,
+        name: m.scheme.name,
+        category: m.scheme.category,
+        categoryName: m.scheme.category,
+        matchScore: m.eligibility.overallMatchScore,
+        hybridScoreBadge: m.formattedBadge,
+        vectorCosine: m.vectorCosine,
+        subsidyAmount: m.scheme.is_agri ? "60% Subsidy / DBT" : "Government Welfare",
+        description: m.scheme.description,
+        benefits: m.scheme.benefits,
+        eligibilitySummary: `Eligibility Match: ${m.eligibility.overallMatchScore}% (${m.formattedBadge})`,
+        documentsRequired: m.scheme.documents_required
+          ? m.scheme.documents_required.split(",").map((d) => d.trim()).filter(Boolean)
+          : ["Aadhaar Card", "Bank Account Details", "Land Record Documents"],
+        department: m.scheme.ministry,
+        tagColor: m.scheme.is_agri ? "emerald" : "sky",
+        applicationMode: "Both",
+        sla: m.eligibility.sla,
+      }));
+
+      return NextResponse.json({
+        success: true,
+        source: "dense_vector_nlp",
+        schemes: results,
+      });
+    }
 
     let sql = "SELECT * FROM schemes";
     const params: any[] = [];

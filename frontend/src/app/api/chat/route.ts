@@ -51,7 +51,7 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
 /** Strip large/binary fields before storing a detection result as message metadata. */
 function compactDetection(det: any) {
   if (!det) return undefined;
-  const { previewUrl, boundingBoxes, ...rest } = det;
+  const { previewUrl, ...rest } = det;
   return rest;
 }
 

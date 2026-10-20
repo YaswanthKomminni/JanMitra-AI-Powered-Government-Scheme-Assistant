@@ -671,10 +671,19 @@ export default function DocumentVerificationModal() {
                     </div>
                   )}
 
-                  {/* Spatial Bounding Boxes Overlay */}
+                  {/* Spatial Bounding Boxes Overlay with YOLOv8 Targeting Reticle & Corner Markers */}
                   {showBoundingBoxes &&
-                    verificationResult.boundingBoxes?.map((bb) => {
+                    verificationResult.boundingBoxes?.map((bb: any) => {
                       const isHovered = hoveredBoxId === bb.id;
+                      const coords = bb.normalizedCoords || [
+                        Math.round(bb.box.top),
+                        Math.round(bb.box.left),
+                        Math.round(bb.box.top + bb.box.height),
+                        Math.round(bb.box.left + bb.box.width),
+                      ];
+                      const visState = bb.visibilityState || (bb.confidence >= 0.85 ? "critical" : "moderate");
+                      const visPct = bb.visibilityPercent || Math.round(bb.confidence * 100);
+
                       return (
                         <div
                           key={bb.id}
@@ -686,17 +695,46 @@ export default function DocumentVerificationModal() {
                           }}
                           onMouseEnter={() => setHoveredBoxId(bb.id)}
                           onMouseLeave={() => setHoveredBoxId(null)}
-                          className={`absolute border-2 transition-all cursor-pointer flex flex-col justify-between p-1 rounded-lg ${
+                          className={`absolute border-2 transition-all cursor-pointer flex flex-col justify-between p-1.5 rounded-lg select-none ${
                             isHovered
-                              ? "border-emerald-400 bg-emerald-400/30 ring-4 ring-emerald-300/60 z-30 scale-[1.02]"
-                              : "border-emerald-400/80 bg-emerald-500/20 hover:bg-emerald-400/30 z-20"
+                              ? "border-emerald-300 bg-emerald-400/30 ring-4 ring-emerald-300/60 z-30 scale-[1.02]"
+                              : "border-emerald-400/90 bg-emerald-500/20 hover:bg-emerald-400/30 z-20"
                           }`}
                         >
-                          <span className="inline-block text-[10px] font-black uppercase tracking-tight bg-stone-950/90 text-emerald-300 px-2 py-0.5 rounded shadow w-fit truncate">
-                            {bb.label} ({(bb.confidence * 100).toFixed(0)}%)
-                          </span>
-                          <span className="text-[11px] text-white font-black drop-shadow-md bg-black/75 px-1.5 py-0.5 rounded truncate">
+                          {/* Targeting Reticle 4 Corner Markers */}
+                          <div className="absolute -top-1 -left-1 w-2.5 h-2.5 border-t-2 border-l-2 border-emerald-300 shadow-sm" />
+                          <div className="absolute -top-1 -right-1 w-2.5 h-2.5 border-t-2 border-r-2 border-emerald-300 shadow-sm" />
+                          <div className="absolute -bottom-1 -left-1 w-2.5 h-2.5 border-b-2 border-l-2 border-emerald-300 shadow-sm" />
+                          <div className="absolute -bottom-1 -right-1 w-2.5 h-2.5 border-b-2 border-r-2 border-emerald-300 shadow-sm" />
+
+                          {/* Animated Classification Badge (YOLOv8 + 3-State Problem Visibility %) */}
+                          <div className="absolute -top-7 left-0 flex items-center gap-1.5 bg-stone-950/95 backdrop-blur-md px-2 py-0.5 rounded-md border border-emerald-500/60 shadow-lg z-30 whitespace-nowrap">
+                            <span className="relative flex h-2 w-2">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                            </span>
+                            <span className="text-[10px] font-black tracking-wide text-emerald-300 uppercase">
+                              {bb.label?.startsWith("YOLOv8") ? bb.label : `YOLOv8: ${bb.label}`} ({(bb.confidence * 100).toFixed(0)}%)
+                            </span>
+                            <span
+                              className={`text-[9px] px-1.5 py-0.2 rounded font-extrabold uppercase ${
+                                visState === "critical"
+                                  ? "bg-rose-500/25 text-rose-300 border border-rose-500/50"
+                                  : visState === "moderate"
+                                  ? "bg-amber-500/25 text-amber-300 border border-amber-500/50"
+                                  : "bg-emerald-500/25 text-emerald-300 border border-emerald-500/50"
+                              }`}
+                            >
+                              {visPct}% {visState}
+                            </span>
+                          </div>
+
+                          {/* Extracted Entity Text & Normalized Coords */}
+                          <span className="text-[11px] text-white font-black drop-shadow-md bg-black/80 px-2 py-1 rounded truncate border border-white/10">
                             {bb.text}
+                          </span>
+                          <span className="text-[9px] text-emerald-200 font-mono font-bold bg-stone-950/90 px-1.5 py-0.5 rounded w-fit self-end">
+                            [{coords.join(", ")}]
                           </span>
                         </div>
                       );

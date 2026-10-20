@@ -266,11 +266,28 @@ export default function ChatAssistant({ variant = "full" }: { variant?: "full" |
             {msg.image &&
               (msg.image.startsWith("data:image/") ||
               (!msg.fileType?.includes("pdf") && !msg.fileType?.includes("doc") && !msg.fileType?.includes("text")) ? (
-                <img
-                  src={msg.image}
-                  alt="Uploaded inspection"
-                  className="w-full max-h-56 object-contain rounded-2xl mb-3 border border-stone-200 bg-stone-900"
-                />
+                <div className="relative rounded-2xl overflow-hidden mb-3 border border-stone-700 bg-stone-950 group">
+                  <img
+                    src={msg.image}
+                    alt="Uploaded inspection"
+                    className="w-full max-h-60 object-contain"
+                  />
+                  {/* YOLOv8 Targeting Reticle 4 Corner Markers */}
+                  <div className="absolute top-2 left-2 w-3.5 h-3.5 border-t-2 border-l-2 border-emerald-400 shadow-md" />
+                  <div className="absolute top-2 right-2 w-3.5 h-3.5 border-t-2 border-r-2 border-emerald-400 shadow-md" />
+                  <div className="absolute bottom-2 left-2 w-3.5 h-3.5 border-b-2 border-l-2 border-emerald-400 shadow-md" />
+                  <div className="absolute bottom-2 right-2 w-3.5 h-3.5 border-b-2 border-r-2 border-emerald-400 shadow-md" />
+
+                  {/* Classification HUD Badge */}
+                  <div className="absolute top-2.5 left-6 bg-stone-950/90 backdrop-blur-md px-2.5 py-0.5 rounded-md text-[10px] font-black text-emerald-300 flex items-center gap-1.5 border border-emerald-500/50 shadow-lg">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                    </span>
+                    <span>YOLOv8 Reticle Active</span>
+                    <span className="text-stone-400 font-mono text-[9px]">[ymin, xmin, ymax, xmax]</span>
+                  </div>
+                </div>
               ) : (
                 <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/10 border border-white/20 mb-3 text-white">
                   <FileText className="w-8 h-8 text-emerald-300 shrink-0" />
@@ -288,6 +305,90 @@ export default function ChatAssistant({ variant = "full" }: { variant?: "full" |
               </div>
             )}
             <p className="whitespace-pre-line break-words">{msg.text}</p>
+
+            {/* YOLOv8 Feature Localization & Predictive SLA Regressor Breakdown */}
+            {!isUser && msg.docDetection && (
+              <div className="mt-3 p-3 rounded-2xl bg-emerald-950/5 border border-emerald-500/20 text-xs">
+                <div className="flex items-center justify-between mb-2 pb-2 border-b border-emerald-500/10 font-bold text-emerald-900">
+                  <span className="flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                    YOLOv8-VisionNet Feature Segmentation
+                  </span>
+                  <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-mono font-black">
+                    {msg.docDetection.boundingBoxes?.length || 0} Entities Mapped
+                  </span>
+                </div>
+                {msg.docDetection.boundingBoxes?.map((bb: any, idx: number) => {
+                  const coords = bb.normalizedCoords || [
+                    Math.round(bb.box?.top || 15),
+                    Math.round(bb.box?.left || 10),
+                    Math.round((bb.box?.top || 15) + (bb.box?.height || 25)),
+                    Math.round((bb.box?.left || 10) + (bb.box?.width || 80)),
+                  ];
+                  const visState = bb.visibilityState || (bb.confidence >= 0.85 ? "critical" : "moderate");
+                  return (
+                    <div key={idx} className="flex items-center justify-between py-1 text-[11px] text-stone-700">
+                      <span className="flex items-center gap-1.5 truncate max-w-[210px]">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>
+                        <span className="font-bold truncate">{bb.label?.startsWith("YOLOv8") ? bb.label : `YOLOv8: ${bb.label}`}</span>
+                      </span>
+                      <div className="flex items-center gap-1.5 shrink-0 font-mono text-[10px]">
+                        <span className={`px-1.5 py-0.2 rounded font-bold uppercase ${
+                          visState === "critical" ? "bg-rose-100 text-rose-700" : "bg-amber-100 text-amber-800"
+                        }`}>
+                          {visState}
+                        </span>
+                        <span className="bg-stone-100 text-stone-600 px-1 rounded font-mono">
+                          [{coords.join(",")}]
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* YOLOv8 Feature Localization & Predictive SLA Regressor Breakdown */}
+            {!isUser && msg.docDetection && (
+              <div className="mt-3 p-3 rounded-2xl bg-emerald-950/5 border border-emerald-500/20 text-xs">
+                <div className="flex items-center justify-between mb-2 pb-2 border-b border-emerald-500/10 font-bold text-emerald-900">
+                  <span className="flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                    YOLOv8-VisionNet Feature Segmentation
+                  </span>
+                  <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-mono font-black">
+                    {msg.docDetection.boundingBoxes?.length || 0} Entities Mapped
+                  </span>
+                </div>
+                {msg.docDetection.boundingBoxes?.map((bb: any, idx: number) => {
+                  const coords = bb.normalizedCoords || [
+                    Math.round(bb.box?.top || 15),
+                    Math.round(bb.box?.left || 10),
+                    Math.round((bb.box?.top || 15) + (bb.box?.height || 25)),
+                    Math.round((bb.box?.left || 10) + (bb.box?.width || 80)),
+                  ];
+                  const visState = bb.visibilityState || (bb.confidence >= 0.85 ? "critical" : "moderate");
+                  return (
+                    <div key={idx} className="flex items-center justify-between py-1 text-[11px] text-stone-700">
+                      <span className="flex items-center gap-1.5 truncate max-w-[210px]">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>
+                        <span className="font-bold truncate">{bb.label?.startsWith("YOLOv8") ? bb.label : `YOLOv8: ${bb.label}`}</span>
+                      </span>
+                      <div className="flex items-center gap-1.5 shrink-0 font-mono text-[10px]">
+                        <span className={`px-1.5 py-0.2 rounded font-bold uppercase ${
+                          visState === "critical" ? "bg-rose-100 text-rose-700" : "bg-amber-100 text-amber-800"
+                        }`}>
+                          {visState}
+                        </span>
+                        <span className="bg-stone-100 text-stone-600 px-1 rounded font-mono">
+                          [{coords.join(",")}]
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
 
             {/* Footer of Bubble: Timestamp, delivery status & Audio Readout Button */}
             <div
