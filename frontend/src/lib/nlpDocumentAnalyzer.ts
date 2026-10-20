@@ -686,6 +686,10 @@ export function answerDocumentQuestion(
       .map(([k, v]) => `• **${k}:** ${v}`)
       .join("\n");
 
+    const suggestionsStr = parsed.actionableSuggestions && parsed.actionableSuggestions.length > 0
+      ? `\n\n💡 **Actionable Suggestions & Practical Guidance:**\n${parsed.actionableSuggestions.map((s, idx) => `${idx + 1}. ${s}`).join("\n")}`
+      : "";
+
     const reqDocsStr = parsed.requiredDocuments && parsed.requiredDocuments.length > 0
       ? `\n\n📄 **Mandatory Documents Required:**\n${parsed.requiredDocuments.slice(0, 8).join("\n")}${parsed.requiredDocuments.length > 8 ? `\n• ... and ${parsed.requiredDocuments.length - 8} additional original certificates.` : ""}`
       : "";
@@ -695,32 +699,41 @@ export function answerDocumentQuestion(
       : "";
 
     if (lang === "te") {
-      replyText = `📄 **సమర్పించిన దస్తావేజు సారాంశం (Document Summary):**\n${parsed.summary}\n\n📋 **గుర్తించిన ముఖ్య వివరాలు:**\n${bulletPoints}${reqDocsStr}${schemesStr}`;
-      chips = ["కావలసిన పత్రాలు ఏమిటి?", "ఈ పథకాలకు ఎలా దరఖాస్తు చేయాలి?", "మరిన్ని వివరాలు"];
+      replyText = `📄 **సమర్పించిన దస్తావేజు సారాంశం (Document Summary):**\n${parsed.summary}\n\n📋 **గుర్తించిన ముఖ్య వివరాలు:**\n${bulletPoints}${suggestionsStr}${schemesStr}${reqDocsStr}`;
+      chips = ["ఈ పథకాలకు ఎలా దరఖాస్తు చేయాలి?", "కావలసిన పత్రాలు ఏమిటి?", "ఆచరణాత్మక సలహాలు"];
     } else if (lang === "hi") {
-      replyText = `📄 **दस्तावेज़ का विस्तृत सारांश (Document Summary):**\n${parsed.summary}\n\n📋 **मुख्य विवरण एवं पैरामीटर्स:**\n${bulletPoints}${reqDocsStr}${schemesStr}`;
-      chips = ["आवश्यक दस्तावेज़ बताएं", "योजनाओं के लिए कैसे आवेदन करें?", "अन्य विवरण"];
+      replyText = `📄 **दस्तावेज़ का विस्तृत सारांश (Document Summary):**\n${parsed.summary}\n\n📋 **मुख्य विवरण एवं पैरामीटर्स:**\n${bulletPoints}${suggestionsStr}${schemesStr}${reqDocsStr}`;
+      chips = ["योजनाओं के लिए कैसे आवेदन करें?", "आवश्यक दस्तावेज़ बताएं", "व्यावहारिक सुझाव"];
     } else {
-      replyText = `📄 **Document Content Summary:**\n${parsed.summary}\n\n📋 **Key Parameters Extracted:**\n${bulletPoints}${reqDocsStr}${schemesStr}`;
-      chips = ["What documents are required?", "How to apply for these schemes?", "Key dates and venue"];
+      replyText = `📄 **Document Content Summary:**\n${parsed.summary}\n\n📋 **Key Parameters Extracted:**\n${bulletPoints}${suggestionsStr}${schemesStr}${reqDocsStr}`;
+      chips = ["What are the actionable suggestions?", "How to apply for these schemes?", "What documents are required?"];
     }
 
     return { text: replyText, chips };
   }
 
   // -----------------------------------------------------------------
-  // QUERY INTENT 2: REQUIRED DOCUMENTS CHECKLIST
+  // QUERY INTENT 2: REQUIRED DOCUMENTS / CERTIFICATES CHECKLIST
   // -----------------------------------------------------------------
-  if (
-    qLower.includes("document") ||
+  const isReqDocsQuery =
+    qLower.includes("what document") ||
+    qLower.includes("which document") ||
+    qLower.includes("required document") ||
+    qLower.includes("documents required") ||
+    qLower.includes("documents needed") ||
     qLower.includes("certificate") ||
     qLower.includes("checklist") ||
     qLower.includes("what to bring") ||
+    qLower.includes("what to carry") ||
+    qLower.includes("original document") ||
+    qLower.includes("list of doc") ||
     qLower.includes("కావలసిన పత్రాలు") ||
-    qLower.includes("దస్తావేజులు") ||
+    qLower.includes("ఏ పత్రాలు") ||
     qLower.includes("आवश्यक दस्तावेज़") ||
-    qLower.includes("प्रमाण पत्र")
-  ) {
+    qLower.includes("कौन से दस्तावेज़") ||
+    qLower.includes("प्रमाण पत्र");
+
+  if (isReqDocsQuery) {
     if (parsed.requiredDocuments && parsed.requiredDocuments.length > 0) {
       replyText = `📄 **Mandatory Documents Checklist (from ${parsed.title}):**\n${parsed.requiredDocuments.join("\n")}\n\n⚠️ **Important Instruction:** Please ensure all original certificates along with 2 sets of self-attested photocopies are carried during verification.`;
       chips = ["Reporting schedule and dates", "Venue / reporting location", "Summarize the document"];
@@ -828,6 +841,102 @@ export function answerDocumentQuestion(
     } else {
       replyText = `ℹ️ No commercial property valuation or stamp consideration amount was recorded in this document (${parsed.title}).`;
       chips = ["What documents are required?", "Summarize this notice", "Dates and venue"];
+    }
+    return { text: replyText, chips };
+  }
+
+  // -----------------------------------------------------------------
+  // QUERY INTENT: SUGGESTIONS, RECOMMENDATIONS & ADVICE
+  // -----------------------------------------------------------------
+  if (
+    qLower.includes("suggest") ||
+    qLower.includes("advice") ||
+    qLower.includes("recommend") ||
+    qLower.includes("what should i do") ||
+    qLower.includes("how to proceed") ||
+    qLower.includes("next step") ||
+    qLower.includes("సలహా") ||
+    qLower.includes("సూచన") ||
+    qLower.includes("సుझाव") ||
+    qLower.includes("सुझाव") ||
+    qLower.includes("सलाह") ||
+    qLower.includes("பரிந்துரை") ||
+    qLower.includes("ಸಲಹೆ") ||
+    qLower.includes("পরামর্শ")
+  ) {
+    if (lang === "te") {
+      replyText = `💡 **దస్తావేజు / పంటకు సంబంధించిన ఆచరణాత్మక సలహాలు & సూచనలు:**\n${parsed.actionableSuggestions.map((s, idx) => `${idx + 1}. **${s}**`).join("\n")}\n\n🏛️ **మీకు వర్తించే ప్రభుత్వ సంక్షేమ పథకాలు:**\n${parsed.unlockedSchemes.map((s) => `• ${s}`).join("\n")}`;
+      chips = ["ఈ పథకాలకు ఎలా దరఖాస్తు చేయాలి?", "కావలసిన పత్రాలు ఏమిటి?", "సారాంశం చూడండి"];
+    } else if (lang === "hi") {
+      replyText = `💡 **दस्तावेज़ एवं कृषि हेतु व्यावहारिक सुझाव एवं मार्गदर्शन:**\n${parsed.actionableSuggestions.map((s, idx) => `${idx + 1}. **${s}**`).join("\n")}\n\n🏛️ **पात्र सरकारी योजनाएं:**\n${parsed.unlockedSchemes.map((s) => `• ${s}`).join("\n")}`;
+      chips = ["योजनाओं के लिए कैसे आवेदन करें?", "आवश्यक दस्तावेज़ बताएं", "दस्तावेज़ सारांश"];
+    } else {
+      replyText = `💡 **Actionable Suggestions & Next Steps (based on ${parsed.title}):**\n${parsed.actionableSuggestions.map((s, idx) => `${idx + 1}. **${s}**`).join("\n")}\n\n🏛️ **Eligible Government Welfare Schemes & Subsidies:**\n${parsed.unlockedSchemes.map((s) => `• ${s}`).join("\n")}`;
+      chips = ["How to apply for these schemes?", "What documents are required?", "Summarize the document"];
+    }
+    return { text: replyText, chips };
+  }
+
+  // -----------------------------------------------------------------
+  // QUERY INTENT: HOW TO APPLY & WHERE TO SUBMIT
+  // -----------------------------------------------------------------
+  if (
+    qLower.includes("how to apply") ||
+    qLower.includes("where to apply") ||
+    qLower.includes("application process") ||
+    qLower.includes("where to submit") ||
+    qLower.includes("how to claim") ||
+    qLower.includes("దరఖాస్తు") ||
+    qLower.includes("आवेदन") ||
+    qLower.includes("விண்ணப்பிக்க")
+  ) {
+    if (lang === "te") {
+      replyText = `📝 **ప్రభుత్వ పథకాలు & ప్రయోజనాలకు దరఖాస్తు విధానం:**\n1. **సమీప రైతు వేదిక / వ్యవసాయ అధికారి (AAO):** పంట రుణాలు, విత్తనాల సబ్సిడీ మరియు PMFBY బీమాకు స్థానిక వ్యవసాయ అధికారిని సంప్రదించండి.\n2. **మీసేవ / CSC కియోస్క్ (డిజిటల్ సేవలు):** PM-KISAN ఈ-కేవైసీ మరియు ధరణి మ్యుటేషన్ స్లాట్ బుకింగ్ కోసం మీసేవ కేంద్రాన్ని సందర్శించండి.\n3. **ఆన్‌లైన్ పోర్టల్స్:** pmkisan.gov.in మరియు pmkusum.mnre.gov.in ద్వారా నేరుగా దరఖాస్తు చేయవచ్చు.\n\n📄 **కావలసిన పత్రాలు:** ఆధార్ కార్డు, పట్టాదారు పాస్ పుస్తకం/దస్తావేజు, బ్యాంక్ పాస్ బుక్ (DBT లింక్ చేయబడినది), పాస్‌పోర్ట్ సైజ్ ఫోటోలు.`;
+      chips = ["కావలసిన పత్రాలు", "PM-KISAN అర్హత", "సారాంశం చూడండి"];
+    } else if (lang === "hi") {
+      replyText = `📝 **सरकारी योजनाओं एवं लाभ हेतु आवेदन प्रक्रिया:**\n1. **किसान सेवा केंद्र / कृषि अधिकारी (AAO):** प्रमाणित बीज, कृषि यंत्र एवं PMFBY बीमा हेतु स्थानीय कृषि कार्यालय में संपर्क करें।\n2. **सीएससी (CSC Kiosk) / ई-मित्र:** PM-KISAN e-KYC एवं राजस्व नामांतरण हेतु नजदीकी जन सेवा केंद्र पर जाएं।\n3. **आधिकारिक पोर्टल:** pmkisan.gov.in एवं pmkusum.mnre.gov.in पर ऑनलाइन आवेदन करें।\n\n📄 **आवश्यक दस्तावेज़:** आधार कार्ड, भूमि पट्टा/खसरा नकल, बैंक पासबुक (DBT सक्रिय) एवं पासपोर्ट फोटो।`;
+      chips = ["आवश्यक दस्तावेज़", "PM-KISAN स्थिति", "दस्तावेज़ सारांश"];
+    } else {
+      replyText = `📝 **Step-by-Step Government Scheme Application Process:**\n1. **Village Level / Rythu Vedika / Krishi Bhavan:** Contact the Assistant Agricultural Officer (AAO) for Seed subsidies, SMAM Farm Equipment, and PMFBY Calamity claims.\n2. **Common Service Center (CSC Kiosk):** Visit your local CSC or MeeSeva center for PM-KISAN biometric e-KYC and Revenue Title Mutation.\n3. **Direct Official Portals:** Apply online via pmkisan.gov.in and pmkusum.mnre.gov.in for solar pump direct subsidies.\n\n📄 **Mandatory Verification Documents:**\n• Aadhaar Card (Farmer Identification)\n• Land Record (Passbook / Sale Deed / Patta)\n• Active DBT-linked Bank Account Passbook\n• Passport-size Photographs.`;
+      chips = ["What documents are required?", "Which schemes are unlocked?", "Summarize the document"];
+    }
+    return { text: replyText, chips };
+  }
+
+  // -----------------------------------------------------------------
+  // QUERY INTENT: CROP DISEASE, PEST & SPRAY DOSAGE
+  // -----------------------------------------------------------------
+  if (
+    qLower.includes("spray") ||
+    qLower.includes("pesticide") ||
+    qLower.includes("fungicide") ||
+    qLower.includes("cure") ||
+    qLower.includes("remedy") ||
+    qLower.includes("treatment") ||
+    qLower.includes("dose") ||
+    qLower.includes("dosage") ||
+    qLower.includes("మందు") ||
+    qLower.includes("పిచికారీ") ||
+    qLower.includes("దవా") ||
+    qLower.includes("दवा") ||
+    qLower.includes("छिड़काव")
+  ) {
+    const isTe = lang === "te";
+    const isHi = lang === "hi";
+    const crop = p["Target Crop"] || "Crop Leaf";
+    const issue = p["Identified Issue"] || "Foliar Pest / Chlorosis";
+    const organic = p["Organic Remedy"] || "Spray cold-pressed Neem Oil (10,000 ppm) @ 3ml/L in late afternoon.";
+    const chemical = p["Chemical Treatment"] || "Apply Flonicamid 50% WG @ 0.3g/L or Diafenthiuron 50% WP @ 1g/L.";
+
+    if (isTe) {
+      replyText = `🌿 **${crop} - ${issue} సస్యరక్షణ & పిచికారీ మార్గదర్శి:**\n\n1. **సేంద్రీయ చికిత్స:** ${organic}\n2. **రసాయన నివారణ:** ${chemical}\n3. **ముఖ్య సూచన:** తెల్లవారుజామున లేదా సాయంత్రం వేళల్లోనే స్ప్రే చేయండి. పొలంలో పసుపు రంగు జిగురు అట్టలను ఏర్పాటు చేయండి.\n\n🏛️ **రైతు సహాయం:** పంట నష్టం 33% దాటితే 72 గంటల్లో PMFBY టోల్ ఫ్రీ 1800-180-1551 కి తెలియజేయండి.`;
+      chips = ["పిచికారీ సమయం", "PMFBY పంట బీమా", "రైతు వేదిక అధికారి"];
+    } else if (isHi) {
+      replyText = `🌿 **${crop} - ${issue} पादप संरक्षण एवं कीटनाशक छिड़काव मार्गदर्शिका:**\n\n1. **जैविक उपचार:** ${organic}\n2. **रासायनिक उपचार:** ${chemical}\n3. **सावधानी:** छिड़काव हमेशा शाम के समय करें। खेत में प्रति एकड़ 15 पीले चिपचिपे ट्रैप लगाएं।\n\n🏛️ **बीमा सहायता:** फसल नुकसान 33% से अधिक होने पर 72 घंटे में PMFBY टोल-फ्री 1800-180-1551 पर सूचना दें।`;
+      chips = ["छिड़काव का सही समय", "PMFBY बीमा क्लेम", "कृषि विज्ञान केंद्र"];
+    } else {
+      replyText = `🌿 **Agronomic Treatment & Spray Guide for ${crop} (${issue}):**\n\n1. **Organic / Bio-Pesticide:** ${organic}\n2. **Chemical Control:** ${chemical}\n3. **Field Management:** Spray during calm late afternoons. Install 15 yellow sticky traps per acre to capture flying sucking pests.\n\n🏛️ **Calamity Relief:** If crop loss exceeds 33%, notify within 72 hours via PMFBY portal or dial Toll-Free 1800-180-1551.`;
+      chips = ["Spray Timing and Dosage", "Apply for PMFBY Claim", "Nearest Krishi Kendra"];
     }
     return { text: replyText, chips };
   }

@@ -103,7 +103,7 @@ CRITICAL TASK 1 - STRICT RELEVANCE CHECK:
 Determine whether the image is genuinely related to:
 - Agriculture, farming, crops, plant leaves, crop pests, plant diseases, farmland, or farm equipment.
 - Soil health, ICAR laboratory testing, or fertilizers.
-- Official Indian government welfare or land revenue documents (e.g. Land Patta, Pahani, RoR 1B, Registered Deed of Sale, Soil Health Card, Kisan Credit Card, Farmer Aadhaar/ID, PM-KISAN, State Agriculture Dept notices).
+- Official Indian government welfare or land revenue documents (e.g. Land Patta, Pahani, RoR 1B, Registered Deed of Sale, Soil Health Card, Kisan Credit Card, Farmer Aadhaar/ID, PM-KISAN, State Agriculture Dept notices, Agricultural University admissions, Government agricultural recruitment notices, ICAR/DARE scientific reports).
 
 IF THE IMAGE IS IRRELEVANT (e.g. human selfies, indoor rooms, furniture, clothing, shoes, laptops, computer screens showing code or settings, cars, street photos, pets, random food, memes):
 You MUST reject it:
@@ -168,7 +168,7 @@ Output strictly valid JSON matching this schema with no markdown code blocks.`;
     },
   };
 
-  const models = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-2.5-flash"];
+  const models = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"];
   for (const model of models) {
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;

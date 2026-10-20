@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireUser, serviceUnavailable, isDbError } from "@/lib/auth";
 import { isUniqueViolation, dbQuery } from "@/lib/db";
 import { answerDocumentQuestion } from "@/lib/nlpDocumentAnalyzer";
+import { generateIntelligentChatReply } from "@/lib/llmService";
 import type { SupportedLanguage } from "@/lib/i18n";
 import { LANGUAGE_CODES } from "@/lib/userProfile";
 import {
@@ -162,6 +163,12 @@ export async function POST(request: Request) {
       }
       reply = await withTimeout(
         (async () => {
+          const customApiKey =
+            attachment?.customApiKey ||
+            body?.customApiKey ||
+            request.headers.get("x-vision-api-key") ||
+            undefined;
+
           if (attachment) {
             try {
               const outcome = await analyzeAndRecordDocument({
@@ -170,17 +177,13 @@ export async function POST(request: Request) {
                 fileName,
                 fileType,
                 classification,
-                customApiKey:
-                  attachment.customApiKey ||
-                  body?.customApiKey ||
-                  request.headers.get("x-vision-api-key") ||
-                  undefined,
+                customApiKey,
               });
               if (!outcome.success && outcome.isOutOfScope) {
                 return buildOutOfScopeReply(language, outcome.reason);
               }
               if (outcome.success && outcome.detection) {
-                // Grounded Question-Answering & Summarization via BERT/HMM/CRF/TF-IDF:
+                // Grounded Question-Answering, Summaries & Actionable Suggestions via Multimodal LLM / NLP Engine:
                 const answered = answerDocumentQuestion(storedText, outcome.detection, language);
                 return { text: answered.text, chips: answered.chips, docDetection: compactDetection(outcome.detection) };
               }
@@ -190,12 +193,13 @@ export async function POST(request: Request) {
           }
 
           // If no attachment in current message, check if user is asking questions about a document
-          // or asking for summary/analysis of their previously uploaded document:
+          // or asking for summary/analysis/suggestions of their previously uploaded document:
           const isDocQuestion =
-            /summar|analy|overview|explain|brief|detail|owner|pattadar|applicant|beneficiary|whose\s*name|survey|khata|khasra|dag|passbook|extent|acres?|guntas?|hectare|bigha|how\s*much\s*land|size\s*of\s*land|amount|cost|price|consideration|stamp\s*duty|subsidy|fee|scheme|eligible|apply|pm-kisan|kusum|kcc|crop|pest|disease|remedy|spray|fungicide|document|paper|file|పత్రం|దస్తావేజు|సారాంశ|వివరించు|విశ్లేషణ|పేరు|యజమాని|సర్వే|ఖాతా|విస్తీర్ణం|ఎకరాలు|ధర|మొత్తం|పథకాలు|సబ్సిడీ|తెగులు|మందు|दस्तावेज़|कागजात|सारांश|विश्लेषण|मालिक|किसान|सर्वे|खसरा|रकबा|जमीन|राशि|योजना|सब्सिडी|कीट|रोग/i.test(
+            /summar|analy|suggest|recommen|advice|remed|overview|explain|brief|detail|owner|pattadar|applicant|beneficiary|whose\s*name|survey|khata|khasra|dag|passbook|extent|acres?|guntas?|hectare|bigha|how\s*much\s*land|size\s*of\s*land|amount|cost|price|consideration|stamp\s*duty|subsidy|fee|scheme|eligible|apply|pm-kisan|kusum|kcc|crop|pest|disease|remedy|spray|fungicide|document|paper|file|పత్రం|దస్తావేజు|సారాంశ|వివరించు|విశ్లేషణ|సలహా|సూచన|పేరు|యజమాని|సర్వే|ఖాతా|విస్తీర్ణం|ఎకరాలు|ధర|మొత్తం|పథకాలు|సబ్సిడీ|తెగులు|మందు|दस्तावेज़|कागजात|सारांश|विश्लेषण|सुझाव|सलाह|मालिक|किसान|सर्वे|खसरा|रकबा|जमीन|राशि|योजना|सब्सिडी|कीट|रोग/i.test(
               storedText
             );
 
+          let activeDocContext: any = undefined;
           if (isDocQuestion) {
             try {
               const recentDocs = await dbQuery<any[]>(
@@ -204,7 +208,7 @@ export async function POST(request: Request) {
               );
               if (recentDocs && recentDocs.length > 0) {
                 const docRow = recentDocs[0];
-                const detectionContext = {
+                activeDocContext = {
                   docType: docRow.doc_type,
                   title: docRow.title,
                   confidenceScore: Number(docRow.confidence_score) || 0.95,
@@ -216,16 +220,26 @@ export async function POST(request: Request) {
                     "PMFBY Comprehensive Crop Loss & Natural Calamity Insurance",
                   ],
                 };
-                const answered = answerDocumentQuestion(storedText, detectionContext, language);
-                return { text: answered.text, chips: answered.chips, docDetection: detectionContext };
               }
             } catch (docErr) {
               console.warn("[chat] failed to lookup recent document:", (docErr as Error).message);
             }
           }
 
-          // Always answer the question exactly as it was stored.
-          return generateTextReply(storedText, language, auth.profile);
+          // Unified Conversational LLM Engine (Gemini 2.0 / Groq Llama 3 / OpenAI with CampusOne Copilot Fallback):
+          const llmReply = await generateIntelligentChatReply({
+            query: storedText,
+            language,
+            profile: auth.profile,
+            documentContext: activeDocContext,
+            customApiKey,
+          });
+
+          return {
+            text: llmReply.text,
+            chips: llmReply.chips,
+            docDetection: activeDocContext,
+          };
         })(),
         REPLY_TIMEOUT_MS
       );
