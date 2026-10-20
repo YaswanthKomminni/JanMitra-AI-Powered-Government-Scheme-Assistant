@@ -54,7 +54,7 @@ export default function ConversationSidebar({ onSelect }: { onSelect?: () => voi
             onSelect?.();
           }}
           disabled={isAwaitingReply}
-          className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-2xl bg-emerald-700 hover:bg-emerald-800 disabled:opacity-60 text-white font-black text-sm shadow-sm transition active:scale-98"
+          className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-2xl bg-emerald-700 hover:bg-emerald-800 disabled:opacity-60 text-white font-black text-sm shadow-sm transition"
         >
           <MessageSquarePlus className="w-4 h-4" />
           New Chat

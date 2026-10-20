@@ -170,7 +170,7 @@ export default function DocumentVerificationModal() {
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-amber-200">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-700 border-2 border-amber-400/50 flex items-center justify-center shrink-0">
-                    <AlertTriangle className="w-6 h-6 text-amber-600 animate-bounce-subtle" />
+                    <AlertTriangle className="w-6 h-6 text-amber-600" />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
@@ -235,7 +235,7 @@ export default function DocumentVerificationModal() {
                     clearOutOfScopeError();
                     setInputMode("camera");
                   }}
-                  className="px-5 py-3 rounded-2xl bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs sm:text-sm shadow-md flex items-center gap-2 active:scale-95 transition"
+                  className="px-5 py-3 rounded-2xl bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs sm:text-sm shadow-md flex items-center gap-2 transition"
                 >
                   <Camera className="w-4 h-4 text-emerald-300" />
                   <span>{t.retakeAgriPhoto || "Retake Photo with Live Camera"}</span>
@@ -1114,7 +1114,7 @@ export default function DocumentVerificationModal() {
           {verificationResult && (
             <button
               onClick={confirmExtractedData}
-              className="px-5 sm:px-7 py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs sm:text-sm shadow-md flex items-center gap-2 active:scale-98 transition"
+              className="px-5 sm:px-7 py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs sm:text-sm shadow-md flex items-center gap-2 transition"
             >
               <ShieldCheck className="w-4 h-4 text-emerald-300" />
               <span>{t.confirmAndUpdate}</span>

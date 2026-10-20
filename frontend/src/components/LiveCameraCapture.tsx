@@ -141,7 +141,12 @@ export default function LiveCameraCapture({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Keep natural left-to-right reading orientation for documents and crop leaves
+    // Mirror image if using front selfie camera
+    if (facingMode === "user") {
+      ctx.translate(width, 0);
+      ctx.scale(-1, 1);
+    }
+
     ctx.drawImage(video, 0, 0, width, height);
 
     const base64 = canvas.toDataURL("image/jpeg", 0.92);
@@ -357,7 +362,7 @@ export default function LiveCameraCapture({
             <button
               onClick={handleSnap}
               disabled={cameraLoading || !!cameraError}
-              className={`group relative flex items-center justify-center w-16 h-16 rounded-full border-4 transition active:scale-90 ${
+              className={`group relative flex items-center justify-center w-16 h-16 rounded-full border-4 transition ${
                 cameraLoading || cameraError
                   ? "border-stone-700 bg-stone-800 cursor-not-allowed text-stone-600"
                   : "border-white bg-emerald-500 hover:bg-emerald-400 text-stone-950 shadow-[0_0_25px_rgba(16,185,129,0.5)] cursor-pointer"
@@ -365,7 +370,7 @@ export default function LiveCameraCapture({
               title="Snap Live Photo"
             >
               <div className="w-12 h-12 rounded-full border-2 border-white/80 flex items-center justify-center">
-                <Camera className="w-6 h-6 text-stone-950 group-hover:scale-110 transition" />
+                <Camera className="w-6 h-6 text-stone-950 transition" />
               </div>
             </button>
           </div>
@@ -382,7 +387,7 @@ export default function LiveCameraCapture({
 
             <button
               onClick={handleConfirm}
-              className={`flex-1 py-3 px-4 rounded-2xl font-black text-sm shadow-lg transition flex items-center justify-center gap-2 active:scale-95 ${
+              className={`flex-1 py-3 px-4 rounded-2xl font-black text-sm shadow-lg transition flex items-center justify-center gap-2 ${
                 scopePreview && !scopePreview.isAgriRelated
                   ? "bg-amber-600 hover:bg-amber-500 text-white shadow-amber-600/30"
                   : "bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/30"

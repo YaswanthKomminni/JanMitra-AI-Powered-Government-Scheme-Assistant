@@ -34,47 +34,47 @@ function LoginContent() {
   }, [intent, isAuthenticated]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-950 via-stone-900 to-emerald-900 flex flex-col justify-center py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl w-full mx-auto grid grid-cols-1 md:grid-cols-12 bg-white rounded-3xl shadow-2xl border border-emerald-500/20 overflow-hidden">
+    <div className="min-h-screen bg-jm-bg flex flex-col justify-center py-8 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-4xl w-full mx-auto grid grid-cols-1 md:grid-cols-12 bg-white rounded-3xl shadow-sm border border-jm-border overflow-hidden">
         {/* Left Side: Brand & Benefits */}
-        <div className="md:col-span-5 bg-gradient-to-br from-emerald-800 to-emerald-950 p-8 text-white flex flex-col justify-between">
+        <div className="md:col-span-5 bg-jm-soft p-8 text-jm-text flex flex-col justify-between">
           <div>
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-600/60 border border-emerald-400/30 flex items-center justify-center text-white shadow-lg">
-                <Sprout className="w-7 h-7 text-emerald-200" />
+              <div className="w-12 h-12 rounded-2xl bg-jm-primary border border-jm-border flex items-center justify-center text-jm-onprimary">
+                <Sprout className="w-7 h-7 text-jm-onprimary" />
               </div>
               <div>
                 <h1 className="text-2xl font-black tracking-tight leading-none">JanMithra</h1>
-                <p className="text-xs text-emerald-200/90 font-bold mt-1">AI Government Scheme Assistant</p>
+                <p className="text-xs text-jm-text2 font-bold mt-1">AI Government Scheme Assistant</p>
               </div>
             </div>
 
             <div className="space-y-4 my-8">
-              <div className="flex items-start gap-3 bg-white/5 p-3 rounded-2xl border border-white/10">
-                <Wheat className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+              <div className="flex items-start gap-3 bg-jm-surface p-3 rounded-2xl border border-jm-border">
+                <Wheat className="w-5 h-5 text-jm-primary shrink-0 mt-0.5" />
                 <div>
                   <h4 className="font-extrabold text-sm">4,706+ Welfare Schemes</h4>
-                  <p className="text-xs text-emerald-100/70">PM-KISAN, PM-KUSUM Solar, PMFBY Crop Insurance & Soil Health.</p>
+                  <p className="text-xs text-jm-text2">PM-KISAN, PM-KUSUM Solar, PMFBY Crop Insurance & Soil Health.</p>
                 </div>
               </div>
-              <div className="flex items-start gap-3 bg-white/5 p-3 rounded-2xl border border-white/10">
-                <ShieldCheck className="w-5 h-5 text-emerald-300 shrink-0 mt-0.5" />
+              <div className="flex items-start gap-3 bg-jm-surface p-3 rounded-2xl border border-jm-border">
+                <ShieldCheck className="w-5 h-5 text-jm-text2 shrink-0 mt-0.5" />
                 <div>
                   <h4 className="font-extrabold text-sm">Your Conversations, Saved</h4>
-                  <p className="text-xs text-emerald-100/70">Sign in on any device and continue where you stopped.</p>
+                  <p className="text-xs text-jm-text2">Sign in on any device and continue where you stopped.</p>
                 </div>
               </div>
-              <div className="flex items-start gap-3 bg-white/5 p-3 rounded-2xl border border-white/10">
-                <BadgeCheck className="w-5 h-5 text-cyan-300 shrink-0 mt-0.5" />
+              <div className="flex items-start gap-3 bg-jm-surface p-3 rounded-2xl border border-jm-border">
+                <BadgeCheck className="w-5 h-5 text-jm-primary shrink-0 mt-0.5" />
                 <div>
                   <h4 className="font-extrabold text-sm">Vision OCR Verification</h4>
-                  <p className="text-xs text-emerald-100/70">Scan Land Patta or Soil Cards for instant eligibility checks.</p>
+                  <p className="text-xs text-jm-text2">Scan Land Patta or Soil Cards for instant eligibility checks.</p>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="pt-4 border-t border-emerald-800/80 text-xs text-emerald-300 flex items-center justify-end">
+          <div className="pt-4 border-t border-jm-border text-xs text-jm-text2 flex items-center justify-end">
             <span className="font-bold flex items-center gap-1">
               <PhoneCall className="w-3.5 h-3.5" /> Kisan: 1551
             </span>

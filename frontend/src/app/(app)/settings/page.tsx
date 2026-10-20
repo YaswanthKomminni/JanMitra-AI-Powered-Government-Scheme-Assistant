@@ -1,0 +1,78 @@
+"use client";
+
+import React from "react";
+import ThemeSelectorCards from "@/components/ThemeSelectorCards";
+import { useFarmerStore } from "@/store/useFarmerStore";
+
+function Row({ label, value }: { label: string; value?: string | number | null }) {
+  if (value === undefined || value === null || value === "" || value === 0) return null;
+  return (
+    <div className="flex justify-between gap-4 py-2.5 border-b border-jm-border last:border-0 text-sm">
+      <dt className="text-jm-text2">{label}</dt>
+      <dd className="font-medium text-jm-text text-right break-words min-w-0">{value}</dd>
+    </div>
+  );
+}
+
+export default function SettingsPage() {
+  const { isAuthenticated, authStatus, currentFarmer: f, logout, setAuthModalOpen } = useFarmerStore();
+  const initials = (f.name || "?").split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+
+  return (
+    <>
+      <div className="w-full max-w-[1000px] mx-auto px-4 sm:px-6 py-8 space-y-10">
+        <h1 className="text-[25px] sm:text-[32px] leading-tight font-semibold">Settings</h1>
+
+        <section aria-labelledby="profile-h" className="space-y-3">
+          <h2 id="profile-h" className="text-xl sm:text-[22px] font-semibold">Profile</h2>
+          <div className="rounded-xl border border-jm-border bg-jm-surface p-5">
+            {authStatus === "unknown" ? (
+              <p className="text-sm text-jm-text2">Checking your sign-in…</p>
+            ) : isAuthenticated ? (
+              <>
+                <div className="flex items-center gap-4 mb-3">
+                  <span className="grid place-items-center w-14 h-14 rounded-full bg-jm-primary text-jm-onprimary text-lg font-semibold">{initials}</span>
+                  <div className="min-w-0">
+                    <p className="text-lg font-semibold truncate">{f.name}</p>
+                    {f.email && <p className="text-sm text-jm-text2 truncate">{f.email}</p>}
+                  </div>
+                </div>
+                <dl>
+                  <Row label="Phone" value={f.phone ? `+91 ${f.phone}` : ""} />
+                  <Row label="Email" value={f.email} />
+                  <Row label="Village" value={f.village} />
+                  <Row label="State" value={(f as any).state} />
+                  <Row label="District" value={(f as any).district} />
+                </dl>
+              </>
+            ) : (
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <p className="text-sm text-jm-text2">Sign in to see your profile.</p>
+                <button onClick={() => setAuthModalOpen(true, "login")} className="h-10 px-4 rounded-lg bg-jm-primary text-jm-onprimary text-sm font-semibold hover:opacity-90">Sign in</button>
+              </div>
+            )}
+          </div>
+        </section>
+
+        <section aria-labelledby="appearance-h" className="space-y-3">
+          <div>
+            <h2 id="appearance-h" className="text-xl sm:text-[22px] font-semibold">Make JanMitra yours</h2>
+            <p className="text-sm text-jm-text2 mt-1">Choose the colors that make you feel most comfortable using JanMitra.</p>
+          </div>
+          <ThemeSelectorCards />
+        </section>
+
+        {isAuthenticated && (
+          <section aria-labelledby="account-h" className="space-y-3">
+            <h2 id="account-h" className="text-xl sm:text-[22px] font-semibold">Account</h2>
+            <div className="rounded-xl border border-jm-border bg-jm-surface p-5 flex items-center justify-between gap-3 flex-wrap">
+              <p className="text-sm text-jm-text2">Sign out of this device.</p>
+              <button onClick={() => logout()} className="h-10 px-4 rounded-lg border border-jm-border text-sm font-semibold hover:bg-jm-muted">Sign out</button>
+            </div>
+          </section>
+        )}
+      </div>
+      
+    </>
+  );
+}

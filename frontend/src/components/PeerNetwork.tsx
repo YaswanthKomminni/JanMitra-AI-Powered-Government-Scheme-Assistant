@@ -76,7 +76,7 @@ export default function PeerNetwork() {
         {filteredPeers.map((peer) => (
           <div
             key={peer.id}
-            className="bg-white rounded-3xl border-2 border-emerald-100 hover:border-emerald-300 p-6 shadow-md hover:shadow-xl transition-all flex flex-col justify-between group"
+            className="bg-white rounded-[18px] border border-jm-border hover:border-jm-primary/40 p-5 sm:p-6 shadow-sm transition-colors flex flex-col justify-between"
           >
             <div>
               {/* Header: Peer info & distance tag */}
@@ -149,7 +149,7 @@ export default function PeerNetwork() {
               disabled={!peer.contactAllowed}
               className={`w-full py-3 px-4 rounded-2xl font-black text-sm flex items-center justify-center gap-2 transition shadow-sm ${
                 peer.contactAllowed
-                  ? "bg-emerald-800 hover:bg-emerald-900 text-white active:scale-98"
+                  ? "bg-emerald-800 hover:bg-emerald-900 text-white"
                   : "bg-stone-200 text-stone-500 cursor-not-allowed"
               }`}
             >
@@ -226,7 +226,7 @@ export default function PeerNetwork() {
                 </button>
                 <a
                   href={`tel:${peerContactModal.contactPhone.replace(/\s+/g, "")}`}
-                  className="flex-1 py-3.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-black text-sm shadow-md flex items-center justify-center gap-2 active:scale-98 transition text-center"
+                  className="flex-1 py-3.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-black text-sm shadow-md flex items-center justify-center gap-2 transition text-center"
                 >
                   <PhoneCall className="w-4 h-4" />
                   <span>Call Now</span>
