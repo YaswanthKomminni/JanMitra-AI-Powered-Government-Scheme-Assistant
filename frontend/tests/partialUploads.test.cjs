@@ -219,3 +219,35 @@ test('an unrelated room photo is rejected by visual evidence rather than accepte
     assert.equal(result.isAgriRelated, false);
   } finally { ocr.analyzeDocumentComprehensive = original; delete process.env.GEMINI_API_KEY; global.fetch = realFetch; }
 });
+
+test('PDF subject questions retain the upload after suggestions and checklist follow-ups', async () => {
+  const { parseAndSummarizeDocumentContent } = require('../src/lib/nlpDocumentAnalyzer.ts');
+  const text = 'National Institute of Rural Development and Panchayati Raj\nTELANGANA\nA compilation of Central sector, Centrally sponsored and State schemes for convergence under Saansad Adarsh Gram Yojana\nDepartment of Rural Development';
+  const detection = { fileName: 'Telangana.pdf', analysisQuality: 'complete', parsedDetails: parseAndSummarizeDocumentContent(text), extractedTextSnippet: text };
+  let memory = buildConversationMemory([], 'Analyze Telangana.pdf', undefined, true);
+  memory.latestUploadAvailable = true;
+  for (const query of ['Give me suggestions', 'What documents are required?', 'what is the doc related to', 'what is it about?', 'Explain this file', 'What is Telangana.pdf about?', 'What is the purpose of the PDF?']) {
+    memory = buildConversationMemory([], query, memory);
+    const reply = await generateIntelligentChatReply({ query, language: 'en', documentContext: detection, documentContextIsLatestTopic: true, conversationMemory: memory });
+    assert.equal(reply.usedDocument, true, query);
+    assert.doesNotMatch(reply.text, /Tell me your crop|name of the government scheme/, query);
+    if (!/suggestions|required/i.test(query)) assert.match(reply.text, /Central sector|Saansad Adarsh Gram Yojana/, query);
+    memory = finishConversationMemory(memory, reply.text);
+  }
+});
+
+test('an explicit doc reference returns to the upload after a different farming topic', async () => {
+  const { shouldUseDocument } = require('../src/lib/chatRouting.ts');
+  const detection = { ...poster };
+  let memory = buildConversationMemory([], 'Summarize this upload', undefined, true);
+  memory.latestUploadAvailable = true;
+  memory = buildConversationMemory([], 'How do I irrigate cotton?', memory);
+  assert.equal(shouldUseDocument('How do I irrigate cotton?', detection, false), false);
+  memory = buildConversationMemory([], 'what is the doc related to', memory);
+  assert.equal(memory.topic.kind, 'document');
+  const reply = await generateIntelligentChatReply({ query: 'what is the doc related to', language: 'en', documentContext: detection, documentContextIsLatestTopic: false, conversationMemory: memory });
+  assert.equal(reply.usedDocument, true);
+  assert.match(reply.text, /TELANGANA GOVT SCHEMES AND POLICIES/);
+  assert.equal(shouldUseDocument('hai', detection), false);
+  assert.equal(shouldUseDocument('Tell me a joke', detection), false);
+});

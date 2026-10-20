@@ -265,6 +265,9 @@ export function answerDocumentQuestion(query: string, detection: any, lang: Supp
     const instructions = select(/apply|application|submission|portal|url|website|procedure|instructions/i);
     return { text: `${bullets(instructions)}\n\n${suggestedText}`, chips };
   }
+  if (/(?:what|which).*(?:related to|subject|purpose|topic)|what is (?:it|this|that) about/i.test(q)) {
+    return { text: `**${l.summary}**\n${summary}`, chips };
+  }
   if (/summar|analy|overview|explain|brief|tell me about|inspect|read this|attached|what.*(?:show|contain|say|about)|సారాంశ|सारांश|சுருக்க|ಸಾರಾಂಶ|সারসংক্ষেপ/i.test(q) || !q.trim()) {
     return { text: `**${l.summary}**\n${summary}\n\n**${l.details}**\n${bullets(Object.entries(p))}\n\n${suggestedText}`, chips };
   }
