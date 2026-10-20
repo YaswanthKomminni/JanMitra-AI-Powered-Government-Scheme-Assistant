@@ -183,9 +183,19 @@ export async function POST(request: Request) {
                 return buildOutOfScopeReply(language, outcome.reason);
               }
               if (outcome.success && outcome.detection) {
-                // Grounded Question-Answering, Summaries & Actionable Suggestions via Multimodal LLM / NLP Engine:
-                const answered = answerDocumentQuestion(storedText, outcome.detection, language);
-                return { text: answered.text, chips: answered.chips, docDetection: compactDetection(outcome.detection) };
+                // Grounded Question-Answering, Summaries & Actionable Suggestions via Multimodal LLM / CampusOne Copilot:
+                const llmAnswer = await generateIntelligentChatReply({
+                  query: storedText,
+                  language,
+                  profile: auth.profile,
+                  documentContext: outcome.detection,
+                  customApiKey,
+                });
+                return {
+                  text: llmAnswer.text,
+                  chips: llmAnswer.chips,
+                  docDetection: compactDetection(outcome.detection),
+                };
               }
             } catch (ocrErr) {
               console.warn("[chat] document analysis failed, using text engine:", (ocrErr as Error).message);

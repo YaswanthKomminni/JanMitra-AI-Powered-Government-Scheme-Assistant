@@ -146,30 +146,13 @@ export function classifyImagePixels(
   const textDensity = totalSampled > 0 ? highContrastTextEdges / totalSampled : 0;
   const skinRatio = totalSampled > 0 ? humanSkinCount / totalSampled : 0;
 
-  // 1. Strict Out-of-Scope Rejection for Human Selfies / Indoor Portraits without an official document:
-  const isDocSurface = docRatio >= 0.15 || textDensity >= 0.01;
-  if (skinRatio >= 0.05 && !isDocSurface && !hasAgriKeyword) {
-    return {
-      isAgriRelated: false,
-      detectedType: "out_of_scope",
-      confidence: 0.96,
-      message: "The captured image appears to show a person, portrait, or indoor surroundings rather than agricultural crops, plant leaves, soil samples, or official government welfare documents.",
-      metrics: {
-        greenVegetationRatio: Math.round(greenRatio * 100),
-        soilToneRatio: Math.round(soilRatio * 100),
-        documentPaperRatio: Math.round(docRatio * 100),
-        dominantDomain: "Human Portrait / Selfie (Out of Scope)",
-      },
-    };
-  }
-
-  // 2. Agricultural Crop Foliage / Pest & Disease Diagnosis
-  if (greenRatio >= 0.08 || userSelectedCategory === "crop_disease") {
+  // 1. Agricultural Crop Foliage / Pest & Disease Diagnosis
+  if (greenRatio >= 0.08 || userSelectedCategory === "crop_disease" || lowerName.includes("leaf") || lowerName.includes("crop")) {
     return {
       isAgriRelated: true,
       detectedType: "crop_disease",
       confidence: Math.min(0.98, Math.max(0.75, 0.65 + greenRatio * 1.5)),
-      message: "Valid agricultural crop/leaf detected for pest and disease analysis.",
+      message: "Agricultural crop image prepared for pest and disease analysis.",
       metrics: {
         greenVegetationRatio: Math.round(greenRatio * 100),
         soilToneRatio: Math.round(soilRatio * 100),
@@ -179,8 +162,8 @@ export function classifyImagePixels(
     };
   }
 
-  // 3. Agricultural Soil / Farmland Earth Sample
-  if (soilRatio >= 0.15 || userSelectedCategory === "soil_health") {
+  // 2. Agricultural Soil / Farmland Earth Sample
+  if (soilRatio >= 0.15 || userSelectedCategory === "soil_health" || lowerName.includes("soil")) {
     return {
       isAgriRelated: true,
       detectedType: "soil_health",
@@ -195,46 +178,34 @@ export function classifyImagePixels(
     };
   }
 
-  // 4. Official Document Layout (Land Title, Patta, Pahani, Seed Subsidy, Sale Deed, Identity Card):
-  const isDocumentVisual = docRatio >= 0.18 || (docRatio >= 0.10 && textDensity >= 0.007) || hasAgriKeyword;
-  if (isDocumentVisual || userSelectedCategory === "identity_card" || userSelectedCategory === "land_record") {
-    let detectedDocType: "land_record" | "soil_health" | "identity_card" = "land_record";
-    if (userSelectedCategory === "soil_health" || lowerName.includes("soil") || lowerName.includes("shc")) {
-      detectedDocType = "soil_health";
-    } else if (
-      userSelectedCategory === "identity_card" ||
-      lowerName.includes("aadhaar") ||
-      lowerName.includes("id") ||
-      (skinRatio >= 0.035 && isDocSurface)
-    ) {
-      detectedDocType = "identity_card";
-    }
-
+  // 3. Citizen / Farmer Identity Card (Aadhaar, Voter ID, Kisan Card)
+  if (userSelectedCategory === "identity_card" || lowerName.includes("aadhaar") || lowerName.includes("id")) {
     return {
       isAgriRelated: true,
-      detectedType: detectedDocType,
-      confidence: Math.min(0.99, Math.max(0.85, 0.78 + docRatio * 0.25)),
-      message: "Official government / agricultural document detected for Vision OCR extraction.",
+      detectedType: "identity_card",
+      confidence: 0.95,
+      message: "Farmer / Citizen Identity Card detected for welfare registration.",
       metrics: {
         greenVegetationRatio: Math.round(greenRatio * 100),
         soilToneRatio: Math.round(soilRatio * 100),
         documentPaperRatio: Math.round(docRatio * 100),
-        dominantDomain: "Government & Land Revenue Document",
+        dominantDomain: "Identity & Verification",
       },
     };
   }
 
-  // 5. Default Out-of-Scope Rejection for Non-Agricultural Images (everyday objects, furniture, vehicles, dark screens):
+  // 4. Official Agricultural / Government Document (Land Patta, Sale Deed, RoR, University Circular, Scheme Form):
+  // Always forward uploaded documents to the Multimodal Vision LLM & OCR server for deep inspection
   return {
-    isAgriRelated: false,
-    detectedType: "out_of_scope",
-    confidence: 0.94,
-    message: "The uploaded photo does not appear to be related to agriculture, crops, soil, or official government welfare documents.",
+    isAgriRelated: true,
+    detectedType: "land_record",
+    confidence: 0.96,
+    message: "Official agricultural / government document uploaded for multimodal analysis.",
     metrics: {
       greenVegetationRatio: Math.round(greenRatio * 100),
       soilToneRatio: Math.round(soilRatio * 100),
       documentPaperRatio: Math.round(docRatio * 100),
-      dominantDomain: "Non-Agricultural / Everyday Surroundings (Out of Scope)",
+      dominantDomain: "Government & Land Revenue Document",
     },
   };
 }

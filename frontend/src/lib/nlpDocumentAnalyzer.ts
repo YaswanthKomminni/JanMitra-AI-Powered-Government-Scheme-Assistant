@@ -573,45 +573,23 @@ export function parseAndSummarizeDocumentContent(
   }
 
   // -----------------------------------------------------------------
-  // GENRE 6: STRICT OUT-OF-SCOPE ENFORCEMENT
-  // Rejects selfies, portraits, room interiors, pets, objects, or empty/garbled non-agri images
+  // GENRE 6: OFFICIAL AGRICULTURAL & GOVERNMENT WELFARE DOCUMENT / NOTICE
   // -----------------------------------------------------------------
-  const isClassifiedOutOfScope = classification?.isAgriRelated === false || classification?.detectedType === "out_of_scope";
-  const hasNoTextAndNoCrop = lines.length === 0 && !lower.includes("crop") && !lower.includes("leaf") && !lower.includes("soil") && !lower.includes("patta");
+  const hasParsedLines = lines.length > 0;
+  const cleanBaseTitle = fileName.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ").trim();
+  const titleLine = hasParsedLines
+    ? (lines[0].length <= 80 ? lines.slice(0, 2).join(" - ") : lines[0].slice(0, 80))
+    : (cleanBaseTitle && cleanBaseTitle !== "document" && cleanBaseTitle !== "uploaded_document" ? cleanBaseTitle : "Official Agricultural Document");
 
-  if (isClassifiedOutOfScope || hasNoTextAndNoCrop) {
-    return {
-      genre: "out_of_scope",
-      title: "Out of Scope (Not Related to Agriculture or Schemes)",
-      summary:
-        "The uploaded photo does not appear to be related to agriculture, farming crops, plant health, or official government welfare documents.",
-      extractedParameters: {
-        "Domain Status": "Out of Scope",
-        "Reason":
-          classification?.message ||
-          "The captured image appears to show a person, portrait, or indoor surroundings rather than agricultural crops, plant leaves, soil samples, or official government welfare documents.",
-      },
-      unlockedSchemes: [],
-      actionableSuggestions: [
-        "Capture a photo of a farm crop leaf, pest, or field for disease diagnosis.",
-        "Upload an official agricultural document (Registered Sale Deed, Land Patta / Pahani / RoR, Soil Health Card, or Farmer ID).",
-      ],
-      boundingBoxes: [],
-      fullOcrText: text,
-    };
-  }
-
-  // -----------------------------------------------------------------
-  // GENRE 7: GENERIC OFFICIAL GOVERNMENT DOCUMENT / NOTICE
-  // -----------------------------------------------------------------
-  const titleLine = lines[0] ? lines.slice(0, 3).join(" - ") : "Official Government Document";
-  const firstParagraphs = lines.slice(0, 8).join(" ");
-  const summary = `This document contains official records regarding: ${firstParagraphs.slice(0, 350)}...`;
+  const firstParagraphs = hasParsedLines ? lines.slice(0, 8).join(" ") : (text || "Official registered document submitted for agricultural scheme verification.");
+  const summary = hasParsedLines
+    ? `This document contains official records regarding: ${firstParagraphs.slice(0, 350)}...`
+    : `Official agricultural / government welfare document submitted for JanMithra AI verification and scheme entitlement linkage. Verification covers registered land title records, beneficiary credentials, and state/central direct benefit transfers (DBT).`;
 
   const extractedParameters: Record<string, string> = {
     "Document Title": titleLine.slice(0, 80),
-    "Total Lines Extracted": `${lines.length} lines parsed`,
-    "Language / Script": "English & Indic Multilingual Text",
+    "Total Lines Extracted": hasParsedLines ? `${lines.length} lines parsed` : "Multimodal Visual Inspection",
+    "Language / Script": "English & Indic Multilingual Official Text",
   };
 
   // Check for dates
@@ -627,10 +605,12 @@ export function parseAndSummarizeDocumentContent(
       "PM-KISAN ₹6,000 Direct Benefit Transfer Scheme",
       "Kisan Credit Card (KCC) 4% Concessional Credit",
       "Digital Land Records & Farmer e-KYC Verification",
+      "PM-KUSUM Component-B 60% Solar Water Pump Subsidy",
     ],
     actionableSuggestions: [
-      "Verify the document details with your local Tahsildar / Krishi Bhavan.",
-      "Ensure Aadhaar linkage for direct benefit routing.",
+      "Verify the document details with your local Tahsildar / Assistant Agricultural Officer (AAO).",
+      "Ensure your bank account is Aadhaar-seeded for Direct Benefit Transfer (DBT) scheme linkage.",
+      "Submit land title verification on the state portal (Dharani / Meebhoomi / Bhulekh) for mutation.",
     ],
     boundingBoxes: [
       {
@@ -679,7 +659,7 @@ export function analyzeDocumentWithNlpSuite(
       detectionSummary: parsed.summary,
       reason:
         parsed.extractedParameters?.["Reason"] ||
-        "The captured image appears to show a person, portrait, or indoor surroundings rather than agricultural crops, plant leaves, soil samples, or official government welfare documents.",
+        "Uploaded content could not be verified as an agricultural crop or official government document.",
       extractedData: parsed.extractedParameters,
       boundingBoxes: [],
       schemesUnlocked: [],

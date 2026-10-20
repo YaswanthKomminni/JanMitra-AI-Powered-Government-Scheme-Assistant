@@ -99,14 +99,16 @@ async function callGeminiVision(
   const systemPrompt = `You are JanMithra's expert Agricultural Vision & Government Welfare Assistant for Indian rural citizens and farmers.
 Your job is to analyze the image carefully.
 
-CRITICAL TASK 1 - STRICT RELEVANCE CHECK:
+CRITICAL TASK 1 - RELEVANCE CHECK:
 Determine whether the image is genuinely related to:
 - Agriculture, farming, crops, plant leaves, crop pests, plant diseases, farmland, or farm equipment.
 - Soil health, ICAR laboratory testing, or fertilizers.
 - Official Indian government welfare or land revenue documents (e.g. Land Patta, Pahani, RoR 1B, Registered Deed of Sale, Soil Health Card, Kisan Credit Card, Farmer Aadhaar/ID, PM-KISAN, State Agriculture Dept notices, Agricultural University admissions, Government agricultural recruitment notices, ICAR/DARE scientific reports).
 
-IF THE IMAGE IS IRRELEVANT (e.g. human selfies, indoor rooms, furniture, clothing, shoes, laptops, computer screens showing code or settings, cars, street photos, pets, random food, memes):
-You MUST reject it:
+CRITICAL RULE FOR DOCUMENTS: If the photo shows an official document, certificate, deed, application, or land passbook (even if taken indoors, on a table/desk, or held with human hands), IT IS STRICTLY IN-SCOPE! Read and extract the document's contents.
+
+IF THE IMAGE IS GENUINELY IRRELEVANT (showing ONLY a human selfie/face portrait with NO document, an empty room, pets, vehicles, or developer terminal code):
+Reject with:
 {
   "isAgriRelated": false,
   "scopeStatus": "out_of_scope",
@@ -230,11 +232,11 @@ async function callGroqVision(fileBase64: string, apiKey: string): Promise<Visio
               content: [
                 {
                   type: "text",
-                  text: "Determine if this image is strictly related to Indian agriculture, crops, plant disease, soil, or government welfare land records. If not (e.g. computer screens, laptops, rooms, selfies), reject with { isAgriRelated: false, scopeStatus: 'out_of_scope', reason: '...', suggestions: [...] }. If yes, return { isAgriRelated: true, scopeStatus: 'in_scope', docType: 'crop_disease'|'soil_health_card'|'land_record'|'identity_card', title: '...', detectionSummary: '...', extractedData: {...}, schemesUnlocked: [...], suggestions: [...] }. Do not hallucinate fake names. Return JSON only.",
+                  text: "Analyze this image for Indian agriculture and government welfare schemes. If it shows crops, plant leaves, pest/disease, soil, or ANY official government document, land title, Patta/Pahani/RoR, deed, passbook, certificate, identity card, or circular (even if photographed in hand or on a desk), IT IS IN-SCOPE! Return { isAgriRelated: true, scopeStatus: 'in_scope', docType: 'crop_disease'|'soil_health_card'|'land_record'|'identity_card', title: '...', detectionSummary: '...', extractedData: {...}, schemesUnlocked: [...], suggestions: [...] }. Only reject if there is NO document and NO crop (e.g. a pure human face selfie or developer terminal). Do not hallucinate fake names. Return JSON only.",
                 },
                 {
                   type: "image_url",
-                  image_url: { url: fileBase64 },
+                  image_url: { url: fileBase64.startsWith("data:") ? fileBase64 : `data:image/jpeg;base64,${fileBase64}` },
                 },
               ],
             },
@@ -290,11 +292,11 @@ async function callOpenAiVision(fileBase64: string, apiKey: string): Promise<Vis
             content: [
               {
                 type: "text",
-                text: "Determine if this image is strictly related to Indian agriculture, crops, plant disease, soil, or government welfare land records. If not (e.g. computer screens, laptops, rooms, selfies), reject with { isAgriRelated: false, scopeStatus: 'out_of_scope', reason: '...', suggestions: [...] }. If yes, return { isAgriRelated: true, scopeStatus: 'in_scope', docType: 'crop_disease'|'soil_health_card'|'land_record'|'identity_card', title: '...', detectionSummary: '...', extractedData: {...}, schemesUnlocked: [...], suggestions: [...] }. Do not hallucinate fake names. Return JSON only.",
+                text: "Analyze this image for Indian agriculture and government welfare schemes. If it shows crops, plant leaves, pest/disease, soil, or ANY official government document, land title, Patta/Pahani/RoR, deed, passbook, certificate, identity card, or circular (even if photographed in hand or on a desk), IT IS IN-SCOPE! Return { isAgriRelated: true, scopeStatus: 'in_scope', docType: 'crop_disease'|'soil_health_card'|'land_record'|'identity_card', title: '...', detectionSummary: '...', extractedData: {...}, schemesUnlocked: [...], suggestions: [...] }. Only reject if there is NO document and NO crop (e.g. a pure human face selfie or developer terminal). Do not hallucinate fake names. Return JSON only.",
               },
               {
                 type: "image_url",
-                image_url: { url: fileBase64 },
+                image_url: { url: fileBase64.startsWith("data:") ? fileBase64 : `data:image/jpeg;base64,${fileBase64}` },
               },
             ],
           },
