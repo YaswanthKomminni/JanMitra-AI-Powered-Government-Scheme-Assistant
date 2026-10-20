@@ -42,6 +42,15 @@ test('chat location corrections override saved state for catalog recommendations
   assert.ok(schemeReferences(query, profile, memory).some(item => item.jurisdiction === 'Gujarat'));
 });
 
+test('an exact scheme acronym cannot be replaced by another scheme sharing a common word', () => {
+  for (const [query, expected] of [['PM-KISAN', /Kisan Samman Nidhi/i], ['KCC', /Kisan Credit Card/i], ['PMFBY', /Fasal Bima/i], ['PM-KUSUM', /KUSUM|Urja Suraksha/i]]) {
+    const matches = semanticSearchSchemes(query, GUEST_FARMER, 3);
+    assert.ok(matches.length, query);
+    assert.match(matches[0].scheme.name, expected);
+    assert.ok(matches.every(item => expected.test(item.scheme.name)), query);
+  }
+});
+
 test('greetings and unrelated questions bypass cloud providers even with an old upload', async () => {
   process.env.GROQ_API_KEY = 'gsk_synthetic-test';
   global.fetch = async () => { throw new Error('A greeting or off-topic turn must not call a provider'); };

@@ -497,10 +497,9 @@ export function semanticSearchSchemes(
   const model = getTrainedModel();
   const qVec = generateDenseVectorEmbedding(query);
 
-  // If model is available, search indexed schemes
-  const sourceSchemes: IndexedScheme[] = model?.schemes?.length
-    ? model.schemes
-    : SCHEMES_DATABASE.map((s) => ({
+  // Keep reviewed national summaries available even when the larger catalog
+  // only contains a state-specific variant of the same scheme.
+  const curatedSchemes: IndexedScheme[] = SCHEMES_DATABASE.map((s) => ({
         id: s.id,
         name: s.name,
         category: s.category,
@@ -512,13 +511,19 @@ export function semanticSearchSchemes(
         baseline_weight: 0.95,
         vector: generateDenseVectorEmbedding(s.name + " " + s.description),
       }));
+  const sourceSchemes: IndexedScheme[] = [...curatedSchemes, ...(model?.schemes || []).filter(s =>
+    schemeJurisdiction(s.ministry) || !SCHEME_ALIASES.some(alias => alias.name.test(s.name) && curatedSchemes.some(item => alias.name.test(item.name))))];
 
   const scored: SemanticSchemeMatch[] = [];
   const terms = meaningfulSchemeTerms(query);
   if (!terms.length) return [];
   const userState = farmer.state?.trim().toLowerCase();
+  const aliases = SCHEME_ALIASES.filter(alias => alias.query.test(query));
 
   for (const s of sourceSchemes) {
+    // A shared word such as "Kisan" cannot replace an explicitly named scheme.
+    // Comparisons naming several schemes still search the full candidate set.
+    if (aliases.length === 1 && !aliases[0].name.test(s.name)) continue;
     const jurisdiction = schemeJurisdiction(s.ministry);
     const explicitlyRequestedState = jurisdiction && new RegExp(`\\b${jurisdiction.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(query);
     // Never recommend a state programme for an unknown or different state,
@@ -562,6 +567,13 @@ const STATE_NAMES = [
   "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu",
   "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal", "Delhi", "Jammu and Kashmir",
   "Ladakh", "Puducherry", "Chandigarh", "Lakshadweep", "Andaman and Nicobar Islands", "Dadra and Nagar Haveli",
+];
+const SCHEME_ALIASES = [
+  { query: /\bpm[ -]?kisan\b|kisan samman nidhi/i, name: /\bpm[ -]?kisan\b|kisan samman nidhi/i },
+  { query: /\bpmfby\b|pradhan mantri fasal bima/i, name: /\bpmfby\b|pradhan mantri fasal bima/i },
+  { query: /\bkcc\b|kisan credit card/i, name: /\bkcc\b|kisan credit card/i },
+  { query: /\bpm[ -]?kusum\b/i, name: /kusum|kisan urja suraksha/i },
+  { query: /\bpmay\b|pradhan mantri awas/i, name: /\bpmay\b|pradhan mantri awas/i },
 ];
 const SCHEME_STOPWORDS = new Set([
   "a", "an", "and", "are", "am", "can", "could", "do", "does", "for", "from", "government", "govt", "how",
