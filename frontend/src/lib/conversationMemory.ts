@@ -16,11 +16,59 @@ const states = /\b(Telangana|Andhra Pradesh|Tamil Nadu|Karnataka|Kerala|Maharash
 const schemePattern = /PM[ -]?KISAN|Kisan Samman Nidhi|PMFBY|crop insurance|PM[ -]?KUSUM|Kisan Credit Card|\bKCC\b|Mahalakshmi|Rythu Bharosa|Gruha Jyothi|Indiramma(?: Indlu)?|Cheyutha/gi;
 const keys = ["crop", "cropAge", "land", "state", "district", "location", "soil", "irrigation", "symptoms", "lastRain"] as const;
 
+export type TextTurnClass = "greeting" | "off_topic" | "relevant" | "contextual" | "unknown";
+
+const relevantWords = /\b(?:agricultur\w*|farm\w*|cultivat\w*|crop\w*|plant\w*|leaf|leaves|pest\w*|disease\w*|soil|seed\w*|sow\w*|fertili[sz]\w*|irrigat\w*|waterlog\w*|harvest\w*|tractor|mandi|market price|weather|rainfall|subsid\w*|scheme\w*|yojana|government|govt|welfare|pension|scholarship|ration|housing|insurance|loan|kisan|patta|pahani|land record|farmer id|soil health card|pmfby|kusum|aadhaar|dbt)\b|పంట|వ్యవసాయ|రైతు|పథక|ప్రభుత్వ|అర్హత|దరఖాస్తు|खेती|किसान|फसल|योजना|सरकारी|पात्रता|आवेदन|விவசாய|பயிர்|திட்டம்|அரசு|ಕೃಷಿ|ಬೆಳೆ|ಯೋಜನೆ|ಸರ್ಕಾರ|কৃষি|ফসল|প্রকল্প|সরকার/i;
+const unrelatedWords = /\b(?:joke|riddle|movie|film|celebrity|football|cricket score|match score|song|lyrics|recipe|restaurant|touris\w*|hotel|flight|stock(?:s| market)?|crypto|bitcoin|horoscope|astrology|physics|quantum|capital of|president of|prime minister of|exam result|passport|write\s+(?:me\s+)?(?:code|a program|an app|an essay|a poem)|debug\s+(?:this\s+)?code|(?:javascript|python|css|html)\s+(?:code|program))\b/i;
+const genericFollowup = /\b(?:how (?:do|can|should) i (?:apply|register|check|claim|get)|how to (?:apply|register|check|claim|get)|what (?:documents?|paperwork|benefits?|requirements?|conditions?|should i do)|am i eligib\w*|which (?:documents?|scheme)|when (?:is|does) (?:the )?(?:deadline|application)|where (?:do|can) i apply|deadline|last date|documents?|paperwork|eligib\w*|qualif\w*|apply|application|register|benefits?|status|payment|next steps?|requirements?|conditions?|explain (?:it|this|that)|summari[sz]e (?:it|this|that)|tell me more|for me)\b|అర్హత|ఎలా దరఖాస్తు|कैसे आवेदन|दस्तावेज|எப்படி விண்ணப்பம்|ಅರ್ಹತೆ|কীভাবে আবেদন/i;
+const schemeMentionPattern = new RegExp(schemePattern.source, "i");
+const cropMentionPattern = new RegExp(cropPattern.source, "i");
+const stateMentionPattern = new RegExp(states.source, "i");
+
+export function isGreetingQuery(query: string): boolean {
+  const q = query.trim().replace(/^[\s.,!?।]+|[\s.,!?।]+$/g, "");
+  return /^(?:h+i+|h+e+l+o+|h+e+y+|namaste|namaskar|good (?:morning|afternoon|evening)|thanks?|thank you|నమస్కారం|नमस्ते|வணக்கம்|ನಮಸ್ಕಾರ|নমস্কার)(?:\s+(?:there|sir|madam|ji|friend))?$/i.test(q);
+}
+
+export function isExplicitlyUnrelatedQuery(query: string): boolean {
+  if (/\b(?:write\s+(?:me\s+)?(?:code|a program|an app|an essay|a poem)|debug\s+(?:this\s+)?code|tell\s+(?:me\s+)?a joke)\b/i.test(query)) return true;
+  // Sports, tourism or employment can be the subject of a welfare scheme.
+  return unrelatedWords.test(query) && !/\b(?:scheme|subsid|government|govt|welfare|scholarship|pension|yojana)\w*\b|పథక|ప్రభుత్వ|योजना|सरकारी|திட்டம்|ಯೋಜನೆ|প্রকল্প/i.test(query);
+}
+
+/** Keep unrelated requests away from scheme retrieval, while allowing short answers to an active question. */
+export function classifyTextTurn(query: string, memory?: ConversationMemory): TextTurnClass {
+  const q = query.trim();
+  if (isGreetingQuery(q)) return "greeting";
+  if (isExplicitlyUnrelatedQuery(q)) return "off_topic";
+  if (memory?.options?.length && /\b(?:first|second|third|1st|2nd|3rd)\b/i.test(q)) return "contextual";
+  if (memory?.options?.length && q.length < 60 && /insurance|loan|credit|income support|cash support|solar|pump|బీమా|రుణ|ఆదాయ|बीमा|ऋण|आय सहायता/i.test(q)) return "contextual";
+  const hasTopic = Boolean(memory?.topic);
+  if (hasTopic && (isContextualFollowup(q) || genericFollowup.test(q))) {
+    // A named new topic takes precedence over the old one.
+    if (!schemeMentionPattern.test(q) && !/\b(?:new|different|another)\s+(?:crop|scheme|topic)\b/i.test(q)) return "contextual";
+  }
+  if (relevantWords.test(q) || schemeMentionPattern.test(q) || cropMentionPattern.test(q)
+    || /\b(?:compost|organic|manure|weed|mulch|rotation|urea|dap|nutrient|germination|horticulture|livestock|dairy|cattle|poultry|fisheries|photosynthesis|pmay|mgnrega|nrega|ayushman|eshra?m)\b/i.test(q)) return "relevant";
+  if (stateMentionPattern.test(q)) return hasTopic ? "contextual" : "relevant";
+  if (hasTopic && q.length <= 100 && !/[?]/.test(q) &&
+    (/\b(?:i|my|we|our|from|in|acres?|hectares?|guntas?|days?|weeks?|months?|years?|soil|district)\b|\d/.test(q)
+      || Boolean(memory?.pendingQuestion && new RegExp("^[\\p{L}][\\p{L} .'-]{1,50}$", "u").test(q)))) return "contextual";
+  // A general application question is in scope, but needs a scheme name or prior topic.
+  if (genericFollowup.test(q) && /\b(?:apply|application|eligib\w*|documents?|deadline|benefits?|subsid\w*|status|payment|requirements?)\b/i.test(q)) return "relevant";
+  // Keep unrecognized regional-language questions available to the language-aware
+  // assistant. A narrow keyword list cannot safely declare them unrelated.
+  if (/[\u0900-\u0D7F]/.test(q)) return hasTopic ? "contextual" : "relevant";
+  // Absence from a keyword list is not evidence of irrelevance. Let the cloud
+  // assistant resolve scope, or ask for clarification in the bounded fallback.
+  return "unknown";
+}
+
 export function isContextualFollowup(query: string): boolean {
   const q = query.trim();
   return /^(yes|yeah|ok|okay|sure|no|continue|go ahead|please|అవును|సరే|हाँ|ठीक है)[!.\s]*$/i.test(q)
     || /\b(this|that|these|those|it|above|same|previous|earlier|second one|first one|third one|for me|my profile|my farm|my land)\b/i.test(q)
-    || /^(?:and\s+)?(?:how (?:do i |can i |to )?(?:apply|get|claim|check|register)|what documents|documents|eligibility|am i eligible|what about|tell me more|why\??$|how much|suggestions?|give me suggestions|next steps?|what (?:should|can) i do|అర్హత|ఎలా దరఖాస్తు|कैसे आवेदन|और बताओ)/i.test(q);
+    || /^(?:and\s+)?(?:how (?:do i |can i |to )?(?:apply|get|claim|check|register)|what documents|documents|eligibility|am i eligible|what about|tell me more|why\??$|how much|suggestions?|give me suggestions|next steps?|what (?:should|can) i (?:do|check)|అర్హత|ఎలా దరఖాస్తు|कैसे आवेदन|और बताओ)/i.test(q);
 }
 
 export function readConversationMemory(raw: unknown): ConversationMemory | undefined {
@@ -45,6 +93,11 @@ function lastMatch(text: string, pattern: RegExp): string | undefined {
 function updateUser(memory: ConversationMemory, query: string, attachment = false) {
   if (attachment) memory.latestUploadAvailable = false; // Set true only after successful server analysis.
   const q = query.trim();
+  if (!attachment && classifyTextTurn(q, memory) === "off_topic") {
+    delete memory.topic;
+    delete memory.pendingQuestion;
+    memory.options = [];
+  }
   const facts = memory.facts;
   const pending = memory.pendingQuestion || "";
   const crop = lastMatch(q, cropPattern);
@@ -89,7 +142,11 @@ function updateUser(memory: ConversationMemory, query: string, attachment = fals
 
   const scheme = lastMatch(q, schemePattern);
   const ordinal = q.match(/\b(first|second|third|1st|2nd|3rd)\b/i)?.[1]?.toLowerCase();
-  const selected = ordinal ? memory.options?.[({ first: 0, "1st": 0, second: 1, "2nd": 1, third: 2, "3rd": 2 } as Record<string, number>)[ordinal]] : undefined;
+  const selected = ordinal ? memory.options?.[({ first: 0, "1st": 0, second: 1, "2nd": 1, third: 2, "3rd": 2 } as Record<string, number>)[ordinal]]
+    : q.length < 60 ? memory.options?.find(option => /insurance|బీమా|बीमा/i.test(q) && /PMFBY|insurance/i.test(option)
+      || /loan|credit|రుణ|ऋण/i.test(q) && /KCC|Kisan Credit/i.test(option)
+      || /income support|cash support|ఆదాయ|आय सहायता/i.test(q) && /PM.?KISAN/i.test(option)
+      || /solar|pump|సౌర|सौर/i.test(q) && /KUSUM/i.test(option)) : undefined;
   if (attachment || /\b(?:this|attached|uploaded|above)\b.*\b(document|image|photo|table|notice|file)\b/i.test(q)) {
     memory.topic = { kind: "document", query: q };
   } else if (scheme || selected) {
@@ -103,7 +160,11 @@ function updateUser(memory: ConversationMemory, query: string, attachment = fals
     memory.topic.crop = crop;
   }
   if (memory.topic?.kind === "scheme") {
-    const intent = /documents?|paperwork|checklist/i.test(q) ? "documents" : /eligib|qualify|for me|my profile/i.test(q) ? "eligibility" : /status|payment|installment|track/i.test(q) ? "status" : /apply|application|register|enrol/i.test(q) ? "apply" : undefined;
+    const intent = /deadline|last date|closing date|when.*apply|గడువు|अंतिम तिथि|கடைசி நாள்|ಕೊನೆಯ ದಿನ|শেষ তারিখ/i.test(q) ? "deadline"
+      : /documents?|paperwork|checklist|పత్రాలు|दस्तावेज|ஆவணங்கள்|ದಾಖಲೆಗಳು|নথি/i.test(q) ? "documents"
+      : /eligib|qualify|for me|my profile|అర్హత|पात्रता|தகுதி|ಅರ್ಹತೆ|যোগ্যতা/i.test(q) ? "eligibility"
+      : /status|payment|installment|track|స్థితి|स्थिति|நிலை|ಸ್ಥಿತಿ|অবস্থা/i.test(q) ? "status"
+      : /apply|application|register|enrol|దరఖాస్తు|आवेदन|விண்ணப்ப|ಅರ್ಜಿ|আবেদন/i.test(q) ? "apply" : undefined;
     if (intent) memory.topic.intent = intent;
   }
   // Personal facts update the current context; they do not replace its original question.
@@ -144,7 +205,7 @@ export function knownFarmerFacts(profile?: FarmerProfile | null, memory?: Conver
 }
 
 export function resolveConversationQuery(query: string, memory: ConversationMemory): string {
-  if (!memory.topic) return query;
+  if (!memory.topic || classifyTextTurn(query, memory) !== "contextual") return query;
   const anchor = memory.topic.scheme || memory.topic.query;
   if (anchor === query) return query;
   return `Current conversation topic: ${anchor}\nCurrent question: ${query}`;

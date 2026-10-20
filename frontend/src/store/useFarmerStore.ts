@@ -819,6 +819,7 @@ export const useFarmerStore = create<FarmerState>((set, get) => {
           docCategory: category,
           classification,
           customApiKey,
+          language: get().language,
         }),
       });
 

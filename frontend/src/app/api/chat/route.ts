@@ -7,6 +7,7 @@ import type { SupportedLanguage } from "@/lib/i18n";
 import { LANGUAGE_CODES } from "@/lib/userProfile";
 import {
   buildOutOfScopeReply,
+  buildUnreadableUploadReply,
   type EngineReply,
 } from "@/lib/chatEngine";
 import { analyzeAndRecordDocument, MAX_ATTACHMENT_CHARS } from "@/lib/documentAnalysis";
@@ -198,12 +199,13 @@ export async function POST(request: Request) {
                 fileType,
                 classification,
                 customApiKey,
+                language,
               });
               if (!outcome.success && outcome.isOutOfScope) {
                 return buildOutOfScopeReply(language, outcome.reason);
               }
               if (!outcome.success) {
-                return { text: outcome.message, chips: ["Upload a clearer image", "Paste the document text"] };
+                return buildUnreadableUploadReply(language);
               }
               if (outcome.success && outcome.detection) {
                 conversationMemory.latestUploadAvailable = true;
@@ -226,7 +228,7 @@ export async function POST(request: Request) {
               }
             } catch (ocrErr) {
               console.warn("[chat] document analysis failed:", (ocrErr as Error).message);
-              return { text: "I could not read this upload. Please send a clearer image, a searchable PDF, or paste its text so I can answer your question.", chips: [] };
+              return buildUnreadableUploadReply(language);
             }
           }
 

@@ -115,6 +115,91 @@ const labels: Record<SupportedLanguage, { summary: string; details: string; sugg
   bn: { summary: "নথির সারাংশ", details: "নথি থেকে পড়া তথ্য", suggestions: "পরবর্তী পদক্ষেপ", missing: "পাঠযোগ্য নথিতে উল্লেখ নেই।", schemes: "উল্লিখিত প্রকল্প (যোগ্যতা যাচাই করুন)" },
 };
 
+const answerWords: Record<SupportedLanguage, {
+  chips: string[]; source: string; current: string; verifySource: string; deadline: (value?: string) => string;
+  checklist: string; closeup: string; land: string; soil: string; identity: string; research: string;
+  fieldNames: Record<string, string>;
+}> = {
+  en: {
+    chips: ["Summarize this document", "Give me suggestions", "What documents are required?"], source: "Readable source text",
+    current: "Check current availability and any unclear figures with the agriculture office listed in the document.",
+    verifySource: "Check the issuing department and its official portal before applying.",
+    deadline: (value) => value ? `Check the stated schedule: ${value}. Confirm it is still current.` : "Confirm the current deadline with the issuing office; it was not identified in the readable text.",
+    checklist: "Use the document's explicit checklist; ask the issuing office about any missing requirements.",
+    closeup: "Send a close-up of the relevant scheme panel so its conditions and benefits can be read.",
+    land: "Compare the names, survey number and land extent with the original land record. This copy alone does not establish ownership or eligibility.",
+    soil: "Check the sample date, units, reference ranges and laboratory recommendation before choosing a fertilizer dose.",
+    identity: "Compare the name and issuing authority with the original card. Keep identity numbers and OTPs private.",
+    research: "Check whether the crop, location and study conditions match your farm before using the findings.",
+    fieldNames: {},
+  },
+  hi: {
+    chips: ["दस्तावेज़ का सार बताएं", "अगले कदम बताएं", "कौन से दस्तावेज़ चाहिए?"], source: "पढ़ा जा सकने वाला मूल पाठ",
+    current: "इस दस्तावेज़ के कृषि कार्यालय से वर्तमान उपलब्धता और अस्पष्ट आँकड़ों की पुष्टि करें।",
+    verifySource: "आवेदन से पहले जारी करने वाले विभाग और उसकी आधिकारिक वेबसाइट की जाँच करें।",
+    deadline: (value) => value ? `दस्तावेज़ में दी गई तारीख/समय-सारणी: ${value}। इसके वर्तमान होने की पुष्टि करें।` : "पढ़े जा सकने वाले हिस्से में अंतिम तारीख नहीं मिली; जारी करने वाले कार्यालय से पूछें।",
+    checklist: "दस्तावेज़ में दी गई सूची के कागज़ तैयार करें; अन्य ज़रूरतें जारी करने वाले कार्यालय से पूछें।",
+    closeup: "शर्तें और लाभ पढ़ने के लिए संबंधित योजना वाले हिस्से की पास से स्पष्ट तस्वीर भेजें।",
+    land: "नाम, सर्वे नंबर और भूमि क्षेत्र मूल राजस्व रिकॉर्ड से मिलाएं। यह प्रति अकेले स्वामित्व या पात्रता साबित नहीं करती।",
+    soil: "खाद की मात्रा तय करने से पहले नमूने की तारीख, इकाइयाँ, संदर्भ सीमा और प्रयोगशाला की सलाह देखें।",
+    identity: "नाम और जारीकर्ता को मूल कार्ड से मिलाएं। पहचान संख्या और ओटीपी गोपनीय रखें।",
+    research: "नतीजे अपनाने से पहले देखें कि फसल, स्थान और अध्ययन की परिस्थितियाँ आपके खेत से मिलती हैं या नहीं।",
+    fieldNames: { "Owner / Applicant": "मालिक / आवेदक", "Survey Number": "सर्वे नंबर", "Land Extent": "भूमि क्षेत्र", "Schedule / Dates": "तारीखें", "Venue": "स्थान", "Consideration Amount": "राशि" },
+  },
+  te: {
+    chips: ["పత్రాన్ని సంక్షిప్తంగా చెప్పండి", "తదుపరి చర్యలు చెప్పండి", "ఏ పత్రాలు కావాలి?"], source: "చదవగలిగిన అసలు పాఠ్యం",
+    current: "ఈ పత్రంలో తెలిపిన వ్యవసాయ కార్యాలయంలో ప్రస్తుత లభ్యత, అస్పష్టమైన సంఖ్యలను నిర్ధారించండి.",
+    verifySource: "దరఖాస్తుకు ముందు జారీ చేసిన శాఖను, అధికారిక వెబ్‌సైట్‌ను తనిఖీ చేయండి.",
+    deadline: (value) => value ? `పత్రంలో పేర్కొన్న తేదీలు: ${value}. ఇవి ఇప్పటికీ వర్తిస్తాయో నిర్ధారించండి.` : "చదవగలిగిన భాగంలో చివరి తేదీ కనిపించలేదు; జారీ చేసిన కార్యాలయాన్ని అడగండి.",
+    checklist: "పత్రంలో స్పష్టంగా ఇచ్చిన జాబితా ప్రకారం పత్రాలను సిద్ధం చేయండి; మిగిలిన అవసరాలు జారీ చేసిన కార్యాలయాన్ని అడగండి.",
+    closeup: "అర్హత, ప్రయోజనాలు చదవడానికి సంబంధిత పథకం భాగాన్ని దగ్గరగా స్పష్టంగా ఫోటో తీయండి.",
+    land: "పేరు, సర్వే నంబర్, భూమి విస్తీర్ణాన్ని అసలు రెవెన్యూ రికార్డుతో పోల్చండి. ఈ కాపీతోనే యాజమాన్యం లేదా అర్హత నిర్ధారించలేం.",
+    soil: "ఎరువు మోతాదు నిర్ణయించే ముందు నమూనా తేదీ, యూనిట్లు, ప్రమాణాలు, ప్రయోగశాల సూచన చూడండి.",
+    identity: "పేరు, జారీ చేసిన సంస్థను అసలు కార్డుతో పోల్చండి. గుర్తింపు సంఖ్యలు, OTPలను రహస్యంగా ఉంచండి.",
+    research: "సూచనలు అమలు చేసే ముందు పంట, ప్రాంతం, అధ్యయన పరిస్థితులు మీ పొలానికి సరిపోతాయో చూడండి.",
+    fieldNames: { "Owner / Applicant": "యజమాని / దరఖాస్తుదారు", "Survey Number": "సర్వే నంబర్", "Land Extent": "భూమి విస్తీర్ణం", "Schedule / Dates": "తేదీలు", "Venue": "స్థలం", "Consideration Amount": "మొత్తం" },
+  },
+  ta: {
+    chips: ["ஆவணத்தைச் சுருக்கவும்", "அடுத்த படிகளைச் சொல்லவும்", "எந்த ஆவணங்கள் தேவை?"], source: "படிக்க முடிந்த அசல் உரை",
+    current: "இந்த ஆவணத்தில் உள்ள வேளாண் அலுவலகத்தில் தற்போதைய நிலையும் தெளிவற்ற எண்களும் சரிபார்க்கவும்.",
+    verifySource: "விண்ணப்பிக்கும் முன் வழங்கிய துறையையும் அதன் அதிகாரப்பூர்வ இணையதளத்தையும் சரிபார்க்கவும்.",
+    deadline: (value) => value ? `ஆவணத்தில் உள்ள தேதிகள்: ${value}. இவை இன்னும் பொருந்துகிறதா உறுதிப்படுத்தவும்.` : "படிக்க முடிந்த பகுதியில் கடைசி தேதி இல்லை; வழங்கிய அலுவலகத்தில் கேளுங்கள்.",
+    checklist: "ஆவணத்தில் தெளிவாகக் கூறிய சான்றுகளைத் தயாரிக்கவும்; கூடுதல் தேவைகளை வழங்கிய அலுவலகத்தில் கேளுங்கள்.",
+    closeup: "நிபந்தனைகளையும் பலன்களையும் படிக்க, தொடர்புடைய திட்டப் பகுதியின் தெளிவான நெருக்கப் படத்தை அனுப்பவும்.",
+    land: "பெயர், சர்வே எண், நில அளவை அசல் வருவாய் பதிவுடன் ஒப்பிடவும். இந்த நகல் மட்டும் உரிமை அல்லது தகுதியை உறுதிசெய்யாது.",
+    soil: "உர அளவை முடிவு செய்யும் முன் மாதிரி தேதி, அலகுகள், குறிப்பு வரம்புகள், ஆய்வகப் பரிந்துரை ஆகியவற்றைப் பார்க்கவும்.",
+    identity: "பெயரையும் வழங்கிய அலுவலகத்தையும் அசல் அட்டையுடன் ஒப்பிடவும். அடையாள எண்களையும் OTP-யையும் ரகசியமாக வைக்கவும்.",
+    research: "முடிவுகளைப் பயன்படுத்தும் முன் பயிர், இடம், ஆய்வின் சூழல் உங்கள் வயலுக்குப் பொருந்துகிறதா பார்க்கவும்.",
+    fieldNames: { "Owner / Applicant": "உரிமையாளர் / விண்ணப்பதாரர்", "Survey Number": "சர்வே எண்", "Land Extent": "நில அளவு", "Schedule / Dates": "தேதிகள்", "Venue": "இடம்", "Consideration Amount": "தொகை" },
+  },
+  kn: {
+    chips: ["ದಾಖಲೆಯನ್ನು ಸಾರಾಂಶ ಮಾಡಿ", "ಮುಂದಿನ ಕ್ರಮ ತಿಳಿಸಿ", "ಯಾವ ದಾಖಲೆಗಳು ಬೇಕು?"], source: "ಓದಬಹುದಾದ ಮೂಲ ಪಠ್ಯ",
+    current: "ದಾಖಲೆಯಲ್ಲಿ ತಿಳಿಸಿದ ಕೃಷಿ ಕಚೇರಿಯಲ್ಲಿ ಪ್ರಸ್ತುತ ಲಭ್ಯತೆ ಮತ್ತು ಅಸ್ಪಷ್ಟ ಅಂಕಿಗಳನ್ನು ಖಚಿತಪಡಿಸಿ.",
+    verifySource: "ಅರ್ಜಿ ಸಲ್ಲಿಸುವ ಮೊದಲು ನೀಡಿದ ಇಲಾಖೆ ಮತ್ತು ಅದರ ಅಧಿಕೃತ ಜಾಲತಾಣ ಪರಿಶೀಲಿಸಿ.",
+    deadline: (value) => value ? `ದಾಖಲೆಯಲ್ಲಿರುವ ದಿನಾಂಕಗಳು: ${value}. ಇವು ಈಗಲೂ ಅನ್ವಯಿಸುತ್ತವೆಯೇ ಖಚಿತಪಡಿಸಿ.` : "ಓದಬಹುದಾದ ಭಾಗದಲ್ಲಿ ಕೊನೆಯ ದಿನಾಂಕ ಸಿಗಲಿಲ್ಲ; ನೀಡಿದ ಕಚೇರಿಯಲ್ಲಿ ಕೇಳಿ.",
+    checklist: "ದಾಖಲೆಯಲ್ಲಿ ಸ್ಪಷ್ಟವಾಗಿ ಕೊಟ್ಟ ಪಟ್ಟಿಯ ದಾಖಲೆಗಳನ್ನು ಸಿದ್ಧಪಡಿಸಿ; ಇತರ ಅಗತ್ಯಗಳನ್ನು ನೀಡಿದ ಕಚೇರಿಯಲ್ಲಿ ಕೇಳಿ.",
+    closeup: "ಷರತ್ತು ಮತ್ತು ಪ್ರಯೋಜನ ಓದಲು ಸಂಬಂಧಿಸಿದ ಯೋಜನೆಯ ಸ್ಪಷ್ಟ ಹತ್ತಿರದ ಚಿತ್ರ ಕಳುಹಿಸಿ.",
+    land: "ಹೆಸರು, ಸರ್ವೆ ಸಂಖ್ಯೆ, ಜಮೀನಿನ ವಿಸ್ತೀರ್ಣವನ್ನು ಮೂಲ ಕಂದಾಯ ದಾಖಲೆಯೊಂದಿಗೆ ಹೋಲಿಸಿ. ಈ ಪ್ರತಿಯಿಂದ ಮಾತ್ರ ಮಾಲೀಕತ್ವ ಅಥವಾ ಅರ್ಹತೆ ಖಚಿತವಾಗುವುದಿಲ್ಲ.",
+    soil: "ಗೊಬ್ಬರ ಪ್ರಮಾಣ ತೀರ್ಮಾನಿಸುವ ಮುನ್ನ ಮಾದರಿಯ ದಿನಾಂಕ, ಅಳತೆ ಘಟಕ, ಮಾನದಂಡ ಮತ್ತು ಪ್ರಯೋಗಾಲಯದ ಸಲಹೆ ನೋಡಿ.",
+    identity: "ಹೆಸರು ಮತ್ತು ನೀಡಿದ ಪ್ರಾಧಿಕಾರವನ್ನು ಮೂಲ ಕಾರ್ಡಿನೊಂದಿಗೆ ಹೋಲಿಸಿ. ಗುರುತಿನ ಸಂಖ್ಯೆ ಮತ್ತು OTP ರಹಸ್ಯವಾಗಿರಲಿ.",
+    research: "ಫಲಿತಾಂಶ ಬಳಸುವ ಮುನ್ನ ಬೆಳೆ, ಸ್ಥಳ, ಅಧ್ಯಯನದ ಪರಿಸ್ಥಿತಿಗಳು ನಿಮ್ಮ ಹೊಲಕ್ಕೆ ಹೊಂದಿಕೆಯಾಗುತ್ತವೆಯೇ ನೋಡಿ.",
+    fieldNames: { "Owner / Applicant": "ಮಾಲೀಕ / ಅರ್ಜಿದಾರ", "Survey Number": "ಸರ್ವೆ ಸಂಖ್ಯೆ", "Land Extent": "ಜಮೀನಿನ ವಿಸ್ತೀರ್ಣ", "Schedule / Dates": "ದಿನಾಂಕಗಳು", "Venue": "ಸ್ಥಳ", "Consideration Amount": "ಮೊತ್ತ" },
+  },
+  bn: {
+    chips: ["নথির সারাংশ বলুন", "পরের পদক্ষেপ বলুন", "কোন নথি লাগবে?"], source: "পড়া যায় এমন মূল লেখা",
+    current: "নথিতে উল্লিখিত কৃষি দপ্তরে বর্তমান প্রাপ্যতা ও অস্পষ্ট সংখ্যাগুলি যাচাই করুন।",
+    verifySource: "আবেদনের আগে প্রকাশক দপ্তর ও তার সরকারি ওয়েবসাইট যাচাই করুন।",
+    deadline: (value) => value ? `নথিতে দেওয়া তারিখ: ${value}। এখনও কার্যকর কি না নিশ্চিত করুন।` : "পড়া যায় এমন অংশে শেষ তারিখ পাওয়া যায়নি; প্রকাশক দপ্তরে জিজ্ঞাসা করুন।",
+    checklist: "নথিতে স্পষ্ট তালিকাভুক্ত কাগজগুলি প্রস্তুত করুন; অন্য প্রয়োজন প্রকাশক দপ্তরে জিজ্ঞাসা করুন।",
+    closeup: "শর্ত ও সুবিধা পড়ার জন্য সংশ্লিষ্ট প্রকল্পের অংশের স্পষ্ট কাছ থেকে ছবি পাঠান।",
+    land: "নাম, সার্ভে নম্বর ও জমির পরিমাণ মূল ভূমি রেকর্ডের সঙ্গে মেলান। শুধু এই কপি মালিকানা বা যোগ্যতা প্রমাণ করে না।",
+    soil: "সারের মাত্রা ঠিক করার আগে নমুনার তারিখ, একক, মানদণ্ড ও পরীক্ষাগারের পরামর্শ দেখুন।",
+    identity: "নাম ও প্রদানকারী দপ্তর মূল কার্ডের সঙ্গে মেলান। পরিচয় নম্বর ও OTP গোপন রাখুন।",
+    research: "ফল প্রয়োগের আগে ফসল, স্থান ও গবেষণার অবস্থা আপনার খেতের সঙ্গে মেলে কি না দেখুন।",
+    fieldNames: { "Owner / Applicant": "মালিক / আবেদনকারী", "Survey Number": "সার্ভে নম্বর", "Land Extent": "জমির পরিমাণ", "Schedule / Dates": "তারিখ", "Venue": "স্থান", "Consideration Amount": "টাকার পরিমাণ" },
+  },
+};
+
 export function answerDocumentQuestion(query: string, detection: any, lang: SupportedLanguage): { text: string; chips: string[] } {
   const source = detection?.parsedDetails?.fullOcrText || detection?.extractedTextSnippet || "";
   const base = detection?.parsedDetails || parseAndSummarizeDocumentContent(source);
@@ -125,22 +210,33 @@ export function answerDocumentQuestion(query: string, detection: any, lang: Supp
   const schemes: string[] = detection?.schemesUnlocked || base.unlockedSchemes;
   const q = query.toLowerCase();
   const l = labels[lang] || labels.en;
-  const chips = ["Summarize this document", "Give me suggestions", "What documents are required?"];
+  const words = answerWords[lang] || answerWords.en;
+  const chips = words.chips;
+  const localSuggestions = lang === "en" ? suggestions : [
+    ...(/schemes? and policies|scheme.*poster/i.test(source) ? [words.closeup] : []),
+    ...(base.genre === "sale_deed" || base.genre === "land_record" ? [words.land] : []),
+    ...(base.genre === "soil_health" ? [words.soil] : []),
+    ...(base.genre === "identity_card" ? [words.identity] : []),
+    ...(base.genre === "research_publication" ? [words.research] : []),
+    words.verifySource,
+    words.deadline(base.scheduleDates),
+    words.checklist,
+  ];
   if (detection?.analysisQuality === "partial") {
-    return { text: `${summary}\n\n**${l.suggestions}**\n${suggestions.map((item) => `• ${item}`).join("\n")}`, chips: ["Help with a scheme application", "I will upload a close-up", "Ask an agriculture question"] };
+    return { text: `**${l.summary}**\n${summary}\n\n**${l.suggestions}**\n${localSuggestions.map((item) => `• ${item}`).join("\n")}`, chips };
   }
-  const bullets = (entries: Array<[string, any]>) => entries.map(([key, value]) => `• **${key}:** ${typeof value === "object" ? JSON.stringify(value) : value}`).join("\n") || l.missing;
+  const bullets = (entries: Array<[string, any]>) => entries.map(([key, value]) => `• **${words.fieldNames[key] || key}:** ${typeof value === "object" ? JSON.stringify(value) : value}`).join("\n") || l.missing;
   const select = (pattern: RegExp) => Object.entries(p).filter(([key]) => pattern.test(key));
   const literalAnswer = () => {
     const passages = retrieveDocumentEvidence(query, source, 2);
-    return passages.length ? passages.map(p => p.text).join("\n\n") : l.missing;
+    return passages.length ? `${lang === "en" ? "" : `**${words.source}**\n`}${passages.map(p => p.text).join("\n\n")}` : l.missing;
   };
-  const suggestedText = `**${l.suggestions}**\n${suggestions.map((s, i) => `${i + 1}. ${s}`).join("\n")}\n\n**${l.schemes}**\n${schemes.join("\n") || l.missing}`;
+  const suggestedText = `**${l.suggestions}**\n${localSuggestions.map((s, i) => `${i + 1}. ${s}`).join("\n")}\n\n**${l.schemes}**\n${schemes.join("\n") || l.missing}`;
   if (base.schemeEntries?.length && /subsid|benefit|eligible|maize|seed|gypsum|sprayer|minikit|equipment|how much|amount/i.test(q)) {
-    const words = q.match(/[a-z]{4,}/g) || [];
-    const matched = base.schemeEntries.filter((entry: { name: string }) => words.some((word) => entry.name.toLowerCase().includes(word)));
+    const queryWords = q.match(/[a-z]{4,}/g) || [];
+    const matched = base.schemeEntries.filter((entry: { name: string }) => queryWords.some((word) => entry.name.toLowerCase().includes(word)));
     const entries = matched.length ? matched : base.schemeEntries;
-    return { text: `${entries.map((entry: { name: string; source: string }) => `**${entry.name}**\n${entry.source}`).join("\n\n")}\n\nCheck current availability and any unclear figures with the agriculture office listed in the document.`, chips };
+    return { text: `${entries.map((entry: { name: string; source: string }) => `**${entry.name}**\n${entry.source}`).join("\n\n")}\n\n${words.current}`, chips };
   }
   // Specific intents precede summary. Short questions are still questions.
   if (/suggest|recommend|advice|next step|సలహా|సూచన|सुझाव|सलाह|பரிந்துரை|ಸಲಹೆ|পরামর্শ/i.test(q)) return { text: suggestedText, chips };

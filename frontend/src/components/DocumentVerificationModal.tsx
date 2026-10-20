@@ -305,7 +305,7 @@ export default function DocumentVerificationModal() {
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-emerald-700 shrink-0" />
                   <span className="font-extrabold text-stone-800">
-                    AI Engine: {keySaved ? "Multimodal Vision AI Active" : "Built-in Dynamic Vision & OCR Active"}
+                    {keySaved ? "Custom AI key saved" : "Image analysis and OCR"}
                   </span>
                 </div>
                 <button

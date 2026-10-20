@@ -18,25 +18,24 @@ export async function GET(request: Request) {
         name: m.scheme.name,
         category: m.scheme.category,
         categoryName: m.scheme.category,
-        matchScore: m.eligibility.overallMatchScore,
-        hybridScoreBadge: m.formattedBadge,
-        vectorCosine: m.vectorCosine,
-        subsidyAmount: m.scheme.is_agri ? "60% Subsidy / DBT" : "Government Welfare",
+        matchScore: 0,
+        catalogRelevance: m.hybridScore,
+        jurisdiction: m.jurisdiction || "Central / jurisdiction not specified in catalog",
+        subsidyAmount: m.scheme.benefits?.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").slice(0, 180) || "Check current official benefit terms",
         description: m.scheme.description,
         benefits: m.scheme.benefits,
-        eligibilitySummary: `Eligibility Match: ${m.eligibility.overallMatchScore}% (${m.formattedBadge})`,
+        eligibilitySummary: "Eligibility has not been determined. Compare your profile with current scheme rules, exclusions and state requirements.",
         documentsRequired: m.scheme.documents_required
-          ? m.scheme.documents_required.split(",").map((d) => d.trim()).filter(Boolean)
-          : ["Aadhaar Card", "Bank Account Details", "Land Record Documents"],
+          ? m.scheme.documents_required.split(/\n|,(?=\s*[A-Z])/).map((d) => d.replace(/<[^>]+>/g, " ").trim()).filter(Boolean)
+          : [],
         department: m.scheme.ministry,
         tagColor: m.scheme.is_agri ? "emerald" : "sky",
-        applicationMode: "Both",
-        sla: m.eligibility.sla,
+        applicationMode: "unknown",
       }));
 
       return NextResponse.json({
         success: true,
-        source: "dense_vector_nlp",
+        source: "saved_catalog_topic_search",
         schemes: results,
       });
     }
@@ -52,13 +51,13 @@ export async function GET(request: Request) {
     const dbResult = await queryDatabase(sql, params);
 
     if (dbResult.success && Array.isArray(dbResult.data) && dbResult.data.length > 0) {
-      const formatted = dbResult.data.map((row: any) => ({
+      const formatted = dbResult.data.map((row: any) => SCHEMES_DATABASE.find(scheme => scheme.id === row.id) || ({
         id: row.id,
         code: row.code,
         name: row.name,
         category: row.category,
         categoryName: row.category_name,
-        matchScore: row.match_score,
+        matchScore: 0,
         subsidyAmount: row.subsidy_amount,
         description: row.description,
         benefits: row.benefits,

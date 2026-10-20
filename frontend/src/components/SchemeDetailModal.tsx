@@ -3,13 +3,9 @@
 import React from "react";
 import {
   X,
-  Sparkles,
-  ShieldCheck,
   FileCheck2,
-  CheckCircle2,
   Building2,
-  ArrowRight,
-  MapPin,
+  ExternalLink,
 } from "lucide-react";
 import { useFarmerStore } from "@/store/useFarmerStore";
 import { translations } from "@/lib/i18n";
@@ -18,7 +14,6 @@ export default function SchemeDetailModal() {
   const {
     selectedScheme,
     setSelectedScheme,
-    setVerificationModalOpen,
     language,
     currentFarmer,
   } = useFarmerStore();
@@ -39,9 +34,6 @@ export default function SchemeDetailModal() {
             <X className="w-5 h-5" />
           </button>
           <div className="flex items-center gap-2 mb-2">
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-400 text-emerald-950">
-              {selectedScheme.matchScore}% {t.matchScore}
-            </span>
             <span className="text-xs text-emerald-200 uppercase font-bold">
               {selectedScheme.code}
             </span>
@@ -54,17 +46,20 @@ export default function SchemeDetailModal() {
 
         {/* Modal Body */}
         <div className="p-6 overflow-y-auto space-y-6">
+          <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+            This is a saved scheme summary. Check current rules, benefits, documents and application dates with the official scheme source before applying.
+          </p>
           {/* Subsidy Highlight */}
           <div className="p-4 rounded-2xl bg-amber-50 border-2 border-amber-300 flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-amber-500 text-white font-bold">
-              <CheckCircle2 className="w-6 h-6" />
+              <ExternalLink className="w-6 h-6" />
             </div>
             <div>
               <p className="text-xs font-bold text-amber-800 uppercase tracking-wider">
                 {t.subsidyAmount}
               </p>
               <p className="text-lg font-black text-amber-950">
-                {selectedScheme.subsidyAmount}
+                {selectedScheme.subsidyAmount || "Check current scheme terms"}
               </p>
             </div>
           </div>
@@ -82,7 +77,7 @@ export default function SchemeDetailModal() {
           {/* Eligibility Breakdown */}
           <div>
             <h4 className="text-sm font-extrabold text-stone-900 uppercase tracking-wider mb-2">
-              Eligibility Criteria
+              Eligibility to check
             </h4>
             <div className="space-y-2 bg-emerald-50/60 p-4 rounded-2xl border border-emerald-200">
               <p className="text-sm text-emerald-950 font-medium">
@@ -92,23 +87,23 @@ export default function SchemeDetailModal() {
               <div className="flex flex-wrap gap-2 pt-2 border-t border-emerald-200/60">
                 {currentFarmer.landSizeAcres > 0 && (
                 <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-white text-emerald-900 border border-emerald-300">
-                  Land Size: {currentFarmer.landSizeAcres} Acres (Eligible)
+                  Your land: {currentFarmer.landSizeAcres} acres
                 </span>
                 )}
                 {currentFarmer.soilTypeName && (
                 <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-white text-emerald-900 border border-emerald-300">
-                  Soil Type: {currentFarmer.soilTypeName} (Eligible)
+                  Your soil: {currentFarmer.soilTypeName}
                 </span>
                 )}
                 {currentFarmer.annualIncomeSlab && (
                 <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-white text-emerald-900 border border-emerald-300">
-                  Income: {currentFarmer.annualIncomeSlab} (Eligible)
+                  Your saved income range: {currentFarmer.annualIncomeSlab}
                 </span>
                 )}
               </div>
               ) : (
                 <p className="pt-2 border-t border-emerald-200/60 text-xs font-semibold text-emerald-900/80">
-                  Sign in and add your farm details to see how you match these criteria.
+                  Add your details to discuss which published conditions still need checking.
                 </p>
               )}
             </div>
@@ -130,15 +125,16 @@ export default function SchemeDetailModal() {
                 </li>
               ))}
             </ul>
+            {selectedScheme.documentsRequired.length === 0 && <p className="text-sm text-stone-600">The saved entry does not list a verified document checklist. Check the current official scheme page.</p>}
           </div>
 
-          {/* Offline CSC Center note */}
+          {/* The implementing authority can confirm current local process. */}
           <div className="flex items-start gap-3 p-3.5 rounded-2xl bg-cyan-50 border border-cyan-200 text-cyan-900 text-xs font-medium">
             <Building2 className="w-5 h-5 text-cyan-700 shrink-0 mt-0.5" />
             <div>
-              <p className="font-bold">Nearest Assistance Center:</p>
+              <p className="font-bold">Where to check:</p>
               <p className="text-stone-600">
-                MeeSeva / Common Service Center (CSC){currentFarmer.village ? `, ${currentFarmer.village}` : ""}, Mandal Office (Open Mon-Sat, 9AM-5PM).
+                Check the implementing department or official scheme directory for the application channel, local office, and current deadline{currentFarmer.district ? ` in ${currentFarmer.district}` : ""}.
               </p>
             </div>
           </div>
@@ -152,16 +148,11 @@ export default function SchemeDetailModal() {
           >
             Close
           </button>
-          <button
-            onClick={() => {
-              setSelectedScheme(null);
-              setVerificationModalOpen(true);
-            }}
-            className="px-6 py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-black text-sm shadow-md flex items-center gap-2 transition"
-          >
-            <ShieldCheck className="w-4 h-4 text-emerald-300" />
-            <span>{t.verifyAndApply}</span>
-          </button>
+          <a href={selectedScheme.sourceUrl || "https://www.myscheme.gov.in/search"} target="_blank" rel="noopener noreferrer"
+            className="px-6 py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-black text-sm shadow-md flex items-center gap-2 transition">
+            <ExternalLink className="w-4 h-4" />
+            <span>{selectedScheme.sourceUrl ? "Open official source" : "Search official scheme directory"}</span>
+          </a>
         </div>
       </div>
     </div>

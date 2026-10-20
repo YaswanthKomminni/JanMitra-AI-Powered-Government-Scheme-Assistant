@@ -103,7 +103,7 @@ test('failed provider moves to another configured provider, then grounded fallba
     urls.push(url);
     return url.includes('googleapis') ? new Response('', { status: 429 }) : Response.json({ choices: [{ message: { content: 'Grounded answer\nCHIPS: ["Next step?"]' } }] });
   };
-  const reply = await generateIntelligentChatReply({ query: 'Summarize', language: 'en' });
+  const reply = await generateIntelligentChatReply({ query: 'Explain irrigation for cotton', language: 'en' });
   assert.equal(reply.provider, 'groq'); assert.equal(urls.length, 2);
   global.fetch = async () => new Response('', { status: 401 });
   const fallback = await generateIntelligentChatReply({ query: 'Who is the applicant?', language: 'en', documentContext: { parsedDetails: parseAndSummarizeDocumentContent(notice) } });
@@ -294,7 +294,7 @@ test('retired model IDs recover using the provider catalog', async () => {
     const body = JSON.parse(options.body);
     return body.model === 'qwen/qwen3.8-27b' ? Response.json({ choices: [{ message: { content: 'Namaste! How can I help your farm?' } }] }) : new Response('', { status: 404 });
   };
-  const reply = await generateIntelligentChatReply({ query: 'Hello', language: 'en' });
+  const reply = await generateIntelligentChatReply({ query: 'How should I irrigate cotton?', language: 'en' });
   assert.equal(reply.provider, 'groq');
   assert.equal(reply.modelUsed, 'qwen/qwen3.8-27b');
   delete process.env.GROQ_API_KEY; global.fetch = realFetch;

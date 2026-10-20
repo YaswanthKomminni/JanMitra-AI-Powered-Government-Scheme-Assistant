@@ -10,7 +10,6 @@ import { answerDocumentQuestion } from "@/lib/nlpDocumentAnalyzer";
  */
 import type { SupportedLanguage } from "@/lib/i18n";
 import type { FarmerProfile } from "@/lib/mockData";
-import { GUEST_FARMER } from "@/lib/mockData";
 
 export interface ChatMessage {
   id: string;
@@ -147,57 +146,13 @@ export function formatDocumentAnalysisReply(det: any, lang: SupportedLanguage): 
     const reply = buildOutOfScopeReply(lang, det?.reason);
     return { text: reply.text, chips: reply.chips || [] };
   }
-  return det.docType === "crop_disease" ? answerCropImage("Summarize", det) : answerDocumentQuestion("Summarize this document", det, lang);
+  return det.docType === "crop_disease" ? answerCropImage("Summarize", det, {}, lang) : answerDocumentQuestion("Summarize this document", det, lang);
 }
 
 export function formatFarmerProfileReply(farmer: FarmerProfile, lang: SupportedLanguage): { text: string; chips: string[] } {
-  const isGuest = !farmer.name && !farmer.landSizeAcres;
-
-  if (isGuest) {
-    if (lang === "te") {
-      return {
-        text: `నమస్కారం రైతు మిత్రమా! మీరు ప్రస్తుతం గెస్ట్ యూజర్‌గా చూస్తున్నారు. మీ ఆధార్ లేదా భూమి రికార్డులు ఇంకా లింక్ చేయబడలేదు.\n\nమీ భూమి పట్టాదారు పాస్ పుస్తకం, సేల్ డీడ్ లేదా సాయిల్ హెల్త్ కార్డును స్కాన్ చేయడం ద్వారా మీ చేను వివరాలను నమోదు చేసి అర్హత గల పథకాలను తెలుసుకోవచ్చు.`,
-        chips: ["భూమి రికార్డు స్కాన్ చేయి", "వ్యవసాయ పథకాలు", "PM-KISAN అర్హత"],
-      };
-    }
-    if (lang === "hi") {
-      return {
-        text: `नमस्ते किसान साथी! आप वर्तमान में अतिथि (Guest) के रूप में जुड़े हैं। आपका कोई व्यक्तिगत भूमि रिकॉर्ड अभी लिंक नहीं है।\n\nआप अपनी भूमि पट्टा पासबुक, सेल डीड या मृदा स्वास्थ्य कार्ड स्कैन करके अपनी ज़मीन की जानकारी जोड़ सकते हैं और सरकारी योजनाएं देख सकते हैं।`,
-        chips: ["दस्तावेज़ स्कैन करें", "सरकारी योजनाएं", "PM-KISAN पात्रता"],
-      };
-    }
-    return {
-      text: `Namaste Farmer Friend! You are currently browsing as a guest. No registered farmer profile or land record is linked yet.\n\nYou can upload or scan your Land Patta / Pahani / RoR, Registered Sale Deed, or Soil Health Card to verify your farmland and discover eligible government welfare schemes.`,
-      chips: ["Scan Land Document", "Explore Agri Schemes", "PM-KISAN Eligibility"],
-    };
-  }
-
-  const name = farmer.name;
-  const village = farmer.village || "your registered village";
-  const district = farmer.district || "your district";
-  const acres = farmer.landSizeAcres;
-  const crops = farmer.primaryCrops?.length ? farmer.primaryCrops.join(", ") : "Cotton, Chilli, and Pulses";
-  const irrigation = farmer.irrigationTypeName || "Borewell / Rainfed";
-  const soil = farmer.soilTypeName || "Agricultural Soil";
-
-  if (lang === "te") {
-    return {
-      text: `నమస్కారం **${name} గారు**! మీ వ్యవసాయ ప్రొఫైల్ వివరాలు:\n\nమీరు ${district} పరిధిలోని ${village}లో **${acres} ఎకరాల ${soil}లో** వ్యవసాయం చేస్తున్నారు. మీ చేనులో ప్రధానంగా **${crops}** సాగు చేస్తూ, **${irrigation}** పద్ధతిని వాడుతున్నారు.\n\n💡 **మీ పొలానికి ప్రయోజనకరమైన ప్రధాన పథకాలు:**\n1. **PM-KUSUM సోలార్ పంపు (60% సబ్సిడీ):** వ్యవసాయ పంపుల కోసం 60% ప్రభుత్వ రాయితీ.\n2. **PM-KISAN సమ్మాన్ నిధి:** సంవత్సరానికి ₹6,000 ప్రత్యక్ష నగదు బదిలీ.\n3. **కిసాన్ క్రెడిట్ కార్డ్ (KCC):** 4% రాయితీ వడ్డీకే బ్యాంకు పంట రుణం.\n\nమీ వివరాల్లో ఏదైనా మార్పు చేయాలా, లేదా పథకాల దరఖాస్తులో సహాయం కావాలా?`,
-      chips: ["భూమి వివరాలు మార్చు", "సోలార్ పంపు 60% సబ్సిడీ", "సమీప రైతులతో మాట్లాడండి", "అర్హత గల పథకాలు"],
-    };
-  }
-
-  if (lang === "hi") {
-    return {
-      text: `नमस्ते **${name} जी**! आपकी पंजीकृत कृषि प्रोफ़ाइल का विवरण:\n\nआप ${district} के ${village} में **${acres} एकड़ ${soil}** पर खेती कर रहे हैं। आप मुख्य रूप से **${crops}** उगाते हैं तथा **${irrigation}** का उपयोग करते हैं।\n\n💡 **आपकी भूमि के लिए शीर्ष सरकारी योजनाएं:**\n1. **PM-KUSUM सोलर पंप (60% सब्सिडी):** बोरवेल/सिंचाई हेतु 60% सरकारी सहायता.\n2. **PM-KISAN सम्मान निधि:** ₹6,000 वार्षिक प्रत्यक्ष बैंक अंतरण (DBT).\n3. **किसान क्रेडिट कार्ड (KCC):** मात्र 4% रियायती ब्याज दर पर कृषि ऋण.\n\nक्या आप अपनी भूमि जानकारी अपडेट करना चाहते हैं या योजना आवेदन में सहायता चाहिए?`,
-      chips: ["भूमि विवरण अपडेट करें", "सोलर पंप 60% सब्सिडी", "आसपास के किसान से जुड़ें", "पात्र सरकारी योजनाएं"],
-    };
-  }
-
-  return {
-    text: `Namaste **${name} Ji**! Here is your verified farm profile:\n\nYou farm on **${acres} Acres of ${soil}** in ${village}, ${district}. You cultivate **${crops}**, supported by **${irrigation}**.\n\n💡 **Top Recommended Welfare Schemes for Your Land:**\n1. **PM-KUSUM Solar Pump (60% Subsidy):** Subsidized standalone solar irrigation pump.\n2. **PM-KISAN Samman Nidhi:** ₹6,000/year direct cash transfer via DBT.\n3. **Kisan Credit Card (KCC):** Concessional crop loan at just 4% interest rate.\n\nWould you like to update any details or need help applying for these schemes?`,
-    chips: ["Update Land Details", "Apply for PM-KUSUM 60%", "Connect with Nearby Peer Farmers", "View All Eligible Schemes"],
-  };
+  // Reuse the conversational greeting so profile facts are reported only when saved.
+  // A similarity match or a default profile does not establish scheme eligibility.
+  return farmerChatReply("hello", lang, farmer);
 }
 
 /** Text reply for a farmer question. */
@@ -205,8 +160,20 @@ export function generateTextReply(text: string, lang: SupportedLanguage, current
   return farmerChatReply(text, lang, currentFarmer);
 }
 
+export function buildUnreadableUploadReply(lang: SupportedLanguage): EngineReply {
+  const text: Record<SupportedLanguage, string> = {
+    en: "I could not reliably read this upload. Send a clear close-up, a searchable PDF, or paste its text. I can then explain the readable information and answer your question.",
+    te: "ఈ ఫైల్‌ను నమ్మకంగా చదవలేకపోయాను. స్పష్టమైన దగ్గరి ఫోటో, చదవగల PDF పంపండి లేదా పత్రంలోని వచనం ఇక్కడ రాయండి. చదవగల సమాచారాన్ని వివరించి మీ ప్రశ్నకు సమాధానం ఇస్తాను.",
+    hi: "यह अपलोड भरोसेमंद ढंग से पढ़ा नहीं जा सका। साफ़ नज़दीकी फोटो, खोजने योग्य PDF भेजें या उसका पाठ लिखें। फिर मैं पढ़ी गई जानकारी समझाकर आपके प्रश्न का उत्तर दूँगा।",
+    ta: "இந்தப் பதிவேற்றத்தை நம்பகமாகப் படிக்க முடியவில்லை. தெளிவான நெருக்கப் படம், தேடக்கூடிய PDF அல்லது அதன் உரையை அனுப்பவும். படிக்க முடிந்த தகவலை விளக்கி உங்கள் கேள்விக்குப் பதில் அளிப்பேன்.",
+    kn: "ಈ ಫೈಲನ್ನು ವಿಶ್ವಾಸಾರ್ಹವಾಗಿ ಓದಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. ಸ್ಪಷ್ಟ ಹತ್ತಿರದ ಚಿತ್ರ, ಹುಡುಕಬಹುದಾದ PDF ಅಥವಾ ಅದರ ಪಠ್ಯ ಕಳುಹಿಸಿ. ಓದಬಹುದಾದ ಮಾಹಿತಿಯನ್ನು ವಿವರಿಸಿ ನಿಮ್ಮ ಪ್ರಶ್ನೆಗೆ ಉತ್ತರಿಸುತ್ತೇನೆ.",
+    bn: "এই আপলোডটি নির্ভরযোগ্যভাবে পড়া যায়নি। পরিষ্কার কাছ থেকে ছবি, অনুসন্ধানযোগ্য PDF অথবা লেখাটি পাঠান। তারপর পড়া তথ্য বুঝিয়ে আপনার প্রশ্নের উত্তর দেব।",
+  };
+  return { text: text[lang], chips: [] };
+}
+
 export function buildOutOfScopeReply(lang: SupportedLanguage, reason?: string): EngineReply {
-  const data = { reason };
+  const data = { reason: lang === "en" ? reason : undefined };
   let replyText = "";
   let chips: string[] = [];
   if (lang === "te") {

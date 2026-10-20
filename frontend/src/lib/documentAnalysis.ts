@@ -1,6 +1,7 @@
 import "server-only";
 import { queryDatabase } from "@/lib/db";
 import { analyzeImageIntelligently } from "@/lib/visionLlm";
+import type { SupportedLanguage } from "@/lib/i18n";
 
 export type DocumentAnalysisOutcome =
   | {
@@ -25,6 +26,7 @@ export async function analyzeAndRecordDocument(opts: {
   fileType?: string;
   classification?: any;
   customApiKey?: string;
+  language?: SupportedLanguage;
 }): Promise<DocumentAnalysisOutcome> {
   const { userId, fileBase64, classification, customApiKey } = opts;
   const fileName = opts.fileName || "uploaded_document.jpg";
@@ -37,6 +39,7 @@ export async function analyzeAndRecordDocument(opts: {
     fileType,
     classification,
     customApiKey,
+    language: opts.language,
   });
 
   // 2. Reject only content positively identified as unrelated.

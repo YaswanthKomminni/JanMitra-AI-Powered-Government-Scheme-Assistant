@@ -2,9 +2,9 @@ import { retrieveDocumentEvidence, type EvidencePassage } from "@/lib/documentEv
 
 // Fixed official URLs only: no user-controlled URL, redirects, credentials or arbitrary crawling.
 const sources = [
-  { terms: /pm[ -]?kisan|kisan samman/i, url: "https://pmkisan.gov.in/" },
-  { terms: /pmfby|crop insurance/i, url: "https://pmfby.gov.in/" },
-  { terms: /kusum|solar.*pump/i, url: "https://pmkusum.mnre.gov.in/" },
+  { terms: /pm[ -]?kisan|kisan samman|पीएम किसान|పీఎం కిసాన్/i, url: "https://pmkisan.gov.in/" },
+  { terms: /pmfby|crop insurance|फसल बीमा|పంట బీమా/i, url: "https://pmfby.gov.in/" },
+  { terms: /kusum|solar.*pump|कुसुम|సౌర పంపు/i, url: "https://pmkusum.mnre.gov.in/landing-faq.html" },
 ];
 const cache = new Map<string, { expires: number; text: string }>();
 
@@ -20,8 +20,11 @@ export function readableOfficialHtml(html: string): string {
 /** Bounded retrieval from a small official allowlist. Failure never becomes evidence. */
 export async function retrieveOfficialGuidance(query: string): Promise<EvidencePassage[]> {
   if (process.env.JANMITRA_FETCH_OFFICIAL_SOURCES === "0") return [];
-  const source = sources.find(s => s.terms.test(query));
-  if (!source) return [];
+  // A comparison can mention multiple schemes; a passage from one home page
+  // must never be presented as evidence for the other scheme.
+  const matching = sources.filter(s => s.terms.test(query));
+  if (matching.length !== 1) return [];
+  const source = matching[0];
   let text = cache.get(source.url)?.expires! > Date.now() ? cache.get(source.url)!.text : "";
   if (!text) {
     try {
@@ -44,5 +47,12 @@ export async function retrieveOfficialGuidance(query: string): Promise<EvidenceP
       cache.set(source.url, { text, expires: Date.now() + 15 * 60_000 });
     } catch { return []; }
   }
-  return retrieveDocumentEvidence(query, text, 4).map(p => ({ ...p, id: p.id.replace(/^D/, "O"), url: source.url }));
+  const passages = retrieveDocumentEvidence(query, text, 4);
+  if (/\b(?:deadline|last date|closing date|application window|when.*apply)\b|अंतिम तिथि|చివరి తేదీ/i.test(query)) {
+    // A page update, installment announcement, or unrelated news date is not
+    // proof of this farmer's current application deadline.
+    return passages.filter(p => /\b(?:application|registration|enrolment)\b.{0,100}\b(?:deadline|last date|closing date|window)\b|\b(?:deadline|last date|closing date|window)\b.{0,100}\b(?:application|registration|enrolment)\b/i.test(p.text))
+      .map(p => ({ ...p, id: p.id.replace(/^D/, "O"), url: source.url }));
+  }
+  return passages.map(p => ({ ...p, id: p.id.replace(/^D/, "O"), url: source.url }));
 }

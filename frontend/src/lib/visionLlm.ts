@@ -1,6 +1,7 @@
 import { analyzeDocumentComprehensive, type ExtractedBoundingBox } from "@/lib/ocrEngine";
 import { normalizeCropAnalysis, reconcileImageEvidence, type CropAnalysis } from "@/lib/imageEvidence";
 import { providerKeys, providerModels, discoverProviderModels, type AiProvider } from "@/lib/aiProviders";
+import type { SupportedLanguage } from "@/lib/i18n";
 
 export interface VisionAnalysisResult {
   isAgriRelated: boolean;
@@ -49,9 +50,18 @@ export function normalizeVisionResult(parsed: any): VisionAnalysisResult | null 
   };
 }
 
-async function cloudVision(provider: AiProvider, key: string, dataUrl: string, mimeType: string, signal: AbortSignal): Promise<VisionAnalysisResult | null> {
+const languageName: Record<SupportedLanguage, string> = {
+  en: "English", hi: "Hindi", te: "Telugu", ta: "Tamil", kn: "Kannada", bn: "Bengali",
+};
+
+export function visionPromptForLanguage(language: SupportedLanguage): string {
+  return `${VISION_PROMPT}\nWrite detectionSummary, reason, suggestions, and all cropAnalysis explanatory strings in ${languageName[language] || "English"}. Preserve names, figures, dates, table content, and extractedTextSnippet exactly as printed in the source. Do not translate the document transcription or change its values.`;
+}
+
+async function cloudVision(provider: AiProvider, key: string, dataUrl: string, mimeType: string, language: SupportedLanguage, signal: AbortSignal): Promise<VisionAnalysisResult | null> {
   if (provider !== "gemini" && !mimeType.startsWith("image/")) return null;
   const models = providerModels(provider, true);
+  const prompt = visionPromptForLanguage(language);
   let discovered = false;
   for (const model of models) {
     if (signal.aborted) break;
@@ -63,10 +73,10 @@ async function cloudVision(provider: AiProvider, key: string, dataUrl: string, m
         method: "POST", signal: AbortSignal.any([signal, AbortSignal.timeout(8000)]),
         headers: { "Content-Type": "application/json", ...(gemini ? { "x-goog-api-key": key } : { Authorization: `Bearer ${key}` }) },
         body: JSON.stringify(gemini ? {
-          contents: [{ parts: [{ text: VISION_PROMPT }, { inlineData: { mimeType, data: dataUrl.replace(/^data:[^;]+;base64,/, "") } }] }],
+          contents: [{ parts: [{ text: prompt }, { inlineData: { mimeType, data: dataUrl.replace(/^data:[^;]+;base64,/, "") } }] }],
           generationConfig: { responseMimeType: "application/json", temperature: 0.1, maxOutputTokens: 6000 },
         } : {
-          model, messages: [{ role: "user", content: [{ type: "text", text: VISION_PROMPT }, { type: "image_url", image_url: { url: dataUrl, ...(provider === "openai" ? { detail: "high" } : {}) } }] }],
+          model, messages: [{ role: "user", content: [{ type: "text", text: prompt }, { type: "image_url", image_url: { url: dataUrl, ...(provider === "openai" ? { detail: "high" } : {}) } }] }],
           response_format: { type: "json_object" }, temperature: 0.1, max_completion_tokens: 6000,
         }),
       });
@@ -90,7 +100,7 @@ async function cloudVision(provider: AiProvider, key: string, dataUrl: string, m
 }
 
 export async function analyzeImageIntelligently(opts: {
-  fileBase64: string; fileName?: string; fileType?: string; classification?: any; customApiKey?: string;
+  fileBase64: string; fileName?: string; fileType?: string; classification?: any; customApiKey?: string; language?: SupportedLanguage;
 }): Promise<VisionAnalysisResult> {
   const mimeType = opts.fileBase64.match(/^data:([^;]+);base64,/)?.[1] || opts.fileType || "image/jpeg";
   const dataUrl = opts.fileBase64.startsWith("data:") ? opts.fileBase64 : `data:${mimeType};base64,${opts.fileBase64}`;
@@ -100,7 +110,7 @@ export async function analyzeImageIntelligently(opts: {
   let cloud: VisionAnalysisResult | null = null;
   for (const entry of providerKeys(opts.customApiKey)) {
     if (signal.aborted) break;
-    cloud = await cloudVision(entry.provider, entry.key, dataUrl, mimeType, signal);
+    cloud = await cloudVision(entry.provider, entry.key, dataUrl, mimeType, opts.language || "en", signal);
     if (cloud?.scopeStatus === "in_scope") break;
     if (cloud?.scopeStatus === "out_of_scope") break;
   }

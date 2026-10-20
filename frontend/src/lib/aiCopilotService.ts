@@ -481,12 +481,13 @@ export interface SemanticSchemeMatch {
   vectorCosine: number;
   sparseScore: number;
   formattedBadge: string;
-  eligibility: SchemeEligibilityPrediction;
+  jurisdiction?: string;
 }
 
 /**
- * Semantic Retrieval Engine over all 4,706 Government Welfare Schemes
- * Combines 50% Dense Vector Cosine Similarity + 50% Sparse Lexical Matching
+ * A catalog hit is only a topic match, never an eligibility determination.
+ * Hash-vector similarity is useful for ordering candidates but cannot establish
+ * that a scheme answers the question or applies in the farmer's state.
  */
 export function semanticSearchSchemes(
   query: string,
@@ -513,23 +514,33 @@ export function semanticSearchSchemes(
       }));
 
   const scored: SemanticSchemeMatch[] = [];
+  const terms = meaningfulSchemeTerms(query);
+  if (!terms.length) return [];
+  const userState = farmer.state?.trim().toLowerCase();
 
   for (const s of sourceSchemes) {
+    const jurisdiction = schemeJurisdiction(s.ministry);
+    const explicitlyRequestedState = jurisdiction && new RegExp(`\\b${jurisdiction.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(query);
+    // Never recommend a state programme for an unknown or different state,
+    // unless the farmer explicitly asks about that state's programme.
+    if (jurisdiction && !explicitlyRequestedState && (!userState || jurisdiction.toLowerCase() !== userState)) continue;
+    const name = schemeTerms(s.name);
+    const detail = schemeTerms(`${s.category} ${s.description} ${s.benefits}`);
+    const nameHits = terms.filter(term => name.has(term)).length;
+    const detailHits = terms.filter(term => detail.has(term)).length;
+    const matched = new Set(terms.filter(term => name.has(term) || detail.has(term)));
+    // A high vector score with no topic words is a collision, not a recommendation.
+    if (!matched.size) continue;
     const sVec = s.vector || generateDenseVectorEmbedding(s.name + " " + s.description);
     const vectorCosine = computeVectorCosineSimilarity(qVec, sVec);
-    const sparseScore = computeSparseLexicalScore(query, s.name + " " + s.description + " " + s.category);
+    const sparseScore = matched.size / terms.length;
 
-    // 50/50 Hybrid formulation
-    let hybridScore = 0.5 * vectorCosine + 0.5 * sparseScore;
-
-    // Slight agricultural prioritization for farmer queries
-    if (s.is_agri) {
-      hybridScore += 0.05;
-    }
-
-    const formattedBadge = `🎯 ${(hybridScore * 100).toFixed(0)}% Match (${(vectorCosine * 100).toFixed(0)}% Vector Cosine)`;
-
-    const eligibility = predictSchemeEligibility(farmer, s, query);
+    const exactName = normalizedSchemeText(query).includes(normalizedSchemeText(s.name)) ? 1 : 0;
+    const stateMatch = userState && jurisdiction?.toLowerCase() === userState ? 0.08 : 0;
+    // Lexical coverage and title matches dominate; vector score only breaks ties.
+    const hybridScore = 0.55 * sparseScore + 0.24 * (nameHits / terms.length)
+      + 0.08 * (detailHits / terms.length) + 0.07 * vectorCosine + 0.2 * exactName + stateMatch;
+    const formattedBadge = "Catalog topic match; eligibility unverified";
 
     scored.push({
       scheme: s,
@@ -537,12 +548,41 @@ export function semanticSearchSchemes(
       vectorCosine,
       sparseScore,
       formattedBadge,
-      eligibility,
+      jurisdiction,
     });
   }
 
   scored.sort((a, b) => b.hybridScore - a.hybridScore);
   return scored.slice(0, limit);
+}
+
+const STATE_NAMES = [
+  "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat", "Haryana",
+  "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur",
+  "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu",
+  "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal", "Delhi", "Jammu and Kashmir",
+  "Ladakh", "Puducherry", "Chandigarh", "Lakshadweep", "Andaman and Nicobar Islands", "Dadra and Nagar Haveli",
+];
+const SCHEME_STOPWORDS = new Set([
+  "a", "an", "and", "are", "am", "can", "could", "do", "does", "for", "from", "government", "govt", "how",
+  "i", "in", "is", "me", "my", "of", "on", "or", "please", "scheme", "schemes", "tell", "the", "there",
+  "to", "what", "which", "who", "will", "with", "you", "your", "yojana", "apply", "application", "eligible",
+  "eligibility", "documents", "document", "deadline", "date", "benefit", "benefits", "required", "current",
+  "conversation", "topic", "question", "details", "help", "about", "available", "assistant", "status", "check",
+]);
+function normalizedSchemeText(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9\u0900-\u0D7F]+/g, " ").trim();
+}
+function schemeTerms(value: string): Set<string> {
+  return new Set(normalizedSchemeText(value).split(/\s+/).filter(Boolean));
+}
+function meaningfulSchemeTerms(query: string): string[] {
+  const withoutStates = STATE_NAMES.reduce((text, state) => text.replace(new RegExp(`\\b${state}\\b`, "gi"), " "), query);
+  return Array.from(schemeTerms(withoutStates)).filter(term => term.length > 2 && !SCHEME_STOPWORDS.has(term));
+}
+export function schemeJurisdiction(ministry: string): string | undefined {
+  const text = ministry || "";
+  return STATE_NAMES.find(state => new RegExp(`\\b${state}\\b`, "i").test(text));
 }
 
 /* ------------------------------------------------------------------ */

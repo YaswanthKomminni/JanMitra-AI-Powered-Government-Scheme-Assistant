@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Gift, FileText, Sparkles, ShieldCheck, ChevronRight } from "lucide-react";
+import { Gift, FileText, ChevronRight } from "lucide-react";
 import { Scheme } from "@/lib/mockData";
 import { useFarmerStore } from "@/store/useFarmerStore";
 import { translations } from "@/lib/i18n";
@@ -14,18 +14,14 @@ const chip =
   "inline-flex items-center h-6 px-2.5 rounded-full text-xs font-medium whitespace-nowrap";
 
 export default function SchemeCard({ scheme }: SchemeCardProps) {
-  const { language, setSelectedScheme, setVerificationModalOpen } = useFarmerStore();
+  const { language, setSelectedScheme } = useFarmerStore();
   const t = translations[language];
 
   return (
     <article className="group flex h-full flex-col rounded-[18px] border border-jm-border bg-jm-surface p-5 sm:p-6 shadow-[0_1px_2px_rgb(0_0_0/0.04)] transition hover:border-jm-primary/40 hover:shadow-[0_4px_14px_rgb(0_0_0/0.06)]">
-      {/* Header: match score, category, code */}
+      {/* A catalog search result is not an eligibility decision. */}
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
         <div className="flex flex-wrap items-center gap-2 min-w-0">
-          <span className={`${chip} gap-1 bg-jm-soft border border-jm-primary/25 text-jm-text`}>
-            <Sparkles className="w-3 h-3 text-jm-primary" />
-            {scheme.matchScore}% {t.matchScore}
-          </span>
           <span className={`${chip} bg-jm-muted border border-jm-border text-jm-text2 max-w-full truncate`}>
             {scheme.categoryName}
           </span>
@@ -48,7 +44,7 @@ export default function SchemeCard({ scheme }: SchemeCardProps) {
         </span>
         <div className="min-w-0">
           <p className="text-xs font-medium text-jm-text2">{t.subsidyAmount}</p>
-          <p className="text-[15px] font-semibold leading-snug text-jm-text break-words">{scheme.subsidyAmount}</p>
+          <p className="text-[15px] font-semibold leading-snug text-jm-text break-words line-clamp-3">{scheme.subsidyAmount || "Check current scheme terms"}</p>
         </div>
       </div>
 
@@ -72,6 +68,7 @@ export default function SchemeCard({ scheme }: SchemeCardProps) {
               <span className="truncate">{doc}</span>
             </span>
           ))}
+          {scheme.documentsRequired.length === 0 && <span className="text-xs text-jm-text2">Check the current official checklist.</span>}
           {scheme.documentsRequired.length > 3 && (
             <span className="inline-flex items-center rounded-md px-2 py-1 text-xs text-jm-text2">
               +{scheme.documentsRequired.length - 3} more
@@ -83,20 +80,12 @@ export default function SchemeCard({ scheme }: SchemeCardProps) {
       {/* Actions */}
       <div className="mt-5 flex items-center gap-3">
         <button
-          onClick={() => setVerificationModalOpen(true)}
-          className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-jm-primary px-4 text-sm font-semibold text-jm-onprimary transition hover:bg-jm-hover disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <ShieldCheck className="h-4 w-4 shrink-0" />
-          <span className="truncate">{t.verifyAndApply}</span>
-        </button>
-
-        <button
           onClick={() => setSelectedScheme(scheme)}
-          className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border border-jm-border bg-jm-surface text-jm-text transition hover:bg-jm-muted disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-jm-primary px-4 text-sm font-semibold text-jm-onprimary transition hover:bg-jm-hover"
           title={t.viewDetails}
           aria-label={t.viewDetails}
         >
-          <ChevronRight className="h-5 w-5" />
+          <span>{t.viewDetails}</span><ChevronRight className="h-4 w-4" />
         </button>
       </div>
     </article>
