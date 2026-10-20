@@ -1,14 +1,12 @@
 import { NextResponse } from "next/server";
 import { requireUser, serviceUnavailable, isDbError } from "@/lib/auth";
 import { isUniqueViolation, dbQuery } from "@/lib/db";
-import { answerDocumentQuestion } from "@/lib/nlpDocumentAnalyzer";
+import { buildConversationMemory, finishConversationMemory, type ConversationMemory } from "@/lib/conversationMemory";
 import { generateIntelligentChatReply } from "@/lib/llmService";
 import type { SupportedLanguage } from "@/lib/i18n";
 import { LANGUAGE_CODES } from "@/lib/userProfile";
 import {
   buildOutOfScopeReply,
-  formatDocumentAnalysisReply,
-  generateTextReply,
   type EngineReply,
 } from "@/lib/chatEngine";
 import { analyzeAndRecordDocument, MAX_ATTACHMENT_CHARS } from "@/lib/documentAnalysis";
@@ -156,6 +154,7 @@ export async function POST(request: Request) {
     const storedText = userMessage.text;
 
     // ---- 2. Generate the reply -----------------------------------------
+    let conversationMemory: ConversationMemory | undefined;
     let reply: EngineReply & { docDetection?: any };
     try {
       if (process.env.NODE_ENV !== "production" && process.env.JANMITRA_SIMULATE_AI_FAILURE === "1") {
@@ -170,15 +169,24 @@ export async function POST(request: Request) {
             undefined;
 
           // Context comes only from this authenticated user's conversation, never from the client.
-          const previous = await dbQuery<any[]>(
-            `SELECT sender, message_text, metadata->'docDetection' AS doc_detection FROM chat_logs
-             WHERE user_id = $1 AND conversation_id = $2 AND id < $3 ORDER BY id DESC LIMIT 12`,
-            [userId, convId, userRow.id]
-          );
+          const [previous, snapshots] = await Promise.all([
+            dbQuery<any[]>(
+              `SELECT sender, message_text, metadata->'docDetection' AS doc_detection FROM chat_logs
+               WHERE user_id = $1 AND conversation_id = $2 AND id < $3 ORDER BY id DESC LIMIT 12`,
+              [userId, convId, userRow.id]
+            ),
+            dbQuery<any[]>(
+              `SELECT metadata->'conversationMemory' AS memory FROM chat_logs
+               WHERE user_id = $1 AND conversation_id = $2 AND id < $3 AND sender = 'ai'
+                 AND metadata->'conversationMemory' IS NOT NULL ORDER BY id DESC LIMIT 1`,
+              [userId, convId, userRow.id]
+            ),
+          ]);
           const history = previous.slice().reverse().map((row) => ({
             role: (row.sender === "ai" ? "assistant" : "user") as "assistant" | "user",
             content: String(row.message_text || "").slice(0, 2500),
           }));
+          conversationMemory = buildConversationMemory(history, storedText, snapshots[0]?.memory, !!attachment);
           const latestTopicIsDocument = !!previous.find((row) => row.sender === "ai")?.doc_detection;
 
           if (attachment) {
@@ -206,6 +214,7 @@ export async function POST(request: Request) {
                   documentContext: outcome.detection,
                   forceDocumentContext: true,
                   history,
+                  conversationMemory,
                   customApiKey,
                 });
                 return {
@@ -226,10 +235,10 @@ export async function POST(request: Request) {
           try {
             const recent = await dbQuery<any[]>(
               `SELECT metadata FROM chat_logs
-               WHERE user_id = $1 AND conversation_id = $2 AND sender = 'ai'
+               WHERE user_id = $1 AND conversation_id = $2 AND id < $3 AND sender = 'ai'
                  AND metadata->'docDetection' IS NOT NULL
                ORDER BY id DESC LIMIT 1`,
-              [userId, convId]
+              [userId, convId, userRow.id]
             );
             const metadata = recent[0]?.metadata;
             const parsed = typeof metadata === "string" ? JSON.parse(metadata) : metadata;
@@ -246,6 +255,7 @@ export async function POST(request: Request) {
             documentContext: activeDocContext,
             documentContextIsLatestTopic: latestTopicIsDocument,
             history,
+            conversationMemory,
             customApiKey,
           });
 
@@ -281,7 +291,8 @@ export async function POST(request: Request) {
         clientMessageId,
         text: reply.text,
         language,
-        metadata: { chips: reply.chips || [], docDetection: reply.docDetection, replyTo: userRow.id },
+        metadata: { chips: reply.chips || [], docDetection: reply.docDetection, replyTo: userRow.id,
+          conversationMemory: conversationMemory ? finishConversationMemory(conversationMemory, reply.text) : undefined },
       });
     } catch (err: any) {
       if (isUniqueViolation(err, "uq_chat_client_msg")) {

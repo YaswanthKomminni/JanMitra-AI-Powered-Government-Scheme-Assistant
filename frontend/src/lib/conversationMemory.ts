@@ -1,0 +1,148 @@
+import type { FarmerProfile } from "@/lib/mockData";
+
+export type HistoryTurn = { role: "user" | "assistant"; content: string };
+export type FarmerFacts = Partial<Record<"crop" | "cropAge" | "land" | "state" | "district" | "location" | "soil" | "irrigation" | "symptoms" | "lastRain", string>>;
+export interface ConversationMemory {
+  version: 1;
+  facts: FarmerFacts;
+  topic?: { kind: "scheme" | "crop" | "document"; query: string; crop?: string; scheme?: string; intent?: string };
+  pendingQuestion?: string;
+  options?: string[];
+}
+
+const cropPattern = /\b(cotton|paddy|rice|maize|corn|chilli|wheat|tomato|groundnut|sugarcane|millet|soybean|potato|onion)\b/gi;
+const states = /\b(Telangana|Andhra Pradesh|Tamil Nadu|Karnataka|Kerala|Maharashtra|Rajasthan|Assam|Madhya Pradesh|Uttar Pradesh|Punjab|Haryana|Odisha|West Bengal|Gujarat|Bihar|Jharkhand|Chhattisgarh|Uttarakhand|Himachal Pradesh|Goa)\b/gi;
+const schemePattern = /PM[ -]?KISAN|Kisan Samman Nidhi|PMFBY|crop insurance|PM[ -]?KUSUM|Kisan Credit Card|\bKCC\b|Mahalakshmi|Rythu Bharosa|Gruha Jyothi|Indiramma(?: Indlu)?|Cheyutha/gi;
+const keys = ["crop", "cropAge", "land", "state", "district", "location", "soil", "irrigation", "symptoms", "lastRain"] as const;
+
+export function isContextualFollowup(query: string): boolean {
+  const q = query.trim();
+  return /^(yes|yeah|ok|okay|sure|no|continue|go ahead|please|అవును|సరే|हाँ|ठीक है)[!.\s]*$/i.test(q)
+    || /\b(this|that|these|those|it|above|same|previous|earlier|second one|first one|third one|for me|my profile|my farm|my land)\b/i.test(q)
+    || /^(?:and\s+)?(?:how (?:do i |can i |to )?(?:apply|get|claim|check|register)|what documents|documents|eligibility|am i eligible|what about|tell me more|why\??$|how much|suggestions?|give me suggestions|next steps?|what (?:should|can) i do|అర్హత|ఎలా దరఖాస్తు|कैसे आवेदन|और बताओ)/i.test(q);
+}
+
+export function readConversationMemory(raw: unknown): ConversationMemory | undefined {
+  if (!raw || typeof raw !== "object" || (raw as any).version !== 1) return undefined;
+  const value = raw as any;
+  const facts: FarmerFacts = {};
+  for (const key of keys) if (typeof value.facts?.[key] === "string") facts[key] = value.facts[key].slice(0, 200);
+  const topic = value.topic && ["scheme", "crop", "document"].includes(value.topic.kind) && typeof value.topic.query === "string"
+    ? { kind: value.topic.kind, query: value.topic.query.slice(0, 1000), crop: typeof value.topic.crop === "string" ? value.topic.crop.slice(0, 100) : undefined,
+      intent: typeof value.topic.intent === "string" ? value.topic.intent.slice(0, 30) : undefined,
+      scheme: typeof value.topic.scheme === "string" ? value.topic.scheme.slice(0, 180) : undefined } : undefined;
+  return { version: 1, facts, topic, pendingQuestion: typeof value.pendingQuestion === "string" ? value.pendingQuestion.slice(0, 500) : undefined,
+    options: Array.isArray(value.options) ? value.options.filter((item: unknown) => typeof item === "string").slice(0, 8).map((item: string) => item.slice(0, 180)) : [] };
+}
+
+function lastMatch(text: string, pattern: RegExp): string | undefined {
+  const matches = text.match(pattern);
+  return matches?.[matches.length - 1];
+}
+
+function updateUser(memory: ConversationMemory, query: string, attachment = false) {
+  const q = query.trim();
+  const facts = memory.facts;
+  const pending = memory.pendingQuestion || "";
+  const crop = lastMatch(q, cropPattern);
+  const state = lastMatch(q, states);
+  const comparison = /\b(compare|versus|vs|or)\b/i.test(q);
+  const cropsMentioned = q.match(cropPattern) || [];
+  const personalCrop = !comparison && crop && (/\b(i|we)\s+(?:am\s+)?(?:grow|growing|planted|cultivate|have)|\bnot\b.*\b(?:cotton|maize|paddy|rice)\b/i.test(q)
+    || new RegExp(`\\bmy\\s+(?:crop (?:is |of )?|farm (?:has |grows )?)?${crop}\\b`, "i").test(q)
+    || (q.length < 150 && (!/\b(how|what|why|when|which)\b/i.test(q) && (/crop|grow|plant/i.test(pending) || memory.topic?.kind === "crop"))));
+  if (personalCrop && !new RegExp(`\\bnot\\s+${crop}\\b`, "i").test(q)) {
+    if (facts.crop && facts.crop.toLowerCase() !== crop!.toLowerCase()) {
+      delete facts.cropAge;
+      delete facts.symptoms;
+    }
+    facts.crop = crop;
+  }
+  const age = q.match(/\b(\d{1,3}\s*(?:days?|weeks?|months?)(?:\s+old)?)\b/i)?.[1];
+  if (age && (/age|old|crop|plant|sow/i.test(q + pending) || memory.topic?.kind === "crop")) facts.cropAge = age;
+  const land = q.match(/\b(\d+(?:\.\d+)?\s*(?:acres?|hectares?|guntas?|cents?))\b/i)?.[1];
+  if (land && !/\b(if|suppose|example|someone|neighbour)\b/i.test(q)) facts.land = land;
+  if (state && !comparison && !/\b(if|suppose|example|someone)\b/i.test(q) && (!/^(how|what|why|when|which|is|are|can)\b/i.test(q) || /\bi live|\bi am from|\bmy farm\b/i.test(q))) {
+    if (facts.state && facts.state.toLowerCase() !== state.toLowerCase()) {
+      delete facts.district;
+      delete facts.location;
+    }
+    facts.state = state;
+  }
+  const district = q.match(/\bdistrict\s*(?:is|:|=|-)?\s*([a-z][a-z ]{1,35})/i)?.[1]
+    || q.match(/(?:\bin\s+|\bfrom\s+|^)([a-z]+(?: [a-z]+){0,2})\s+district\b/i)?.[1];
+  if (district && !/^(?:how|what|which|where|when|is|are|can)\b/i.test(q)) facts.district = district.replace(/\b(and|with|where|i)\b.*$/i, "").trim();
+  if (/\b(?:i am|i live|my farm|we live|i grow|i am from)\b/i.test(q) && /\b(from|in)\b/i.test(q) && !state) {
+    const place = q.match(/\b(?:from|in)\s+([a-z][a-z ]{1,35})/i)?.[1]?.split(/\b(?:and|with|on)\b/i)[0]?.trim();
+    if (place && !/soil|crop|field|farm|days|weeks/i.test(place)) facts.location = place;
+  }
+  if (/district/i.test(pending) && !district && !state && /^[a-z][a-z .-]{1,40}$/i.test(q) && !crop && !/soil|drip|canal|rainfed|borewell|days|weeks/i.test(q) && !isContextualFollowup(q)) facts.district = q;
+  const soil = lastMatch(q, /\b(black soil|red soil|alluvial(?: soil)?|sandy(?: loam| soil)?|clay(?: soil)?|dryland|wetland)\b/gi);
+  if (soil && !comparison) facts.soil = soil;
+  const irrigation = lastMatch(q, /\b(drip|borewell|bore well|canal|rainfed|rain-fed|sprinkler)\b/gi);
+  if (irrigation && !comparison) facts.irrigation = irrigation;
+  if (/yellow|wilting|spots|curling|stunted|pest|insect|drying|rotting|older leaves|newer leaves/i.test(q) && !/\b(if|example|neighbour)\b/i.test(q)) facts.symptoms = q.slice(0, 200);
+  if (/last rain|last rained|rainfall/i.test(pending) && /yesterday|today|\d+\s*(?:days?|weeks?)\s*ago|no rain/i.test(q)) facts.lastRain = q.slice(0, 100);
+
+  const scheme = lastMatch(q, schemePattern);
+  const ordinal = q.match(/\b(first|second|third|1st|2nd|3rd)\b/i)?.[1]?.toLowerCase();
+  const selected = ordinal ? memory.options?.[({ first: 0, "1st": 0, second: 1, "2nd": 1, third: 2, "3rd": 2 } as Record<string, number>)[ordinal]] : undefined;
+  if (attachment || /\b(?:this|attached|uploaded|above)\b.*\b(document|image|photo|table|notice|file)\b/i.test(q)) {
+    memory.topic = { kind: "document", query: q };
+  } else if (scheme || selected) {
+    memory.topic = { kind: "scheme", query: q, scheme: selected || scheme };
+  } else if (/scheme|subsid|pension|scholarship|welfare|yojana/i.test(q) && !isContextualFollowup(q)) {
+    memory.topic = { kind: "scheme", query: q };
+  } else if (/irrigat|fertili[sz]|soil test|yellow|wilting|pest|disease|seed|sowing|weed|compost|weather|forecast|market|price/i.test(q)
+    && (!isContextualFollowup(q) || /^(?:how|what|why|when|which)\b/i.test(q) && /irrigat|soil|pest|seed|weather|market/i.test(q))) {
+    memory.topic = { kind: "crop", query: q, crop: comparison && cropsMentioned.length > 1 ? undefined : crop || facts.crop };
+  } else if (crop && memory.topic?.kind === "crop" && !comparison) {
+    memory.topic.crop = crop;
+  }
+  if (memory.topic?.kind === "scheme") {
+    const intent = /documents?|paperwork|checklist/i.test(q) ? "documents" : /eligib|qualify|for me|my profile/i.test(q) ? "eligibility" : /status|payment|installment|track/i.test(q) ? "status" : /apply|application|register|enrol/i.test(q) ? "apply" : undefined;
+    if (intent) memory.topic.intent = intent;
+  }
+  // Personal facts update the current context; they do not replace its original question.
+}
+
+export function finishConversationMemory(memory: ConversationMemory, answer: string): ConversationMemory {
+  const result = readConversationMemory(memory)!;
+  result.pendingQuestion = answer.match(/[^.!?\n]+\?/g)?.slice(-1)[0]?.trim().slice(0, 500);
+  const schemes = answer.match(schemePattern) || [];
+  if (schemes.length) result.options = Array.from(new Set(schemes.map((item) => item.trim()))).slice(0, 8);
+  return result;
+}
+
+export function buildConversationMemory(history: HistoryTurn[], query: string, prior?: unknown, attachment = false): ConversationMemory {
+  let memory = readConversationMemory(prior);
+  if (!memory) {
+    memory = { version: 1, facts: {} };
+    for (const turn of history) {
+      if (turn.role === "user") updateUser(memory, turn.content);
+      else memory = finishConversationMemory(memory, turn.content);
+    }
+  }
+  updateUser(memory, query, attachment);
+  return memory;
+}
+
+export function knownFarmerFacts(profile?: FarmerProfile | null, memory?: ConversationMemory): FarmerFacts {
+  const sameState = !memory?.facts.state || !profile?.state || memory.facts.state.toLowerCase() === profile.state.toLowerCase();
+  return {
+    ...(profile?.primaryCrops?.length ? { crop: profile.primaryCrops.join(", ") } : {}),
+    ...(profile?.landSizeAcres ? { land: `${profile.landSizeAcres} acres` } : {}),
+    ...(profile?.state ? { state: profile.state } : {}), ...(sameState && profile?.district ? { district: profile.district } : {}),
+    ...(sameState && profile?.village ? { location: profile.village } : {}),
+    ...(profile?.soilTypeName || profile?.soilType ? { soil: profile.soilTypeName || profile.soilType.replace(/_/g, " ") } : {}),
+    ...(profile?.irrigationTypeName || profile?.irrigationType ? { irrigation: profile.irrigationTypeName || profile.irrigationType } : {}),
+    ...(memory?.facts || {}),
+  };
+}
+
+export function resolveConversationQuery(query: string, memory: ConversationMemory): string {
+  if (!memory.topic) return query;
+  const anchor = memory.topic.scheme || memory.topic.query;
+  if (anchor === query) return query;
+  return `Current conversation topic: ${anchor}\nCurrent question: ${query}`;
+}

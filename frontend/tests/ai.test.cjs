@@ -24,6 +24,7 @@ const { classifyImagePixels } = require('../src/lib/visionClassifier.ts');
 const { classifyImageObjects, clearlyIrrelevantObject } = require('../src/lib/localImageModel.ts');
 const { shouldUseDocument, queryWithHistory } = require('../src/lib/chatRouting.ts');
 const { farmerChatReply } = require('../src/lib/farmerChat.ts');
+const { buildConversationMemory, finishConversationMemory, knownFarmerFacts, readConversationMemory } = require('../src/lib/conversationMemory.ts');
 const env = { ...process.env };
 const realFetch = global.fetch;
 after(() => { process.env = env; global.fetch = realFetch; Module._resolveFilename = resolve; });
@@ -164,6 +165,115 @@ test('cloud messages include earlier user and assistant turns', async () => {
   assert.ok(body.messages.some((turn) => turn.role === 'user' && turn.content === 'What is PM-KISAN?'));
   assert.ok(body.messages.some((turn) => turn.role === 'assistant' && turn.content === 'PM-KISAN income support.'));
   delete process.env.GROQ_API_KEY; global.fetch = realFetch;
+});
+
+test('several short farm-detail replies retain the original crop problem', () => {
+  let memory;
+  let reply;
+  for (const query of ['Why are my leaves yellow?', 'Cotton', 'Warangal', '40 days old', 'Black soil', 'What should I do now?']) {
+    memory = buildConversationMemory([], query, memory);
+    reply = farmerChatReply(query, 'en', null, [], memory);
+    memory = finishConversationMemory(memory, reply.text);
+  }
+  assert.match(reply.text, /Yellow leaves/);
+  for (const fact of ['Cotton', 'Warangal', '40 days', 'Black soil']) assert.ok(reply.text.includes(fact), fact);
+  assert.doesNotMatch(reply.text, /Which crop|Which district|How old|What is your soil/);
+  assert.equal(memory.topic.query, 'Why are my leaves yellow?');
+});
+
+test('scheme follow-ups remember the application intent after a single-word state reply', () => {
+  let memory;
+  const ask = query => {
+    memory = buildConversationMemory([], query, memory);
+    const reply = farmerChatReply(query, 'en', null, [], memory);
+    memory = finishConversationMemory(memory, reply.text);
+    return reply.text;
+  };
+  ask('What is PM-KISAN?');
+  assert.match(ask('How to apply?'), /To apply for PM-KISAN/);
+  const application = ask('Telangana');
+  assert.match(application, /To apply for PM-KISAN in Telangana/);
+  assert.doesNotMatch(application, /Which state/);
+  const documents = ask('What documents are needed?');
+  assert.match(documents, /Aadhaar\/e-KYC/);
+  assert.doesNotMatch(documents, /To apply for|Which state/);
+  assert.match(ask('Am I eligible?'), /Telangana.*helps narrow/s);
+});
+
+test('chat corrections override saved profile only inside that conversation', () => {
+  const profile = { primaryCrops: ['cotton'], state: 'Telangana', district: 'Warangal', landSizeAcres: 2, soilType: 'black_soil', irrigationType: 'drip' };
+  const memory = buildConversationMemory([], 'I grow maize in Mysuru district, Karnataka on 3 acres. How should I irrigate my crop?');
+  const reply = farmerChatReply('What should I check next?', 'en', profile, [], memory);
+  assert.match(reply.text, /maize/);
+  assert.match(reply.text, /3 acres/);
+  assert.match(reply.text, /Karnataka/);
+  assert.match(reply.text, /black soil/);
+  assert.doesNotMatch(reply.text, /Warangal/);
+  assert.doesNotMatch(reply.text, /Which crop|Which district|What is your soil/);
+  assert.deepEqual(profile.primaryCrops, ['cotton']);
+  assert.equal(knownFarmerFacts(profile, buildConversationMemory([], 'Hello')).crop, 'cotton');
+  assert.deepEqual(buildConversationMemory([], 'Hello').facts, {});
+});
+
+test('assistant examples and hypothetical comparisons never become farmer facts', () => {
+  const history = [{ role: 'assistant', content: 'For example, a cotton farmer in Punjab with 10 acres might ask about irrigation. Which crop are you growing?' }];
+  let memory = buildConversationMemory(history, 'I grow maize');
+  memory = buildConversationMemory([], 'Compare cotton versus paddy if I had 20 acres in Karnataka', memory);
+  assert.equal(memory.facts.crop, 'maize');
+  assert.equal(memory.facts.land, undefined);
+  assert.equal(memory.facts.state, undefined);
+  assert.equal(memory.facts.district, undefined);
+});
+
+test('new farming topics replace scheme topics and ordinal scheme choices stay connected', () => {
+  let memory = buildConversationMemory([{ role: 'assistant', content: '1. PM-KISAN\n2. PMFBY\n3. PM-KUSUM' }], 'The second one');
+  assert.equal(memory.topic.scheme, 'PMFBY');
+  memory = buildConversationMemory([], 'How should I irrigate paddy?', memory);
+  memory = buildConversationMemory([], 'What about black soil?', memory);
+  const reply = farmerChatReply('What should I do next?', 'en', null, [], memory);
+  assert.match(reply.text, /Irrigation/);
+  assert.doesNotMatch(reply.text, /PMFBY|crop insurance/);
+});
+
+test('document follow-ups retain their source even when the upload question names a scheme', async () => {
+  const doc = { parsedDetails: parseAndSummarizeDocumentContent(notice) };
+  let memory = buildConversationMemory([], 'Explain PM-KISAN in this document', undefined, true);
+  assert.equal(memory.topic.kind, 'document');
+  memory = finishConversationMemory(memory, 'The applicant is Meena Devi.');
+  memory = buildConversationMemory([], 'What documents are required?', memory);
+  const reply = await generateIntelligentChatReply({ query: 'What documents are required?', language: 'en', documentContext: doc, conversationMemory: memory });
+  assert.equal(reply.usedDocument, true);
+  assert.match(reply.text, /Income certificate/);
+  memory = buildConversationMemory([], 'How should I irrigate paddy?', memory);
+  const crop = await generateIntelligentChatReply({ query: 'What should I do next?', language: 'en', documentContext: doc, conversationMemory: memory });
+  assert.match(crop.text, /Irrigation/);
+  assert.doesNotMatch(crop.text, /Income certificate|Meena/);
+});
+
+test('changing the crop and state clears stale crop age and local details', () => {
+  let memory = buildConversationMemory([], 'My cotton is 40 days old in Warangal district, Telangana.');
+  memory = buildConversationMemory([], 'I grow maize now in Karnataka', memory);
+  assert.equal(memory.facts.crop, 'maize');
+  assert.equal(memory.facts.state, 'Karnataka');
+  assert.equal(memory.facts.cropAge, undefined);
+  assert.equal(memory.facts.district, undefined);
+});
+
+test('stored memory preserves older facts beyond the recent history sent to cloud models', async () => {
+  let memory = buildConversationMemory([], 'My cotton is 40 days old in Warangal district on 3 acres. Why are my leaves yellow?');
+  memory = finishConversationMemory(memory, 'Check drainage. Is the soil wet?');
+  assert.equal(readConversationMemory({ version: 2, facts: { crop: 'wrong' } }), undefined);
+  process.env.GROQ_API_KEY = 'test-key';
+  let body;
+  global.fetch = async (_url, options) => { body = JSON.parse(options.body); return Response.json({ choices: [{ message: { content: 'Check soil moisture first.' } }] }); };
+  try {
+    await generateIntelligentChatReply({ query: 'What should I do now?', language: 'en', conversationMemory: memory,
+      history: Array.from({ length: 14 }, (_, i) => ({ role: i % 2 ? 'assistant' : 'user', content: i % 2 ? 'Please continue.' : 'Okay' })) });
+    assert.equal(body.messages.length, 14); // system, 12 recent turns, current question
+    const system = body.messages[0].content;
+    for (const fact of ['cotton', '40 days', 'Warangal', '3 acres', 'yellow']) assert.ok(system.includes(fact), fact);
+    assert.ok(system.includes('Chat corrections override saved values'));
+  } finally { delete process.env.GROQ_API_KEY; global.fetch = realFetch; }
 });
 
 test('retired model IDs recover using the provider catalog', async () => {

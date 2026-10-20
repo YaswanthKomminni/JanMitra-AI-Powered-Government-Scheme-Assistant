@@ -168,7 +168,8 @@ To exercise the AI-failure path manually: `JANMITRA_SIMULATE_AI_FAILURE=1 npm ru
 ---
 
 ## ⚠️ Known limitations
-- **The reply engine still contains demo-farmer details.** The conversational engine (now in `frontend/src/lib/chatEngine.ts`, moved unchanged from the browser) is keyword-based and many replies hardcode "Ramesh", "3.5 acres", "Kothur", a "verified Dharani passbook" and an SBI account, whoever is signed in. Personalising those texts in all six languages is the recommended next step.
+- **Cloud AI requires a working provider key.** Without one, chat uses a limited local agriculture/scheme guide and grounded document extraction. It cannot provide unrestricted generative answers, live prices, weather, payment status or verified eligibility.
+- Chat stores a compact memory with each assistant reply, scoped to the authenticated user and conversation. Known crop, age, acreage, location, soil and irrigation details remain available beyond the 12 recent turns sent to cloud models. Explicit chat corrections override the saved profile for that conversation only; a new chat starts with the saved profile. Assistant suggestions and example documents do not establish personal farm facts.
 - **No real OTP / password reset.** Adding SMS OTP or self-service reset needs an SMS/email provider. Until then, an administrator resets passwords with `npm run user:set-password`.
 - Rate limits are in memory and per process. Use a shared store (e.g. Redis) if you run several instances.
 - Uploaded images are not stored in chat history (only the file name and the analysis are), so older messages show a file chip instead of the photo.

@@ -1,7 +1,7 @@
 import type { SupportedLanguage } from "@/lib/i18n";
 import { GUEST_FARMER, type FarmerProfile } from "@/lib/mockData";
 import { semanticSearchSchemes } from "@/lib/aiCopilotService";
-import { queryWithHistory, type HistoryTurn } from "@/lib/chatRouting";
+import { buildConversationMemory, knownFarmerFacts, resolveConversationQuery, type ConversationMemory, type HistoryTurn } from "@/lib/conversationMemory";
 
 const help: Record<SupportedLanguage, string> = {
   en: "Tell me your crop, district and the problem you are seeing, or the name of the government scheme. I can help with cultivation, soil, irrigation, crop problems and applications.",
@@ -48,27 +48,56 @@ export function schemeReferences(query: string, profile?: FarmerProfile | null) 
       documents: match.scheme.documents_required, source: "Saved scheme catalog; current rules and eligibility are unverified" }));
 }
 
-export function farmerChatReply(query: string, lang: SupportedLanguage, profile?: FarmerProfile | null, history: HistoryTurn[] = []) {
-  const effective = queryWithHistory(query, history);
+export function farmerChatReply(query: string, lang: SupportedLanguage, profile?: FarmerProfile | null, history: HistoryTurn[] = [], suppliedMemory?: ConversationMemory) {
+  const memory = suppliedMemory || buildConversationMemory(history, query);
+  const facts = knownFarmerFacts(profile, memory);
+  const effective = resolveConversationQuery(query, memory);
   const chips = ["Which scheme can help me?", "Help with my crop", "How to apply?"];
-  if (/^(hi|hello|hey|namaste|thanks|thank you|నమస్కారం|नमस्ते|வணக்கம்|ನಮಸ್ಕಾರ|নমস্কার)[!.\s]*$/i.test(query.trim())) return { text: help[lang], chips };
-  const named = namedSchemes.find((item) => item.match.test(effective));
-  if (named) {
-    const followup = /apply|application|documents?|checklist|దరఖాస్తు|आवेदन/i.test(query);
-    return { text: `${named.text}\n\n${followup ? "For the application, first check the current state/season notice on the official portal. Then confirm your eligibility and the exact checklist with the implementing office or bank. Prepare identity, bank and relevant land/activity records as requested; requirements vary by scheme.\n\n" : ""}Official information: ${named.url}\n\nWhich state are you in, and do you want eligibility, application steps or status-check guidance?`, chips: [`How to apply for ${named.name}?`, `Eligibility for ${named.name}`, `Documents for ${named.name}`] };
+  const location = [facts.district, facts.state].filter(Boolean).join(", ");
+  const crop = memory.topic?.crop || facts.crop;
+  const context = [crop, facts.cropAge, facts.land, facts.soil, facts.irrigation, location].filter(Boolean).join("; ");
+  if (/^(hi|hello|hey|namaste|thanks|thank you|నమస్కారం|नमस्ते|வணக்கம்|ನಮಸ್ಕಾರ|নমস্কার)[!.\s]*$/i.test(query.trim())) {
+    return { text: context ? `I have these details for this chat: ${context}. What would you like help with next?` : help[lang], chips };
   }
-  const topic = !/scheme|subsid|government|yojana|పథక|योजना/i.test(effective) ? knowledge.find((item) => item.terms.test(effective)) : undefined;
+  const named = memory.topic?.kind !== "crop" && namedSchemes.find((item) => item.match.test(effective));
+  if (named) {
+    const documents = memory.topic?.intent === "documents" || /documents?|paperwork|checklist|దరఖాస్తు పత్ర|दस्तावेज/i.test(query);
+    const apply = memory.topic?.intent === "apply" || /apply|application|register|enrol|దరఖాస్తు|आवेदन/i.test(query);
+    const eligible = memory.topic?.intent === "eligibility" || /eligib|qualify|for me|my profile|అర్హత|पात्र/i.test(query);
+    const status = memory.topic?.intent === "status" || /status|payment|installment|paid|track/i.test(query);
+    let guidance = named.text;
+    if (documents) guidance = `For ${named.name}, prepare identity and bank details, plus the relevant land, tenancy or farming-activity records requested by the implementing agency. ${/PM-KISAN/.test(named.name) ? "Check Aadhaar/e-KYC and that names match your land and bank records." : /insurance/.test(named.name) ? "Also check the seasonal notification for crop, sowing and insurance/enrollment records." : /Credit/.test(named.name) ? "Ask your bank for its current KCC checklist and application form." : "Ask the state implementing agency which component-specific records are required."} Confirm the exact current checklist before applying.`;
+    else if (status) guidance = `To check ${named.name} status, use the official portal below or contact the implementing agency${/Credit/.test(named.name) ? " / your bank" : ""}. Use the beneficiary or application-status section where available. I cannot access your payment or application record. Do not share Aadhaar numbers, passwords or OTPs in this chat.`;
+    else if (eligible) guidance = `For ${named.name}, your ${[facts.land, crop, location].filter(Boolean).join(", ") || "farm profile"} helps narrow the questions, but does not establish eligibility. ${named.text} Check the current exclusions and state/season requirements with the implementing agency. Tell me which eligibility condition you want to check.`;
+    else if (apply) guidance = `To apply for ${named.name}${location ? ` in ${location}` : ""}:\n1. Open the official portal below and check the current application window and applicable state/season/component.\n2. Read the eligibility conditions and current document checklist.\n3. Submit through the listed official channel${/Credit/.test(named.name) ? " or your bank" : " or authorised local centre"}, keep the acknowledgement, and track the application there. ${/PM-KISAN/.test(named.name) ? "For PM-KISAN, complete the requested e-KYC and resolve any land/bank-record mismatch." : "The implementing agency must confirm the exact process for your case."}`;
+    return { text: `${location && !apply ? `For your location: ${location}.\n\n` : ""}${guidance}\n\nOfficial information: ${named.url}${!facts.state ? "\n\nWhich state are you in?" : ""}`, chips: [`How to apply for ${named.name}?`, `Eligibility for ${named.name}`, `Documents for ${named.name}`] };
+  }
+  // Prefer the current agricultural question, then the active issue for short replies.
+  const topic = memory.topic?.kind !== "scheme" ? knowledge.find((item) => item.terms.test(memory.topic?.query || query)) || knowledge.find((item) => item.terms.test(effective)) : undefined;
   if (topic) {
-    const crop = effective.match(/\b(cotton|paddy|rice|maize|chilli|wheat|tomato|groundnut)\b/i)?.[0] || profile?.primaryCrops?.[0];
-    const text = crop ? `For ${crop}: ${topic.text.replace(/Which crop is it, how old is it, and are the spots spreading\?/, "How old is the crop, and are the symptoms spreading?").replace(/Which crop and soil type do you have, and when did it last rain\?/, "What is your soil type, crop stage, and when did it last rain?")}` : topic.text;
-    return { text, chips: ["I can share my crop details", "Help interpret my soil report", "Related government schemes"] };
+    let advice = topic.text
+      .replace(/Which crop is it, how old is it, and are the spots spreading\?/, "")
+      .replace(/Which crop and soil type do you have, and when did it last rain\?/, "")
+      .replace(/Share your Soil Health Card values, crop, acreage and fertilizers already applied; I can help interpret them and identify what to ask your agricultural officer\./, "Share the Soil Health Card readings and fertilizers already applied so I can help interpret them.")
+      .replace(/Tell me the crop, age, affected area and when symptoms started\./, "")
+      .replace(/Which crop are you planning, and in which district\?/, "")
+      .replace(/Tell me your crop and the material available so I can suggest a practical composting or soil-improvement approach\./, "Which composting material do you have available?")
+      .replace(/Share a weed photo and your crop details before choosing a herbicide\./, "Share a weed photo before choosing a herbicide.")
+      .replace(/Tell me your district and crop so I can help interpret the forecast and plan field work\./, "Paste the forecast here and I can help plan field work.")
+      .replace(/Which crop, variety and market are you considering\?/, "Which variety and mandi are you considering?").trim();
+    let question = !crop ? "Which crop are you growing?" : !facts.district && !facts.location ? "Which district is your farm in?" : "";
+    if (!question && /yellow|pest|disease/i.test(memory.topic?.query || query)) question = !facts.cropAge ? "How old is the crop?" : "Are older or newer leaves affected, and are symptoms spreading?";
+    if (!question && /irrigat|watering/i.test(memory.topic?.query || query)) question = !facts.soil ? "What is your soil type?" : !facts.cropAge ? "What is the crop age or growth stage?" : !facts.lastRain ? "When did it last rain?" : "Is the root-zone soil still moist?";
+    // Do not append a second question to guidance that already asks one.
+    if (advice.includes("?")) question = "";
+    return { text: `${context ? `For ${context}:\n\n` : ""}${advice}${question ? `\n\n${question}` : ""}`, chips: ["What should I check next?", "Help interpret my soil report", "Related government schemes"] };
   }
   const schemes = schemeReferences(effective, profile);
   if (schemes.length) {
     const selected = schemes[0];
     const paperwork = /documents?|checklist/i.test(query) && selected.documents ? `\n\nThe saved catalog lists: ${selected.documents}. Confirm the current checklist with the implementing office.` : "";
-    return { text: `${selected.name}\n\nThe saved scheme catalog describes it as: ${selected.description}${paperwork}\n\nConfirm current eligibility, benefits and dates with ${selected.department || "the implementing department"} or the official scheme listing at https://www.myscheme.gov.in/. Tell me your state and what you want to know about this scheme.`, chips: [`How to apply for ${selected.name}?`, "What are the eligibility conditions?", "What documents are required?"] };
+    return { text: `${selected.name}\n\nThe saved scheme catalog describes it as: ${selected.description}${paperwork}\n\nConfirm current eligibility, benefits and dates with ${selected.department || "the implementing department"} or the official scheme listing at https://www.myscheme.gov.in/.${facts.state ? ` Your location is ${location || facts.state}. Which condition would you like to check?` : " Which state are you in?"}`, chips: [`How to apply for ${selected.name}?`, "What are the eligibility conditions?", "What documents are required?"] };
   }
   if (/write.*code|programming|football|cricket score|movie|celebrity/i.test(query)) return { text: "I can help with agriculture and government welfare schemes. Ask me about your crop, farming practices, eligibility or an application.", chips };
-  return { text: help[lang], chips };
+  return { text: context ? `I have these farm details: ${context}. What crop problem or government scheme would you like help with?` : help[lang], chips };
 }
