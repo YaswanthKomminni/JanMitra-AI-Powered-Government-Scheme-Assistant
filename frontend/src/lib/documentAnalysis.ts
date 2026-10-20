@@ -1,4 +1,5 @@
 import "server-only";
+import { visionStatusMessage } from "@/lib/visionStatus";
 import { queryDatabase } from "@/lib/db";
 import { analyzeImageIntelligently } from "@/lib/visionLlm";
 import type { SupportedLanguage } from "@/lib/i18n";
@@ -67,7 +68,7 @@ export async function analyzeAndRecordDocument(opts: {
   }
   if (outcome.scopeStatus === "uncertain") {
     return { success: false, isOutOfScope: false, scopeStatus: "uncertain",
-      message: outcome.detectionSummary, reason: outcome.reason || outcome.detectionSummary,
+      message: visionStatusMessage(outcome.visionStatus, opts.language || "en") || outcome.detectionSummary, reason: outcome.reason || outcome.detectionSummary,
       suggestions: outcome.suggestions };
   }
 

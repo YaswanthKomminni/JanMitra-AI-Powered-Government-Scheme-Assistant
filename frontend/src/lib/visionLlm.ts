@@ -1,6 +1,6 @@
 import { analyzeDocumentComprehensive, type ExtractedBoundingBox } from "@/lib/ocrEngine";
 import { normalizeCropAnalysis, reconcileImageEvidence, type CropAnalysis } from "@/lib/imageEvidence";
-import { providerKeys, providerModels, discoverProviderModels, type AiProvider } from "@/lib/aiProviders";
+import { providerKeys, providerModels, geminiGenerationConfig, discoverProviderModels, type AiProvider } from "@/lib/aiProviders";
 import type { SupportedLanguage } from "@/lib/i18n";
 import sharp from "sharp";
 
@@ -20,6 +20,7 @@ export interface VisionAnalysisResult {
   parsedDetails?: any;
   cropAnalysis?: CropAnalysis;
   readingConflicts?: string[];
+  visionStatus?: { state: "cloud" | "local"; provider?: AiProvider; model?: string; failures?: Array<{ provider: AiProvider; code: "auth" | "quota" | "model" | "timeout" | "invalid_response" | "unavailable" }> };
   analysisQuality?: "partial" | "complete";
 }
 
@@ -83,7 +84,7 @@ export async function imageReadingViews(dataUrl: string, mimeType: string): Prom
   return views;
 }
 
-async function cloudVision(provider: AiProvider, key: string, views: Array<{ url: string; mimeType: string }>, mimeType: string, language: SupportedLanguage, signal: AbortSignal): Promise<VisionAnalysisResult | null> {
+async function cloudVision(provider: AiProvider, key: string, views: Array<{ url: string; mimeType: string }>, mimeType: string, language: SupportedLanguage, signal: AbortSignal, failures: NonNullable<VisionAnalysisResult["visionStatus"]>["failures"] = []): Promise<VisionAnalysisResult | null> {
   if (provider !== "gemini" && !mimeType.startsWith("image/")) return null;
   const models = providerModels(provider, true);
   const prompt = visionPromptForLanguage(language) + "\nThe first image is the complete upload. Any following images are overlapping close-up views of that SAME upload. Use them to read fine print; do not count them as separate documents or duplicate table rows. Summarize readable headings, subjects and scheme names even if other regions are unreadable.";
@@ -99,7 +100,7 @@ async function cloudVision(provider: AiProvider, key: string, views: Array<{ url
         headers: { "Content-Type": "application/json", ...(gemini ? { "x-goog-api-key": key } : { Authorization: `Bearer ${key}` }) },
         body: JSON.stringify(gemini ? {
           contents: [{ parts: [{ text: prompt }, ...views.map(view => ({ inlineData: { mimeType: view.mimeType, data: view.url.replace(/^data:[^;]+;base64,/, "") } }))] }],
-          generationConfig: { responseMimeType: "application/json", temperature: 0.1, maxOutputTokens: 6000 },
+          generationConfig: geminiGenerationConfig(model, 8000, true),
         } : {
           model, messages: [{ role: "user", content: [{ type: "text", text: prompt }, ...views.map(view => ({ type: "image_url", image_url: { url: view.url, ...(provider === "openai" ? { detail: "high" } : {}) } }))] }],
           response_format: { type: "json_object" }, temperature: 0.1, max_completion_tokens: 6000,
@@ -107,19 +108,21 @@ async function cloudVision(provider: AiProvider, key: string, views: Array<{ url
       });
       if (!response.ok) {
         console.warn(`[vision] ${provider}/${model}: HTTP ${response.status}`);
-        if (!discovered && [404, 410].includes(response.status)) {
+        failures?.push({ provider, code: [401, 403].includes(response.status) ? "auth" : response.status === 429 ? "quota" : [400, 404, 410].includes(response.status) ? "model" : "unavailable" });
+        if (!discovered && [400, 404, 410, 429].includes(response.status)) {
           discovered = true;
           const available = await discoverProviderModels(provider, key, true, signal);
           models.push(...available.filter((id) => !models.includes(id)));
         }
-        if ([401, 403, 429].includes(response.status)) break;
+        if ([401, 403].includes(response.status)) break;
         continue;
       }
       const body = await response.json();
-      const raw = gemini ? body.candidates?.[0]?.content?.parts?.map((part: any) => part.text || "").join("") : body.choices?.[0]?.message?.content;
+      const raw = gemini ? body.candidates?.[0]?.content?.parts?.map((part: any) => part.thought ? "" : part.text || "").join("") : body.choices?.[0]?.message?.content;
       const result = normalizeVisionResult(JSON.parse((raw || "").replace(/```(?:json)?/g, "").trim()));
-      if (result) return result;
-    } catch { /* Next model, within the shared deadline. */ }
+      if (result) return { ...result, visionStatus: { state: "cloud", provider, model } };
+      failures?.push({ provider, code: "invalid_response" });
+    } catch (error) { failures?.push({ provider, code: error instanceof SyntaxError ? "invalid_response" : signal.aborted || (error as Error).name === "TimeoutError" || (error as Error).name === "AbortError" ? "timeout" : "unavailable" }); }
   }
   return null;
 }
@@ -134,13 +137,16 @@ export async function analyzeImageIntelligently(opts: {
   const signal = AbortSignal.timeout(24000);
   const keys = providerKeys(opts.customApiKey);
   const views = keys.length ? await imageReadingViews(dataUrl, mimeType) : [{ url: dataUrl, mimeType }];
+  const failures: NonNullable<VisionAnalysisResult["visionStatus"]>["failures"] = [];
   let cloud: VisionAnalysisResult | null = null;
   for (const entry of keys) {
     if (signal.aborted) break;
-    cloud = await cloudVision(entry.provider, entry.key, views, mimeType, opts.language || "en", signal);
+    const providerSignal = AbortSignal.any([signal, AbortSignal.timeout(Math.max(6000, Math.floor(24000 / keys.length)))]);
+    cloud = await cloudVision(entry.provider, entry.key, views, mimeType, opts.language || "en", providerSignal, failures);
     if (cloud?.scopeStatus === "in_scope") break;
     if (cloud?.scopeStatus === "out_of_scope") break;
   }
   const local = await localPromise;
-  return reconcileImageEvidence(cloud, local as VisionAnalysisResult);
+  const result = reconcileImageEvidence(cloud, local as VisionAnalysisResult);
+  return { ...result, visionStatus: result.visionStatus || cloud?.visionStatus || { state: "local", failures: failures?.filter((entry, index, all) => all.findIndex(other => other.provider === entry.provider && other.code === entry.code) === index) } };
 }

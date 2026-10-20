@@ -205,7 +205,8 @@ export async function POST(request: Request) {
                 return buildOutOfScopeReply(language, outcome.reason);
               }
               if (!outcome.success) {
-                return buildUnreadableUploadReply(language);
+                const reply = buildUnreadableUploadReply(language);
+                return { ...reply, text: outcome.message || reply.text };
               }
               if (outcome.success && outcome.detection) {
                 conversationMemory.latestUploadAvailable = true;

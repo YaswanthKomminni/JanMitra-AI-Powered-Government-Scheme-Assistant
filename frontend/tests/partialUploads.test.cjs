@@ -114,3 +114,108 @@ test('vision reading retains the original and supplies overlapping detail views'
   const details = await require('sharp')(Buffer.from(views[1].url.split(',')[1], 'base64')).metadata();
   assert.ok(details.height < 1200 && details.width === 700);
 });
+
+ test('hai after a partial upload greets the farmer without replaying the document', async () => {
+  for (const query of ['hai', 'Hai!', 'hii', 'helloo']) {
+    let memory = buildConversationMemory([], 'Summarize this document', undefined, true);
+    memory.latestUploadAvailable = true;
+    memory = buildConversationMemory([], query, memory);
+    const reply = await generateIntelligentChatReply({ query, language: 'en', documentContext: poster, conversationMemory: memory });
+    assert.equal(reply.usedDocument, false);
+    assert.match(reply.text, /Hello/);
+    assert.doesNotMatch(reply.text, /Document summary|printed document|Mahalakshmi/);
+  }
+});
+
+test('Gemini request uses current parameters and retries another model after quota rejection', async () => {
+  process.env.GEMINI_API_KEY = 'synthetic-test-only';
+  let posts = 0;
+  global.fetch = async (url, options) => {
+    if (!options.body) return Response.json({ models: [{ name: 'models/gemini-2.5-flash', supportedGenerationMethods: ['generateContent'] }] });
+    posts++;
+    const payload = JSON.parse(options.body);
+    assert.equal(payload.generationConfig.temperature, undefined);
+    assert.deepEqual(payload.generationConfig.thinkingConfig, { thinkingLevel: 'low' });
+    if (posts === 1) return new Response('', { status: 429 });
+    return Response.json({ candidates: [{ content: { parts: [{ thought: true, text: 'private reasoning' }, { text: 'Check the soil moisture before watering.\nCHIPS: Soil type|Crop age' }] } }] });
+  };
+  try {
+    const reply = await generateIntelligentChatReply({ query: 'How should I check soil moisture?', language: 'en' });
+    assert.equal(posts, 2);
+    assert.equal(reply.provider, 'gemini');
+    assert.match(reply.text, /soil moisture/);
+    assert.doesNotMatch(reply.text, /private reasoning/);
+  } finally { delete process.env.GEMINI_API_KEY; global.fetch = realFetch; }
+});
+
+test('model discovery includes account available older and preview multimodal models', async () => {
+  const { discoverProviderModels } = require('../src/lib/aiProviders.ts');
+  global.fetch = async () => Response.json({ models: ['gemini-2.5-flash', 'gemini-3-flash-preview', 'gemini-3.8-flash-tts', 'gemini-3.1-flash-image'].map(id => ({ name: 'models/' + id, supportedGenerationMethods: ['generateContent'] })) });
+  try {
+    const models = await discoverProviderModels('gemini', 'synthetic-test-only', true, AbortSignal.timeout(1000));
+    assert.deepEqual(models, ['gemini-2.5-flash', 'gemini-3-flash-preview']);
+  } finally { global.fetch = realFetch; }
+});
+
+test('bad local OCR cannot override a readable cloud document', () => {
+  const { reconcileImageEvidence } = require('../src/lib/imageEvidence.ts');
+  const cloud = { scopeStatus: 'in_scope', isAgriRelated: true, docType: 'land_record', confidenceScore: .9,
+    extractedTextSnippet: 'Government Pension Scheme\nApplicant: Meena Devi\nMonthly assistance: Rs 2000', detectionSummary: 'Pension assistance for Meena Devi.', suggestions: [], visionStatus: { state: 'cloud', provider: 'gemini', model: 'test' } };
+  const local = { ...cloud, analysisQuality: 'partial', visionStatus: undefined, extractedTextSnippet: 'Govt Scheme\nApplicant: Xqrrn\nMonthly assistance: Rs 99999', readablePassages: [] };
+  const result = reconcileImageEvidence(cloud, local);
+  assert.equal(result.analysisQuality, 'complete');
+  assert.match(result.extractedTextSnippet, /Meena Devi/);
+  assert.doesNotMatch(result.extractedTextSnippet, /99999/);
+  assert.equal(result.visionStatus.state, 'cloud');
+});
+
+test('provider errors show a connection problem without secrets or blaming the upload', () => {
+  const { visionStatusMessage } = require('../src/lib/visionStatus.ts');
+  assert.match(visionStatusMessage({ state: 'local', failures: [{ provider: 'gemini', code: 'quota' }] }, 'en'), /usage limit/);
+  assert.match(visionStatusMessage({ state: 'local', failures: [{ provider: 'gemini', code: 'auth' }] }, 'en'), /connection was rejected/);
+  assert.match(visionStatusMessage({ state: 'local', failures: [] }, 'te'), /AI/);
+  assert.equal(visionStatusMessage({ state: 'cloud', provider: 'gemini' }, 'en'), '');
+});
+
+test('Gemini reads uploaded image and PDF bytes; saved evidence answers a follow-up', async () => {
+  const ocr = require('../src/lib/ocrEngine.ts');
+  const original = ocr.analyzeDocumentComprehensive;
+  const { analyzeImageIntelligently } = require('../src/lib/visionLlm.ts');
+  const source = 'Telangana Government Welfare Scheme\nMahalakshmi\nRequired documents: Income certificate and Aadhaar\nApplication deadline: 30.11.2026';
+  ocr.analyzeDocumentComprehensive = async () => ({ scopeStatus: 'uncertain', isAgriRelated: false, confidenceScore: 0, extractedTextSnippet: '', suggestions: [] });
+  process.env.GEMINI_API_KEY = 'synthetic-test-only';
+  let calls = 0;
+  global.fetch = async (url, options) => {
+    calls++;
+    const payload = JSON.parse(options.body);
+    assert.ok(payload.contents[0].parts.some(p => p.inlineData?.data));
+    assert.equal(payload.generationConfig.temperature, undefined);
+    return Response.json({ candidates: [{ content: { parts: [{ text: JSON.stringify({ scopeStatus: 'in_scope', isAgriRelated: true, title: 'Mahalakshmi notice', docType: 'identity_card', confidenceScore: .9,
+      detectionSummary: 'A Telangana Mahalakshmi application notice.', extractedTextSnippet: source, extractedData: {}, suggestions: [] }) }] } }] });
+  };
+  try {
+    const png = await require('sharp')({ create: { width: 40, height: 40, channels: 3, background: '#fff' } }).png().toBuffer();
+    for (const [mime, bytes] of [['image/png', png], ['application/pdf', Buffer.from('synthetic PDF request fixture')]]) {
+      const result = await analyzeImageIntelligently({ fileBase64: `data:${mime};base64,${bytes.toString('base64')}`, language: 'en' });
+      assert.equal(result.visionStatus.state, 'cloud');
+      assert.equal(result.analysisQuality, 'complete');
+      assert.match(answerDocumentQuestion('What documents are required?', result, 'en').text, /Income certificate|Aadhaar/);
+      assert.match(answerDocumentQuestion('When is the deadline?', result, 'en').text, /30\.11\.2026/);
+    }
+    assert.equal(calls, 2);
+  } finally { ocr.analyzeDocumentComprehensive = original; delete process.env.GEMINI_API_KEY; global.fetch = realFetch; }
+});
+
+test('an unrelated room photo is rejected by visual evidence rather than accepted as a government document', async () => {
+  const ocr = require('../src/lib/ocrEngine.ts');
+  const original = ocr.analyzeDocumentComprehensive;
+  const { analyzeImageIntelligently } = require('../src/lib/visionLlm.ts');
+  ocr.analyzeDocumentComprehensive = async () => ({ scopeStatus: 'uncertain', isAgriRelated: false, confidenceScore: 0, suggestions: [] });
+  process.env.GEMINI_API_KEY = 'synthetic-test-only';
+  global.fetch = async () => Response.json({ candidates: [{ content: { parts: [{ text: JSON.stringify({ scopeStatus: 'out_of_scope', confidenceScore: .98, detectionSummary: 'A room ceiling and fan; no crop or welfare document is visible.', suggestions: [] }) }] } }] });
+  try {
+    const result = await analyzeImageIntelligently({ fileBase64: 'data:image/jpeg;base64,c3ludGhldGlj' });
+    assert.equal(result.scopeStatus, 'out_of_scope');
+    assert.equal(result.isAgriRelated, false);
+  } finally { ocr.analyzeDocumentComprehensive = original; delete process.env.GEMINI_API_KEY; global.fetch = realFetch; }
+});

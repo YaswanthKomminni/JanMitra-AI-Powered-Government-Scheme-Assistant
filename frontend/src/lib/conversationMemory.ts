@@ -27,7 +27,7 @@ const stateMentionPattern = new RegExp(states.source, "i");
 
 export function isGreetingQuery(query: string): boolean {
   const q = query.trim().replace(/^[\s.,!?।]+|[\s.,!?।]+$/g, "");
-  return /^(?:h+i+|h+e+l+o+|h+e+y+|namaste|namaskar|good (?:morning|afternoon|evening)|thanks?|thank you|నమస్కారం|नमस्ते|வணக்கம்|ನಮಸ್ಕಾರ|নমস্কার)(?:\s+(?:there|sir|madam|ji|friend))?$/i.test(q);
+  return /^(?:h+a+i+|h+i+|h+e+l+o+|h+e+y+|namaste|namaskar|good (?:morning|afternoon|evening)|thanks?|thank you|నమస్కారం|नमस्ते|வணக்கம்|ನಮಸ್ಕಾರ|নমস্কার)(?:\s+(?:there|sir|madam|ji|friend))?$/i.test(q);
 }
 
 export function isExplicitlyUnrelatedQuery(query: string): boolean {

@@ -1,5 +1,7 @@
 "use client";
 
+import ChatText from "@/components/ChatText";
+import { visionStatusMessage } from "@/lib/visionStatus";
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import {
   Mic,
@@ -303,14 +305,15 @@ export default function ChatAssistant({ variant = "full" }: { variant?: "full" |
                 <span className="truncate font-bold">{msg.fileName}</span>
               </div>
             )}
-            <p className="whitespace-pre-line break-words">{msg.text}</p>
+            <ChatText text={msg.text} />
+            {!isUser && msg.docDetection?.visionStatus?.state === "local" && <p className="mt-2 text-xs text-amber-800" role="status">{visionStatusMessage(msg.docDetection.visionStatus, language)}</p>}
 
             {/* Document Verification Status Pill */}
             {!isUser && msg.docDetection && (
               <div className="mt-3 pt-2.5 border-t border-stone-200/80 flex items-center justify-between gap-2">
                 <span className="text-[11px] font-bold text-stone-500 flex items-center gap-1.5">
                   <CheckCheck className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Image analyzed</span>
+                  <span>{msg.docDetection.analysisQuality === "partial" ? "Partly read" : "Image analyzed"}</span>
                 </span>
                 <button
                   type="button"

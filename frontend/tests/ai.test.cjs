@@ -104,7 +104,7 @@ test('failed provider moves to another configured provider, then grounded fallba
     return url.includes('googleapis') ? new Response('', { status: 429 }) : Response.json({ choices: [{ message: { content: 'Grounded answer\nCHIPS: ["Next step?"]' } }] });
   };
   const reply = await generateIntelligentChatReply({ query: 'Explain irrigation for cotton', language: 'en' });
-  assert.equal(reply.provider, 'groq'); assert.equal(urls.length, 2);
+  assert.equal(reply.provider, 'groq'); assert.ok(urls.some(url => url.includes('groq.com'))); assert.ok(urls.filter(url => url.includes(':generateContent')).length >= 2);
   global.fetch = async () => new Response('', { status: 401 });
   const fallback = await generateIntelligentChatReply({ query: 'Who is the applicant?', language: 'en', documentContext: { parsedDetails: parseAndSummarizeDocumentContent(notice) } });
   assert.equal(fallback.provider, 'campusone_copilot'); assert.match(fallback.text, /Meena Devi/);

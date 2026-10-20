@@ -12,7 +12,7 @@ import { documentSource, retrieveDocumentEvidence, validateGroundedAnswer, groun
 import { retrieveOfficialGuidance } from "@/lib/officialGuidance";
 import { answerCropImage } from "@/lib/imageEvidence";
 import { partialDocumentSource } from "@/lib/partialDocument";
-import { providerKeys, providerModels, discoverProviderModels } from "@/lib/aiProviders";
+import { providerKeys, providerModels, geminiGenerationConfig, discoverProviderModels } from "@/lib/aiProviders";
 import type { SupportedLanguage } from "@/lib/i18n";
 import type { FarmerProfile } from "@/lib/mockData";
 import { farmerChatReply, nonDomainChatReply, schemeReferences } from "@/lib/farmerChat";
@@ -132,11 +132,7 @@ async function callGeminiText(
           ...history.map((turn) => ({ role: turn.role === "assistant" ? "model" : "user", parts: [{ text: turn.content }] })),
           { role: "user", parts: [{ text: prompt }] },
         ],
-        generationConfig: {
-          temperature: 0.25,
-          maxOutputTokens: jsonMode ? 2400 : 1200,
-          ...(jsonMode ? { responseMimeType: "application/json" } : {}),
-        },
+        generationConfig: geminiGenerationConfig(model, jsonMode ? 6000 : 3000, jsonMode),
       };
 
       const res = await fetch(url, {
@@ -148,16 +144,16 @@ async function callGeminiText(
 
       if (!res.ok) {
         console.warn(`[text] ${model}: HTTP ${res.status}`);
-        if (!discovered && [404, 410].includes(res.status)) {
+        if (!discovered && [400, 404, 410, 429].includes(res.status)) {
           discovered = true;
           const available = await discoverProviderModels("gemini", apiKey, false, signal);
           models.push(...available.filter((id) => !models.includes(id)));
         }
-        if ([401, 403, 429].includes(res.status)) break;
+        if ([401, 403].includes(res.status)) break;
         continue;
       }
       const data = await res.json();
-      const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      const raw = data?.candidates?.[0]?.content?.parts?.filter((part: any) => !part.thought).map((part: any) => part.text || "").join("");
       if (!raw) continue;
 
       const { text, chips } = parseReplyAndChips(raw);
@@ -212,12 +208,12 @@ async function callGroqText(
 
       if (!res.ok) {
         console.warn(`[text] ${model}: HTTP ${res.status}`);
-        if (!discovered && [404, 410].includes(res.status)) {
+        if (!discovered && [400, 404, 410, 429].includes(res.status)) {
           discovered = true;
           const available = await discoverProviderModels("groq", apiKey, false, signal);
           models.push(...available.filter((id) => !models.includes(id)));
         }
-        if ([401, 403, 429].includes(res.status)) break;
+        if ([401, 403].includes(res.status)) break;
         continue;
       }
       const data = await res.json();
@@ -276,12 +272,12 @@ async function callOpenAiText(
 
       if (!res.ok) {
         console.warn(`[text] ${model}: HTTP ${res.status}`);
-        if (!discovered && [404, 410].includes(res.status)) {
+        if (!discovered && [400, 404, 410, 429].includes(res.status)) {
           discovered = true;
           const available = await discoverProviderModels("openai", apiKey, false, signal);
           models.push(...available.filter((id) => !models.includes(id)));
         }
-        if ([401, 403, 429].includes(res.status)) break;
+        if ([401, 403].includes(res.status)) break;
         continue;
       }
       const data = await res.json();
@@ -388,11 +384,13 @@ export async function generateIntelligentChatReply(
   // 1. Try Cloud LLM (Gemini, Groq, OpenAI) if key is provided or present in environment
   const signal = AbortSignal.timeout(16000);
 
-  for (const apiInfo of providerKeys(customApiKey)) {
+  const configuredProviders = providerKeys(customApiKey);
+  for (const apiInfo of configuredProviders) {
     if (signal.aborted) break;
+    const providerSignal = AbortSignal.any([signal, AbortSignal.timeout(Math.max(4000, Math.floor(16000 / configuredProviders.length)))]);
     try {
       if (apiInfo.provider === "gemini") {
-        const res = accept(await callGeminiText(apiInfo.key, query, systemPrompt, signal, history, grounded));
+        const res = accept(await callGeminiText(apiInfo.key, query, systemPrompt, providerSignal, history, grounded));
         if (res) {
           return {
             text: res.text,
@@ -403,7 +401,7 @@ export async function generateIntelligentChatReply(
           };
         }
       } else if (apiInfo.provider === "groq") {
-        const res = accept(await callGroqText(apiInfo.key, query, systemPrompt, signal, history, grounded));
+        const res = accept(await callGroqText(apiInfo.key, query, systemPrompt, providerSignal, history, grounded));
         if (res) {
           return {
             text: res.text,
@@ -414,7 +412,7 @@ export async function generateIntelligentChatReply(
           };
         }
       } else if (apiInfo.provider === "openai") {
-        const res = accept(await callOpenAiText(apiInfo.key, query, systemPrompt, signal, history, grounded));
+        const res = accept(await callOpenAiText(apiInfo.key, query, systemPrompt, providerSignal, history, grounded));
         if (res) {
           return {
             text: res.text,

@@ -1,3 +1,4 @@
+import { partialDocumentSource } from "@/lib/partialDocument";
 import type { VisionAnalysisResult } from "@/lib/visionLlm";
 import { parseAndSummarizeDocumentContent } from "@/lib/nlpDocumentAnalyzer";
 import { numbersSupported } from "@/lib/documentEvidence";
@@ -43,7 +44,7 @@ export function reconcileImageEvidence(cloud: VisionAnalysisResult | null, local
       detectionSummary: cloud.cropAnalysis?.observations.length ? cloud.cropAnalysis.observations.join(" ") : cloud.detectionSummary };
   }
   const visionText = cloud.extractedTextSnippet?.trim() || "";
-  const ocrText = local.parsedDetails?.fullOcrText || local.extractedTextSnippet || "";
+  const ocrText = local.analysisQuality === "partial" ? partialDocumentSource(local) : local.parsedDetails?.fullOcrText || local.extractedTextSnippet || "";
   if (visionText.length < 25 && local.analysisQuality === "partial") return local;
   const source = visionText.length >= 25 && (local.analysisQuality === "partial" || visionText.length >= ocrText.length) ? visionText : ocrText;
   if (source.length < 25) return { ...cloud, analysisQuality: "partial", extractedData: {}, schemesUnlocked: [],

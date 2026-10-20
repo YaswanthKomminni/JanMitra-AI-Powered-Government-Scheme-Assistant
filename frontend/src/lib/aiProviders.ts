@@ -8,7 +8,7 @@ export function providerKeys(customKey?: string): Array<{ provider: AiProvider; 
     if (provider) keys.push({ provider, key: custom });
   }
   for (const [provider, key] of [
-    ["gemini", process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.VISION_API_KEY],
+    ["gemini", process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.VISION_API_KEY],
     ["groq", process.env.GROQ_API_KEY],
     ["openai", process.env.OPENAI_API_KEY],
   ] as const) {
@@ -41,9 +41,17 @@ export async function discoverProviderModels(provider: AiProvider, key: string, 
     if (!Array.isArray(rows)) return [];
     const ids: string[] = rows.filter((item: any) => !google || item.supportedGenerationMethods?.includes("generateContent"))
       .map((item: any) => String(google ? item.name : item.id).replace(/^models\//, ""));
-    const candidates = ids.filter((id) => provider === "gemini" ? /^gemini-3[.\d-]*.*flash/i.test(id) && !/image|live|tts|preview/i.test(id)
+    const candidates = ids.filter((id) => provider === "gemini" ? /^gemini-(?:[2-9][.\d-]*).*(?:flash|pro|argon)/i.test(id) && !/image|live|tts|transcribe|robotics|computer-use/i.test(id)
       : provider === "groq" ? (vision ? /qwen.*3\.[58]|llama-4.*(scout|maverick)/i.test(id) : /llama|qwen|gpt-oss|gemma/i.test(id) && !/guard/i.test(id))
       : /gpt-4o|gpt-4\.1/i.test(id) && !/audio|realtime|transcribe|tts|search/i.test(id));
-    return [...providerModels(provider, vision).filter((id) => ids.includes(id)), ...candidates].filter((id, index, all) => all.indexOf(id) === index).slice(0, 3);
+    return [...providerModels(provider, vision).filter((id) => ids.includes(id)), ...candidates].filter((id, index, all) => all.indexOf(id) === index).slice(0, 6);
   } catch { return []; }
+}
+
+/** Gemini 3+ rejects legacy sampling parameters; reserve output for the actual answer. */
+export function geminiGenerationConfig(model: string, maxOutputTokens: number, json = false) {
+  const modern = /^gemini-[3-9]/.test(model);
+  return { maxOutputTokens, ...(json ? { responseMimeType: "application/json" } : {}),
+    ...(modern ? { thinkingConfig: { thinkingLevel: "low" } } : { temperature: 0.2,
+      ...(/^gemini-2\.5-flash/.test(model) ? { thinkingConfig: { thinkingBudget: 0 } } : {}) }) };
 }

@@ -61,7 +61,8 @@ export function parseAndSummarizeDocumentContent(ocrText: string, _fileName = "d
     if (match && !parameters[match[1]]) parameters[match[1]] = match[2];
   }
   const checklistStart = lines.findIndex(line => /required documents|documents required|documents to (?:submit|bring)|checklist|enclosures|పత్రాలు|दस्तावेज/i.test(line));
-  const checklistLines = checklistStart >= 0 ? lines.slice(checklistStart + 1).slice(0, 20) : [];
+  const inlineChecklist = checklistStart >= 0 ? lines[checklistStart].match(/[:：]\s*(.+)$/)?.[1] : undefined;
+  const checklistLines = checklistStart >= 0 ? [...(inlineChecklist ? [inlineChecklist] : []), ...lines.slice(checklistStart + 1).slice(0, 20)] : [];
   const requiredDocuments = checklistLines.filter((line) => /certificate|marksheet|mark sheet|passbook|aadha?ar|photocop|allotment letter|admit card|CLC\s*\/\s*SLC|photograph|proof|పత్ర|ధ్రువ|प्रमाण/i.test(line)
     && !/not required|not necessary|optional|నవసరం లేదు|आवश्यक नहीं/i.test(line));
   // Scheme names are suggestions only when explicitly mentioned in the source.
