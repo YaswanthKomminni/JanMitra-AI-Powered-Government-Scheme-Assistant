@@ -276,10 +276,15 @@ export default function LiveCameraCapture({
                     In Scope: {scopePreview.domain}
                   </span>
                 ) : (
-                  <span className="px-3.5 py-1.5 rounded-full bg-amber-950/90 text-amber-300 border border-amber-500/50 text-xs font-black shadow-lg flex items-center gap-1.5 backdrop-blur-sm">
-                    <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
-                    May Be Out of Scope: {scopePreview.domain}
-                  </span>
+                  <div className="flex flex-col items-center gap-1">
+                    <span className="px-4 py-1.5 rounded-full bg-rose-950/95 text-rose-300 border border-rose-500/80 text-xs font-black shadow-2xl flex items-center gap-2 backdrop-blur-md">
+                      <X className="w-4 h-4 text-rose-400 shrink-0" />
+                      Not Related to Agriculture or Schemes ({scopePreview.domain})
+                    </span>
+                    <span className="text-[11px] font-bold text-rose-200 bg-black/85 px-3 py-0.5 rounded-full shadow border border-rose-500/30">
+                      Please point camera at a farming crop, plant leaf, or official land document
+                    </span>
+                  </div>
                 )}
               </div>
             )}
@@ -384,12 +389,21 @@ export default function LiveCameraCapture({
               onClick={handleConfirm}
               className={`flex-1 py-3 px-4 rounded-2xl font-black text-sm shadow-lg transition flex items-center justify-center gap-2 ${
                 scopePreview && !scopePreview.isAgriRelated
-                  ? "bg-amber-600 hover:bg-amber-500 text-white shadow-amber-600/30"
+                  ? "bg-rose-700 hover:bg-rose-600 text-white shadow-rose-700/30"
                   : "bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/30"
               }`}
             >
-              <Check className="w-4 h-4" />
-              <span>{scopePreview && !scopePreview.isAgriRelated ? "Check Scope & Scan" : "Use Photo & Scan"}</span>
+              {scopePreview && !scopePreview.isAgriRelated ? (
+                <>
+                  <X className="w-4 h-4" />
+                  <span>Verify Scope & Scan</span>
+                </>
+              ) : (
+                <>
+                  <Check className="w-4 h-4" />
+                  <span>Use Photo & Scan</span>
+                </>
+              )}
             </button>
           </div>
         )}

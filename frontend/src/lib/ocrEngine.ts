@@ -343,65 +343,55 @@ export async function analyzeDocumentComprehensive(
     agriKeywordCount >= 1 ||
     cleanLines.some((l) => /subsidy|seed|fertilizer|patta|survey|land|farmer|kisan|soil|crop/i.test(l));
 
-  // If pixel classifier reported clear selfie/portrait, no vegetation/paper, and no agri keywords
-  if (
-    classification?.metrics?.dominantDomain?.includes("Person / Indoor Selfie") &&
-    !hasStrongAgriContent &&
-    !isFoliageVisual &&
-    !isDocumentVisual
-  ) {
+  // STRICT OUT-OF-SCOPE ENFORCEMENT:
+  // If the image was flagged as a person / indoor selfie, or if there is no strong agricultural content
+  const isClassifiedOutOfScope =
+    classification?.isAgriRelated === false ||
+    classification?.metrics?.dominantDomain?.includes("Person / Indoor Selfie") ||
+    classification?.metrics?.dominantDomain?.includes("Out of Scope");
+
+  if (isClassifiedOutOfScope && !hasStrongAgriContent && !isFoliageVisual && !isSoilVisual) {
     return {
       docType: "land_record",
-      title: "Human Portrait / Selfie (Out of Scope)",
+      title: "Not Related to Agriculture or Government Schemes (Out of Scope)",
       confidenceScore: 0.98,
       isAgriRelated: false,
       scopeStatus: "out_of_scope",
-      detectionSummary: "Uploaded image appears to show a person or indoor portrait rather than farming crops or documents.",
-      reason: "The uploaded photo shows a human portrait / indoor selfie rather than agricultural crops, soil samples, or official government welfare documents.",
+      detectionSummary: classification?.message || "Uploaded photo does not appear to be related to agriculture or government schemes.",
+      reason:
+        classification?.reason ||
+        "The captured image appears to show a person, portrait, or indoor surroundings rather than agricultural crops, plant leaves, soil samples, or official government welfare documents.",
       extractedTextSnippet: ocrRawText ? ocrRawText.slice(0, 150) : undefined,
       extractedData: {},
       boundingBoxes: [],
       schemesUnlocked: [],
       suggestions: [
-        "Hold the camera steady and focus on the affected plant leaf or crop.",
-        "Ensure good lighting and avoid capturing people or indoor room backgrounds.",
-        "Upload an official agricultural land or subsidy document.",
+        "Capture a clear photo of an affected plant leaf or crop for disease diagnosis.",
+        "Ensure land documents (Patta / Pahani / Deed) are laid flat under good lighting.",
+        "Avoid capturing human faces, bedrooms, furniture, or everyday non-agricultural items.",
       ],
     };
   }
 
-  const isCaptureOrDocIntent =
-    lowerName.includes("scan") ||
-    lowerName.includes("doc") ||
-    lowerName.includes("img") ||
-    lowerName.includes("live") ||
-    isDocumentVisual;
-
-  // If text is essentially empty, no green foliage, no soil, no document texture, and no scan/doc intent
-  if (
-    cleanLines.length === 0 &&
-    !isFoliageVisual &&
-    !isSoilVisual &&
-    !isCaptureOrDocIntent &&
-    !hasStrongAgriContent
-  ) {
+  // If text has NO agricultural keywords, and there is no foliage or soil visual
+  if (!hasStrongAgriContent && !isFoliageVisual && !isSoilVisual && agriKeywordCount === 0) {
     return {
       docType: "land_record",
-      title: "Not Related to Agriculture or Government Schemes",
-      confidenceScore: 0.95,
+      title: "Not Related to Agriculture or Government Schemes (Out of Scope)",
+      confidenceScore: 0.96,
       isAgriRelated: false,
       scopeStatus: "out_of_scope",
-      detectionSummary: "Image does not appear to be related to agriculture or government schemes.",
+      detectionSummary: "Image does not contain recognizable agriculture crops, soil, or official government documents.",
       reason:
         "The uploaded photo does not contain recognizable farming crops, plant leaves, soil samples, or official government welfare documents.",
-      extractedTextSnippet: undefined,
+      extractedTextSnippet: ocrRawText ? ocrRawText.slice(0, 150) : undefined,
       extractedData: {},
       boundingBoxes: [],
       schemesUnlocked: [],
       suggestions: [
         "Capture a clear, well-lit photo of an affected farm crop leaf showing pest or disease symptoms.",
         "Upload an official agricultural document (Land Patta, Pahani, RoR 1B, Sale Deed, or Soil Health Card).",
-        "Ensure the camera is focused directly on the subject with good lighting.",
+        "Hold the camera steady directly in front of the agricultural subject.",
       ],
     };
   }
@@ -606,8 +596,8 @@ export async function analyzeDocumentComprehensive(
       "Paramparagat Krishi Vikas Yojana (PKVY) ₹50,000/ha Organic Cluster Scheme",
       "PM-PRANAM Bio-Fertilizer & Balanced Nutrient Incentive Scheme",
     ];
-  } else {
-    // Default to Land Record / Revenue Conveyance Document
+  } else if (isLandTitleOrDeed || surveyNumber || extentStr || agriKeywordCount >= 1 || hasStrongAgriContent) {
+    // Verified Official Land Record / Revenue Conveyance Document
     docCategory = "land_record";
     if (!docTitle || docTitle === "Government Agricultural Welfare Document") {
       docTitle = isLandTitleOrDeed
@@ -627,6 +617,29 @@ export async function analyzeDocumentComprehensive(
       "PMFBY Comprehensive Crop Loss & Natural Calamity Insurance",
       "State Land Records Title Mutation & Digital e-Passbook Issuance",
     ];
+  } else {
+    // Strictly Out of Scope: No verified agricultural or document content
+    return {
+      docType: "land_record",
+      title: "Not Related to Agriculture or Government Schemes (Out of Scope)",
+      confidenceScore: 0.98,
+      isAgriRelated: false,
+      scopeStatus: "out_of_scope",
+      detectionSummary: "Image does not appear to be related to agriculture or government schemes.",
+      reason:
+        classification?.metrics?.dominantDomain?.includes("Person")
+          ? "The captured photo shows a person or indoor surroundings rather than agricultural crops, soil, or official government documents."
+          : "The uploaded photo does not contain recognizable farming crops, plant leaves, soil samples, or official government welfare documents.",
+      extractedTextSnippet: ocrRawText ? ocrRawText.slice(0, 150) : undefined,
+      extractedData: {},
+      boundingBoxes: [],
+      schemesUnlocked: [],
+      suggestions: [
+        "Capture a clear, well-lit photo of an affected farm crop leaf showing pest or disease symptoms.",
+        "Upload an official agricultural document (Land Patta, Pahani, RoR 1B, Sale Deed, or Soil Health Card).",
+        "Avoid uploading selfies, portraits, room interiors, or random everyday objects.",
+      ],
+    };
   }
 
   // Generate dynamic YOLOv8-compatible bounding boxes based on actual lines found
