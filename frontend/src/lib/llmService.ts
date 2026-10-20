@@ -11,12 +11,13 @@
 import { documentSource, retrieveDocumentEvidence, validateGroundedAnswer, groundedAnswerContract } from "@/lib/documentEvidence";
 import { retrieveOfficialGuidance } from "@/lib/officialGuidance";
 import { answerCropImage } from "@/lib/imageEvidence";
+import { partialDocumentSource } from "@/lib/partialDocument";
 import { providerKeys, providerModels, discoverProviderModels } from "@/lib/aiProviders";
 import type { SupportedLanguage } from "@/lib/i18n";
 import type { FarmerProfile } from "@/lib/mockData";
 import { farmerChatReply, nonDomainChatReply, schemeReferences } from "@/lib/farmerChat";
 import { shouldUseDocument } from "@/lib/chatRouting";
-import { answerDocumentQuestion } from "@/lib/nlpDocumentAnalyzer";
+import { answerDocumentQuestion, parseAndSummarizeDocumentContent } from "@/lib/nlpDocumentAnalyzer";
 import { buildConversationMemory, knownFarmerFacts, resolveConversationQuery, type ConversationMemory } from "@/lib/conversationMemory";
 
 export interface LlmChatRequest {
@@ -346,13 +347,18 @@ export async function generateIntelligentChatReply(
     if (directReply) return { ...directReply, provider: "campusone_copilot", modelUsed: "JanMithra conversation routing", usedDocument: false };
   }
   const documentContext = useDocument ? req.documentContext : undefined;
-  if (documentContext?.analysisQuality === "partial") {
+  const partialSource = documentContext?.analysisQuality === "partial" ? partialDocumentSource(documentContext) : "";
+  if (documentContext?.analysisQuality === "partial" && !partialSource) {
     return { ...answerDocumentQuestion(query, documentContext, language), provider: "campusone_copilot", usedDocument: true,
       modelUsed: "JanMithra incomplete-source clarification" };
   }
   const references = schemeReferences(resolveConversationQuery(query, memory), profile, memory);
-  const source = documentContext?.docType !== "crop_disease" && documentContext?.analysisQuality !== "partial" ? documentSource(documentContext) : "";
-  const officialPassages = !documentContext && providerKeys(customApiKey).length ? await retrieveOfficialGuidance(resolveConversationQuery(query, memory)) : [];
+  const source = documentContext?.docType !== "crop_disease" ? partialSource || documentSource(documentContext) : "";
+  const uploadSchemes = partialSource ? parseAndSummarizeDocumentContent(partialSource).unlockedSchemes : [];
+  const wantsSchemeGuide = /apply|application|eligib|documents?|deadline|దరఖాస్తు|అర్హత|आवेदन|पात्रता/i.test(query);
+  const backgroundScheme = wantsSchemeGuide && uploadSchemes.length === 1 ? uploadSchemes[0] : undefined;
+  const officialPassages = (!documentContext || backgroundScheme) && providerKeys(customApiKey).length
+    ? await retrieveOfficialGuidance(backgroundScheme ? `${backgroundScheme}: ${query}` : resolveConversationQuery(query, memory)) : [];
   const asksDeadline = memory.topic?.intent === "deadline" || /deadline|last date|closing date|when.*apply|గడువు|अंतिम तिथि|கடைசி நாள்|ಕೊನೆಯ ದಿನ|শেষ তারিখ/i.test(query);
   if (!documentContext && asksDeadline && !officialPassages.length) {
     const reply = farmerChatReply(query, language, profile, history, memory);
@@ -364,11 +370,12 @@ export async function generateIntelligentChatReply(
       item.department ? `Department: ${item.department}` : "", item.description ? `Description: ${item.description}` : "",
       item.benefits ? `Catalog benefits: ${item.benefits}` : "", item.documents ? `Catalog documents: ${item.documents}` : ""].filter(Boolean).join("\n"),
   })) : [];
-  const passages = source ? retrieveDocumentEvidence(query, source) : officialPassages.length ? officialPassages : catalogPassages;
+  const passages = source ? [...retrieveDocumentEvidence(query, source), ...officialPassages] : officialPassages.length ? officialPassages : catalogPassages;
   const grounded = !!source || passages.length > 0;
   // Factual document answers see original source passages, not a previous model's summary as evidence.
   const promptContext = grounded ? undefined : documentContext;
-  const systemPrompt = buildSystemPrompt(language, profile, promptContext, memory) + (grounded
+  const systemPrompt = buildSystemPrompt(language, profile, promptContext, memory)
+    + (partialSource ? "\nThis upload was only partly readable. The supplied passages are the readable portions, not the whole document. Summarize those portions specifically. Answer follow-ups from them; state exactly which requested facts are missing. Do not replace a useful partial summary with a generic unreadable-upload message. General scheme background must be clearly separated from what this document says." : "") + (grounded
     ? `\n\nThe following contract replaces the CHIPS format. Answer from the supplied evidence; apply profile facts only to explain which conditions still need checking. ${catalogPassages.length ? "C-prefixed passages are saved catalog entries, NOT current policy. Never state a deadline, open window, final eligibility, required document checklist or benefit as current merely from the catalog. Explain what remains unverified and point to the issuing department or official directory." : "For official passages, only a dated scheme application notice can establish a deadline for the farmer's state and season."} ${groundedAnswerContract}\nSOURCE PASSAGES:\n${JSON.stringify(passages.map(({id, text}) => ({id, text})))}` : "");
 
   const accept = (res: { text: string; chips: string[]; model: string } | null) => {
@@ -426,6 +433,13 @@ export async function generateIntelligentChatReply(
   // 2. Bounded local retrieval and guidance when no provider succeeds.
   // If the user has a document in context, use grounded document question answering:
   if (documentContext) {
+    if (backgroundScheme) {
+      const uploaded = answerDocumentQuestion("Which schemes are mentioned?", documentContext, language);
+      const background = farmerChatReply(`${query} for ${backgroundScheme}`, language, profile);
+      const heading: Record<SupportedLanguage, string> = { en: "General scheme guidance — separate from the upload", te: "సాధారణ పథకం మార్గదర్శకం — అప్‌లోడ్‌లోని సమాచారం కాదు", hi: "योजना का सामान्य मार्गदर्शन — अपलोड से अलग", ta: "பொதுவான திட்ட வழிகாட்டல் — பதிவேற்றத் தகவலிலிருந்து தனியாக", kn: "ಸಾಮಾನ್ಯ ಯೋಜನೆ ಮಾರ್ಗದರ್ಶನ — ಅಪ್‌ಲೋಡ್‌ನಿಂದ ಪ್ರತ್ಯೇಕ", bn: "সাধারণ প্রকল্প নির্দেশনা — আপলোডের তথ্য থেকে আলাদা" };
+      return { text: `${uploaded.text}\n\n**${heading[language]}**\n${background.text}`, chips: background.chips,
+        provider: "campusone_copilot", modelUsed: "JanMithra upload evidence and scheme guidance", usedDocument: true };
+    }
     const answered = documentContext.docType === "crop_disease" ? answerCropImage(query, documentContext, knownFarmerFacts(profile, memory), language) : answerDocumentQuestion(query, documentContext, language);
     return {
       text: answered.text,

@@ -67,6 +67,7 @@ export function classifyTextTurn(query: string, memory?: ConversationMemory): Te
 export function isContextualFollowup(query: string): boolean {
   const q = query.trim();
   return /^(yes|yeah|ok|okay|sure|no|continue|go ahead|please|అవును|సరే|हाँ|ठीक है)[!.\s]*$/i.test(q)
+    || /^(?:(?:what|which|when|where|who)\b.{0,50}\b(?:benefits?|schemes?|conditions?|deadline|documents?|mentioned|says?|contain|department)|benefits?\??$|deadline\??$|required documents?\??$)/i.test(q)
     || /\b(this|that|these|those|it|above|same|previous|earlier|second one|first one|third one|for me|my profile|my farm|my land)\b/i.test(q)
     || /^(?:and\s+)?(?:how (?:do i |can i |to )?(?:apply|get|claim|check|register)|what documents|documents|eligibility|am i eligible|what about|tell me more|why\??$|how much|suggestions?|give me suggestions|next steps?|what (?:should|can) i (?:do|check)|అర్హత|ఎలా దరఖాస్తు|कैसे आवेदन|और बताओ)/i.test(q);
 }

@@ -1,6 +1,7 @@
 import type { SupportedLanguage } from "@/lib/i18n";
 import type { ExtractedBoundingBox } from "@/lib/ocrEngine";
 import { retrieveDocumentEvidence } from "@/lib/documentEvidence";
+import { partialDocumentSource } from "@/lib/partialDocument";
 
 export type DocumentGenre = "sale_deed" | "education_admission" | "recruitment_notice" | "research_publication" | "land_record" | "soil_health" | "crop_disease" | "identity_card" | "general_document" | "out_of_scope";
 export interface ParsedDocumentDetails {
@@ -201,13 +202,14 @@ const answerWords: Record<SupportedLanguage, {
 };
 
 export function answerDocumentQuestion(query: string, detection: any, lang: SupportedLanguage): { text: string; chips: string[] } {
-  const source = detection?.parsedDetails?.fullOcrText || detection?.extractedTextSnippet || "";
-  const base = detection?.parsedDetails || parseAndSummarizeDocumentContent(source);
+  const partial = detection?.analysisQuality === "partial";
+  const source = partial ? partialDocumentSource(detection) : detection?.parsedDetails?.fullOcrText || detection?.extractedTextSnippet || "";
+  const base = (!partial && detection?.parsedDetails) || parseAndSummarizeDocumentContent(source);
   // Preserve structured cloud facts and its actual summary; never reparse JSON as OCR prose.
-  const p: Record<string, any> = { ...base.extractedParameters, ...(detection?.extractedData || {}) };
-  const summary = detection?.detectionSummary || base.summary;
-  const suggestions: string[] = detection?.suggestions?.length ? detection.suggestions : base.actionableSuggestions;
-  const schemes: string[] = detection?.schemesUnlocked || base.unlockedSchemes;
+  const p: Record<string, any> = { ...base.extractedParameters, ...(!partial ? detection?.extractedData || {} : {}) };
+  const summary = partial && source ? base.summary : detection?.detectionSummary || base.summary;
+  const suggestions: string[] = !partial && detection?.suggestions?.length ? detection.suggestions : base.actionableSuggestions;
+  const schemes: string[] = !partial && detection?.schemesUnlocked || base.unlockedSchemes;
   const q = query.toLowerCase();
   const l = labels[lang] || labels.en;
   const words = answerWords[lang] || answerWords.en;
@@ -222,7 +224,7 @@ export function answerDocumentQuestion(query: string, detection: any, lang: Supp
     words.deadline(base.scheduleDates),
     words.checklist,
   ];
-  if (detection?.analysisQuality === "partial") {
+  if (partial && !source) {
     return { text: `**${l.summary}**\n${summary}\n\n**${l.suggestions}**\n${localSuggestions.map((item) => `• ${item}`).join("\n")}`, chips };
   }
   const bullets = (entries: Array<[string, any]>) => entries.map(([key, value]) => `• **${words.fieldNames[key] || key}:** ${typeof value === "object" ? JSON.stringify(value) : value}`).join("\n") || l.missing;

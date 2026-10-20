@@ -7,6 +7,7 @@ import englishData from "@tesseract.js-data/eng";
 import teluguData from "@tesseract.js-data/tel";
 import { analyzeDocumentWithNlpSuite } from "@/lib/nlpDocumentAnalyzer";
 import { assessUploadText } from "@/lib/uploadScope";
+import { partialDocumentSource, type ReadablePassage } from "@/lib/partialDocument";
 import { classifyImageObjects, clearlyIrrelevantObject, agriculturalScene, documentScene } from "@/lib/localImageModel";
 
 export interface ExtractedBoundingBox {
@@ -22,9 +23,17 @@ export interface ExtractedDocumentResult {
   boundingBoxes: ExtractedBoundingBox[]; schemesUnlocked: string[];
   suggestions?: string[]; parsedDetails?: any;
   analysisQuality?: "partial" | "complete";
+  readablePassages?: ReadablePassage[];
 }
 
-export async function performOcr(fileBase64: string, timeoutMs = 20000, reportQuality?: (confidence: number) => void): Promise<string> {
+function readableOcrLines(data: Tesseract.Page): ReadablePassage[] {
+  return (data.blocks || []).flatMap(block => block.paragraphs.flatMap(paragraph => paragraph.lines))
+    .filter(line => line.confidence >= 85 && line.text.trim().length >= 5 && line.words.every(word => word.confidence >= (/\d/.test(word.text) ? 90 : 70)))
+    .slice(0, 120).map(line => ({ text: line.text.trim(), confidence: line.confidence }));
+}
+
+export async function performOcr(fileBase64: string, timeoutMs = 20000, reportQuality?: (confidence: number) => void,
+  reportPassages?: (passages: ReadablePassage[]) => void): Promise<string> {
   const bytes = Buffer.from(fileBase64.replace(/^data:[^;]+;base64,/, ""), "base64");
   if (fileBase64.startsWith("data:text/plain")) return bytes.toString("utf8").slice(0, 40000);
   if (bytes.subarray(0, 5).toString() === "%PDF-") {
@@ -38,10 +47,14 @@ export async function performOcr(fileBase64: string, timeoutMs = 20000, reportQu
         const started = Date.now();
         const pages = await parser.getScreenshot({ first: 3, desiredWidth: 2000, imageDataUrl: false, imageBuffer: true });
         const readings: string[] = [];
+        const reliable: ReadablePassage[] = [];
         for (const page of pages.pages) {
           const remaining = timeoutMs - (Date.now() - started);
           if (remaining < 1000) break;
-          const reading = await performOcr(`data:image/png;base64,${Buffer.from(page.data).toString("base64")}`, remaining, reportQuality);
+          let pagePassages: ReadablePassage[] = [];
+          const reading = await performOcr(`data:image/png;base64,${Buffer.from(page.data).toString("base64")}`, remaining, reportQuality, passages => { pagePassages = passages; });
+          reliable.push(...pagePassages);
+          reportPassages?.(reliable);
           if (reading.trim()) readings.push(`[Page ${page.pageNumber}]\n${reading}`);
         }
         return readings.join("\n\n").slice(0, 40000);
@@ -71,25 +84,28 @@ export async function performOcr(fileBase64: string, timeoutMs = 20000, reportQu
         }
       }));
     }
-    worker = await Tesseract.createWorker(codes.join("+"), 1, {
+    const firstLanguage = codes.includes("eng") ? "eng" : codes.join("+");
+    worker = await Tesseract.createWorker(firstLanguage, 1, {
       langPath,
       cacheMethod: "none",
       errorHandler: () => {},
     });
     if (expired) { await worker.terminate(); return ""; }
+    const dimensions = await sharp(bytes, { limitInputPixels: 40_000_000 }).metadata();
     const image = await sharp(bytes, { limitInputPixels: 40_000_000 }).rotate()
-      .resize({ width: 2400, height: 3400, fit: "inside" }).grayscale().normalize().sharpen().png().toBuffer();
+      .resize({ width: Math.min(1800, (dimensions.width || 900) * 4), height: Math.min(2400, (dimensions.height || 1200) * 4), fit: "inside" })
+      .grayscale().normalize().sharpen().png().toBuffer();
     // Read English first for dense tables; add Telugu only when the first pass needs help.
-    await worker.reinitialize(codes.includes("eng") ? "eng" : codes.join("+"));
-    const firstPass = (await worker.recognize(image)).data;
+    const firstPass = (await worker.recognize(image, {}, { text: true, blocks: true })).data;
     const first = firstPass.text.trim();
     bestText = first;
     reportQuality?.(firstPass.confidence || 0);
+    reportPassages?.(readableOcrLines(firstPass));
     if (expired || (assessUploadText(first) === "in_scope" && first.length > 500 && firstPass.confidence >= 80)) return first.slice(0, 40000);
     // Posters and collages often need sparse text segmentation instead of a page layout.
     await worker.setParameters({ tessedit_pageseg_mode: Tesseract.PSM.SPARSE_TEXT });
     if (codes.length > 1) await worker.reinitialize(codes.join("+"));
-    const secondPass = (await worker.recognize(image)).data;
+    const secondPass = (await worker.recognize(image, {}, { text: true, blocks: true })).data;
     const second = secondPass.text.trim();
     // Pick a reading rather than concatenating conflicting copies of dates/amounts.
     const regionalWords = /ప్రభుత్వ|పథక|రైతు|వ్యవసాయ|మహాలక్ష|భరోసా/.test(second);
@@ -97,6 +113,7 @@ export async function performOcr(fileBase64: string, timeoutMs = 20000, reportQu
     if (second && (better || regionalWords || !first.trim())) {
       bestText = second;
       reportQuality?.(secondPass.confidence || 0);
+      reportPassages?.(readableOcrLines(secondPass));
     }
     bestText = bestText.slice(0, 40000);
     return bestText;
@@ -113,7 +130,8 @@ export async function analyzeDocumentComprehensive(fileBase64: string, fileName 
   isAgriRelated: boolean; scopeStatus: "in_scope" | "out_of_scope" | "uncertain"; reason?: string;
 }> {
   let ocrConfidence: number | undefined;
-  const text = await performOcr(fileBase64, 20000, confidence => { ocrConfidence = confidence; });
+  let readablePassages: ReadablePassage[] = [];
+  const text = await performOcr(fileBase64, 20000, confidence => { ocrConfidence = confidence; }, passages => { readablePassages = passages; });
   const scope = assessUploadText(text);
   let predictions: Awaited<ReturnType<typeof classifyImageObjects>> = [];
   if (scope === "uncertain" && fileBase64.startsWith("data:image/")) {
@@ -139,10 +157,12 @@ export async function analyzeDocumentComprehensive(fileBase64: string, fileName 
   if (scope === "uncertain" && fileBase64.startsWith("data:image/")) {
     const document = documentScene(predictions);
     if (document) {
+      const readable = partialDocumentSource({ extractedTextSnippet: text, readablePassages });
+      const partial = readable ? analyzeDocumentWithNlpSuite(readable, fileName) : undefined;
       return { docType: "land_record", title: "Document image — partial reading", isAgriRelated: document.scopeStatus === "in_scope", scopeStatus: document.scopeStatus || "uncertain",
         analysisQuality: "partial", confidenceScore: document.probability,
-        detectionSummary: "I can see a printed document/table. Its fine print is too small or unclear to reliably read all the details, so I cannot confirm individual scheme names, amounts, dates or eligibility conditions from this copy.",
-        extractedTextSnippet: text, extractedData: {}, boundingBoxes: [], schemesUnlocked: [], suggestions: [
+        detectionSummary: partial?.detectionSummary || "I can see a printed document/table, but no text could be read reliably. I cannot yet summarize its specific contents.",
+        extractedTextSnippet: text, readablePassages, extractedData: {}, boundingBoxes: [], schemesUnlocked: [], suggestions: [
           "Tell me which scheme or table row you want help with; I can explain the application process or farming topic in the meantime.",
           "Upload a close-up of one row at a time, or the original image/PDF rather than a screenshot thumbnail.",
           "Before applying, check the current eligibility, assistance limit and deadline with the issuing agriculture office or official portal.",
@@ -159,8 +179,11 @@ export async function analyzeDocumentComprehensive(fileBase64: string, fileName 
   }
   const parsed = analyzeDocumentWithNlpSuite(text, fileName);
   if (ocrConfidence !== undefined && ocrConfidence < 55) {
+    const readable = partialDocumentSource({ extractedTextSnippet: text, readablePassages });
+    const summary = readable ? analyzeDocumentWithNlpSuite(readable, fileName).detectionSummary
+      : "This appears to be an agriculture or government scheme document, but its fine print could not be read reliably. Names, figures and conditions are not confirmed.";
     return { ...parsed, isAgriRelated: true, scopeStatus: "in_scope", analysisQuality: "partial", extractedTextSnippet: text,
-      extractedData: {}, schemesUnlocked: [], detectionSummary: `This appears to be a relevant document headed "${parsed.title}". The fine print is too unclear to reliably confirm names, figures or conditions.`,
+      extractedData: {}, readablePassages, schemesUnlocked: [], detectionSummary: summary,
       suggestions: ["Upload a close-up of the specific scheme panel or table row, or the original PDF. I can use the readable heading to discuss the topic, but cannot confirm unreadable benefits or eligibility."] };
   }
   return { ...parsed, isAgriRelated: true, scopeStatus: "in_scope", extractedTextSnippet: text };

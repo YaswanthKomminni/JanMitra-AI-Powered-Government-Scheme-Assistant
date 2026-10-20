@@ -369,7 +369,10 @@ test('real small scheme poster is analyzed with bundled OCR data', { skip: !proc
   const result = await analyzeImageIntelligently({ fileBase64: 'data:image/png;base64,' + bytes.toString('base64') });
   console.log('Poster OCR:', result.extractedTextSnippet);
   assert.equal(result.scopeStatus, 'in_scope');
-  assert.match(answerDocumentQuestion('tell me about this schemes', result, 'en').text, /Suggested next steps/);
+  const summary = answerDocumentQuestion('tell me about this schemes', result, 'en').text;
+  console.log('Poster summary:', summary);
+  assert.match(summary, /Suggested next steps/);
+  assert.match(summary, /TELANGANA|government scheme information poster/i);
 });
 
 test('real agricultural support table from the screenshot is analyzed', { skip: !process.env.TEST_TABLE_IMAGE }, async () => {

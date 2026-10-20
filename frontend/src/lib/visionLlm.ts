@@ -2,6 +2,7 @@ import { analyzeDocumentComprehensive, type ExtractedBoundingBox } from "@/lib/o
 import { normalizeCropAnalysis, reconcileImageEvidence, type CropAnalysis } from "@/lib/imageEvidence";
 import { providerKeys, providerModels, discoverProviderModels, type AiProvider } from "@/lib/aiProviders";
 import type { SupportedLanguage } from "@/lib/i18n";
+import sharp from "sharp";
 
 export interface VisionAnalysisResult {
   isAgriRelated: boolean;
@@ -58,10 +59,34 @@ export function visionPromptForLanguage(language: SupportedLanguage): string {
   return `${VISION_PROMPT}\nWrite detectionSummary, reason, suggestions, and all cropAnalysis explanatory strings in ${languageName[language] || "English"}. Preserve names, figures, dates, table content, and extractedTextSnippet exactly as printed in the source. Do not translate the document transcription or change its values.`;
 }
 
-async function cloudVision(provider: AiProvider, key: string, dataUrl: string, mimeType: string, language: SupportedLanguage, signal: AbortSignal): Promise<VisionAnalysisResult | null> {
+export async function imageReadingViews(dataUrl: string, mimeType: string): Promise<Array<{ url: string; mimeType: string }>> {
+  const views = [{ url: dataUrl, mimeType }];
+  if (!mimeType.startsWith("image/")) return views;
+  try {
+    const bytes = Buffer.from(dataUrl.replace(/^data:[^;]+;base64,/, ""), "base64");
+    const rotated = await sharp(bytes, { limitInputPixels: 40_000_000 }).rotate().png().toBuffer();
+    const meta = await sharp(rotated).metadata();
+    if (!meta.width || !meta.height || Math.max(meta.width, meta.height) < 600) return views;
+    // Overlapping views keep labels beside their figures. The original remains
+    // first so the model can preserve page structure and table relationships.
+    const portrait = meta.height >= meta.width;
+    const extent = portrait ? meta.height : meta.width;
+    const size = Math.ceil(extent * 0.42);
+    for (let i = 0; i < 3; i++) {
+      const start = Math.round(i * (extent - size) / 2);
+      const panel = await sharp(rotated).extract({ left: portrait ? 0 : start, top: portrait ? start : 0,
+        width: portrait ? meta.width : size, height: portrait ? size : meta.height })
+        .resize({ width: 1800, height: 1800, fit: "inside", withoutEnlargement: true }).jpeg({ quality: 92 }).toBuffer();
+      views.push({ url: `data:image/jpeg;base64,${panel.toString("base64")}`, mimeType: "image/jpeg" });
+    }
+  } catch { /* The original image can still be read if panel preparation fails. */ }
+  return views;
+}
+
+async function cloudVision(provider: AiProvider, key: string, views: Array<{ url: string; mimeType: string }>, mimeType: string, language: SupportedLanguage, signal: AbortSignal): Promise<VisionAnalysisResult | null> {
   if (provider !== "gemini" && !mimeType.startsWith("image/")) return null;
   const models = providerModels(provider, true);
-  const prompt = visionPromptForLanguage(language);
+  const prompt = visionPromptForLanguage(language) + "\nThe first image is the complete upload. Any following images are overlapping close-up views of that SAME upload. Use them to read fine print; do not count them as separate documents or duplicate table rows. Summarize readable headings, subjects and scheme names even if other regions are unreadable.";
   let discovered = false;
   for (const model of models) {
     if (signal.aborted) break;
@@ -70,13 +95,13 @@ async function cloudVision(provider: AiProvider, key: string, dataUrl: string, m
       const response = await fetch(gemini
         ? `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`
         : `https://api.${provider === "groq" ? "groq.com/openai" : "openai.com"}/v1/chat/completions`, {
-        method: "POST", signal: AbortSignal.any([signal, AbortSignal.timeout(8000)]),
+        method: "POST", signal: AbortSignal.any([signal, AbortSignal.timeout(12000)]),
         headers: { "Content-Type": "application/json", ...(gemini ? { "x-goog-api-key": key } : { Authorization: `Bearer ${key}` }) },
         body: JSON.stringify(gemini ? {
-          contents: [{ parts: [{ text: prompt }, { inlineData: { mimeType, data: dataUrl.replace(/^data:[^;]+;base64,/, "") } }] }],
+          contents: [{ parts: [{ text: prompt }, ...views.map(view => ({ inlineData: { mimeType: view.mimeType, data: view.url.replace(/^data:[^;]+;base64,/, "") } }))] }],
           generationConfig: { responseMimeType: "application/json", temperature: 0.1, maxOutputTokens: 6000 },
         } : {
-          model, messages: [{ role: "user", content: [{ type: "text", text: prompt }, { type: "image_url", image_url: { url: dataUrl, ...(provider === "openai" ? { detail: "high" } : {}) } }] }],
+          model, messages: [{ role: "user", content: [{ type: "text", text: prompt }, ...views.map(view => ({ type: "image_url", image_url: { url: view.url, ...(provider === "openai" ? { detail: "high" } : {}) } }))] }],
           response_format: { type: "json_object" }, temperature: 0.1, max_completion_tokens: 6000,
         }),
       });
@@ -106,11 +131,13 @@ export async function analyzeImageIntelligently(opts: {
   const dataUrl = opts.fileBase64.startsWith("data:") ? opts.fileBase64 : `data:${mimeType};base64,${opts.fileBase64}`;
   // OCR checks model scope decisions against real document text, independently of pixel hints.
   const localPromise = analyzeDocumentComprehensive(dataUrl, opts.fileName, mimeType);
-  const signal = AbortSignal.timeout(14000);
+  const signal = AbortSignal.timeout(24000);
+  const keys = providerKeys(opts.customApiKey);
+  const views = keys.length ? await imageReadingViews(dataUrl, mimeType) : [{ url: dataUrl, mimeType }];
   let cloud: VisionAnalysisResult | null = null;
-  for (const entry of providerKeys(opts.customApiKey)) {
+  for (const entry of keys) {
     if (signal.aborted) break;
-    cloud = await cloudVision(entry.provider, entry.key, dataUrl, mimeType, opts.language || "en", signal);
+    cloud = await cloudVision(entry.provider, entry.key, views, mimeType, opts.language || "en", signal);
     if (cloud?.scopeStatus === "in_scope") break;
     if (cloud?.scopeStatus === "out_of_scope") break;
   }
