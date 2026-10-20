@@ -433,7 +433,7 @@ export default function ChatAssistant({ variant = "full" }: { variant?: "full" |
               <h3 className="font-extrabold text-base tracking-tight truncate">{t.chatAssistantTitle}</h3>
               <span className="hidden sm:flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-700 text-emerald-200 shrink-0">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
-                {isAuthenticated ? "Llama 3.3 Active" : "Sign in to chat"}
+                {isAuthenticated ? "Farmer assistant" : "Sign in to chat"}
               </span>
             </div>
             <p className="text-xs text-emerald-200/80 truncate">

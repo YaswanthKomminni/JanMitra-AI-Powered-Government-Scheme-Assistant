@@ -1284,10 +1284,11 @@ export default function DocumentVerificationModal() {
           {verificationResult && (
             <button
               onClick={confirmExtractedData}
-              className="px-5 sm:px-7 py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs sm:text-sm shadow-md flex items-center gap-2 transition"
+              disabled={(verificationResult as any).analysisQuality === "partial"}
+              className="px-5 sm:px-7 py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs sm:text-sm shadow-md flex items-center gap-2 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <ShieldCheck className="w-4 h-4 text-emerald-300" />
-              <span>{t.confirmAndUpdate}</span>
+              <span>{(verificationResult as any).analysisQuality === "partial" ? "Clearer copy needed to confirm details" : t.confirmAndUpdate}</span>
             </button>
           )}
         </div>

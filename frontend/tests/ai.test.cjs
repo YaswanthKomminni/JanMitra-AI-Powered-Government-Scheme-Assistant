@@ -22,6 +22,8 @@ const { performOcr } = require('../src/lib/ocrEngine.ts');
 const { generateIntelligentChatReply } = require('../src/lib/llmService.ts');
 const { classifyImagePixels } = require('../src/lib/visionClassifier.ts');
 const { classifyImageObjects, clearlyIrrelevantObject } = require('../src/lib/localImageModel.ts');
+const { shouldUseDocument, queryWithHistory } = require('../src/lib/chatRouting.ts');
+const { farmerChatReply } = require('../src/lib/farmerChat.ts');
 const env = { ...process.env };
 const realFetch = global.fetch;
 after(() => { process.env = env; global.fetch = realFetch; Module._resolveFilename = resolve; });
@@ -126,6 +128,81 @@ test('object rejection requires confident explicit unrelated evidence', () => {
   assert.equal(clearlyIrrelevantObject([{ label: 'book jacket', probability: 0.99 }]), undefined);
 });
 
+test('a saved document cannot take over new farming questions', async () => {
+  const doc = { parsedDetails: parseAndSummarizeDocumentContent(notice) };
+  assert.equal(shouldUseDocument('How should I irrigate paddy?', doc), false);
+  assert.equal(shouldUseDocument('Summarize this document', doc, false), true);
+  assert.equal(shouldUseDocument('How to apply?', doc, false), false);
+  const reply = await generateIntelligentChatReply({ query: 'How should I irrigate paddy?', language: 'en', documentContext: doc });
+  assert.match(reply.text, /moisture|Irrigation/);
+  assert.doesNotMatch(reply.text, /Meena|Not specified/);
+});
+
+test('verification summaries use actual findings and never inject a crop diagnosis', () => {
+  const { formatDocumentAnalysisReply } = require('../src/lib/chatEngine.ts');
+  const text = formatDocumentAnalysisReply({ docType: 'crop_disease', detectionSummary: 'An agricultural plant is visible; the disease is not identified.', extractedData: { observedSubject: 'plant leaves' }, suggestions: ['Share the crop and symptoms.'] }, 'en').text;
+  assert.match(text, /disease is not identified/);
+  assert.doesNotMatch(text, /Flonicamid|whitefly|3ml|Cotton|YOLO|Viterbi/);
+});
+
+test('short scheme and crop follow-ups use the conversation topic', () => {
+  const history = [{ role: 'user', content: 'What is PM-KISAN?' }, { role: 'assistant', content: 'PM-KISAN income support.' }];
+  assert.match(queryWithHistory('How to apply?', history), /PM-KISAN/);
+  const reply = farmerChatReply('How to apply?', 'en', null, history);
+  assert.match(reply.text, /pmkisan.gov.in/);
+  assert.doesNotMatch(reply.text, /eligible for approximately|48 hours|Multi-Factor|Cosine/);
+  const crop = farmerChatReply('Cotton, 40 days old', 'en', null, [{ role: 'user', content: 'Why are my leaves yellow?' }]);
+  assert.match(crop.text, /cotton.*Yellow leaves/is);
+  assert.doesNotMatch(crop.text, /Which crop is it/);
+});
+
+test('cloud messages include earlier user and assistant turns', async () => {
+  process.env.GROQ_API_KEY = 'test-key';
+  let body;
+  global.fetch = async (_url, options) => { body = JSON.parse(options.body); return Response.json({ choices: [{ message: { content: 'Use the official application portal.\nCHIPS: ["Eligibility?"]' } }] }); };
+  await generateIntelligentChatReply({ query: 'How to apply?', language: 'en', history: [{ role: 'user', content: 'What is PM-KISAN?' }, { role: 'assistant', content: 'PM-KISAN income support.' }] });
+  assert.ok(body.messages.some((turn) => turn.role === 'user' && turn.content === 'What is PM-KISAN?'));
+  assert.ok(body.messages.some((turn) => turn.role === 'assistant' && turn.content === 'PM-KISAN income support.'));
+  delete process.env.GROQ_API_KEY; global.fetch = realFetch;
+});
+
+test('retired model IDs recover using the provider catalog', async () => {
+  process.env.GROQ_API_KEY = 'test-key';
+  global.fetch = async (url, options) => {
+    if (url.endsWith('/models')) return Response.json({ data: [{ id: 'qwen/qwen3.8-27b' }] });
+    const body = JSON.parse(options.body);
+    return body.model === 'qwen/qwen3.8-27b' ? Response.json({ choices: [{ message: { content: 'Namaste! How can I help your farm?' } }] }) : new Response('', { status: 404 });
+  };
+  const reply = await generateIntelligentChatReply({ query: 'Hello', language: 'en' });
+  assert.equal(reply.provider, 'groq');
+  assert.equal(reply.modelUsed, 'qwen/qwen3.8-27b');
+  delete process.env.GROQ_API_KEY; global.fetch = realFetch;
+});
+
+test('agriculture input tables need no government heading and answer default image prompts', () => {
+  const text = 'Distribution of Certified Seeds of maize\n50% of the cost, maximum Rs. 120/q.\nDistribution of Gypsum\nAssistance as listed\nDistribution of Minikits of maize\nAll maize growing farmers';
+  assert.equal(assessUploadText(text), 'in_scope');
+  const detection = { parsedDetails: parseAndSummarizeDocumentContent(text) };
+  const reply = answerDocumentQuestion('Please inspect this attached crop/document photo using AI Vision', detection, 'en');
+  assert.match(reply.text, /agricultural support/);
+  assert.match(reply.text, /Gypsum/);
+  const amount = answerDocumentQuestion('How much is the maize seed subsidy?', detection, 'en');
+  assert.match(amount.text, /120\/q/);
+});
+
+test('OCR timeout preserves text from a completed first pass', async () => {
+  const tesseract = require('tesseract.js');
+  const original = tesseract.createWorker;
+  let calls = 0;
+  tesseract.createWorker = async () => ({ reinitialize: async () => {}, setParameters: async () => {}, terminate: async () => {},
+    recognize: async () => ++calls === 1 ? { data: { text: 'First readable fragment from a table' } } : new Promise(() => {}) });
+  try {
+    const png = await require('sharp')({ create: { width: 30, height: 30, channels: 3, background: '#fff' } }).png().toBuffer();
+    const result = await performOcr('data:image/png;base64,' + png.toString('base64'), 1000);
+    assert.match(result, /First readable fragment/);
+  } finally { tesseract.createWorker = original; }
+});
+
 test('searchable PDF bytes are extracted instead of passed to image OCR', async () => {
   const content = 'BT /F1 12 Tf 40 740 Td (Government Welfare Pension Scheme) Tj ET';
   const objects = [
@@ -172,4 +249,17 @@ test('real small scheme poster is analyzed with bundled OCR data', { skip: !proc
   console.log('Poster OCR:', result.extractedTextSnippet);
   assert.equal(result.scopeStatus, 'in_scope');
   assert.match(answerDocumentQuestion('tell me about this schemes', result, 'en').text, /Suggested next steps/);
+});
+
+test('real agricultural support table from the screenshot is analyzed', { skip: !process.env.TEST_TABLE_IMAGE }, async () => {
+  global.fetch = realFetch;
+  delete process.env.OCR_LANG_PATH;
+  const data = fs.readFileSync(process.env.TEST_TABLE_IMAGE).toString('base64');
+  const result = await analyzeImageIntelligently({ fileBase64: 'data:image/png;base64,' + data });
+  console.log('Table OCR:', result.extractedTextSnippet);
+  assert.ok(result.scopeStatus === 'in_scope' || result.analysisQuality === 'partial');
+  const reply = answerDocumentQuestion('Please inspect this attached crop/document photo using AI Vision', result, 'en');
+  assert.match(reply.text, /seed|maize|gypsum|agricultur|document\/table/i);
+  assert.doesNotMatch(reply.text, /^Not specified|could not confidently/i);
+  if (result.analysisQuality === 'partial') assert.deepEqual(result.extractedData, {});
 });

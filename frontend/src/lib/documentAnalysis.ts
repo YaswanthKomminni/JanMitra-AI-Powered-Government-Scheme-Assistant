@@ -39,6 +39,9 @@ export async function analyzeAndRecordDocument(opts: {
     customApiKey,
   });
 
+  if (outcome.analysisQuality === "partial") {
+    return { success: true, message: "Document recognized; fine print needs a clearer view.", detection: { ...outcome, previewUrl: fileBase64, fileName } };
+  }
   if (outcome.scopeStatus === "uncertain") {
     return { success: false, isOutOfScope: false, scopeStatus: "uncertain",
       message: outcome.detectionSummary, reason: outcome.reason || outcome.detectionSummary,

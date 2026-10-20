@@ -25,3 +25,25 @@ export function providerModels(provider: AiProvider, vision = false): string[] {
   const override = process.env[`${provider.toUpperCase()}_${vision ? "VISION_" : ""}MODEL`];
   return override?.trim() ? [override.trim()] : defaults;
 }
+
+/** Recover from retired model IDs using the authenticated provider's actual catalog. */
+export async function discoverProviderModels(provider: AiProvider, key: string, vision: boolean, signal: AbortSignal): Promise<string[]> {
+  try {
+    const google = provider === "gemini";
+    const response = await fetch(google ? "https://generativelanguage.googleapis.com/v1beta/models"
+      : `https://api.${provider === "groq" ? "groq.com/openai" : "openai.com"}/v1/models`, {
+      headers: google ? { "x-goog-api-key": key } : { Authorization: `Bearer ${key}` },
+      signal: AbortSignal.any([signal, AbortSignal.timeout(2000)]),
+    });
+    if (!response.ok) return [];
+    const data = await response.json();
+    const rows = google ? data.models : data.data;
+    if (!Array.isArray(rows)) return [];
+    const ids: string[] = rows.filter((item: any) => !google || item.supportedGenerationMethods?.includes("generateContent"))
+      .map((item: any) => String(google ? item.name : item.id).replace(/^models\//, ""));
+    const candidates = ids.filter((id) => provider === "gemini" ? /^gemini-3[.\d-]*.*flash/i.test(id) && !/image|live|tts|preview/i.test(id)
+      : provider === "groq" ? (vision ? /qwen.*3\.[58]|llama-4.*(scout|maverick)/i.test(id) : /llama|qwen|gpt-oss|gemma/i.test(id) && !/guard/i.test(id))
+      : /gpt-4o|gpt-4\.1/i.test(id) && !/audio|realtime|transcribe|tts|search/i.test(id));
+    return [...providerModels(provider, vision).filter((id) => ids.includes(id)), ...candidates].filter((id, index, all) => all.indexOf(id) === index).slice(0, 3);
+  } catch { return []; }
+}

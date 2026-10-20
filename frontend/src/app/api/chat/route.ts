@@ -169,6 +169,18 @@ export async function POST(request: Request) {
             request.headers.get("x-vision-api-key") ||
             undefined;
 
+          // Context comes only from this authenticated user's conversation, never from the client.
+          const previous = await dbQuery<any[]>(
+            `SELECT sender, message_text, metadata->'docDetection' AS doc_detection FROM chat_logs
+             WHERE user_id = $1 AND conversation_id = $2 AND id < $3 ORDER BY id DESC LIMIT 12`,
+            [userId, convId, userRow.id]
+          );
+          const history = previous.slice().reverse().map((row) => ({
+            role: (row.sender === "ai" ? "assistant" : "user") as "assistant" | "user",
+            content: String(row.message_text || "").slice(0, 2500),
+          }));
+          const latestTopicIsDocument = !!previous.find((row) => row.sender === "ai")?.doc_detection;
+
           if (attachment) {
             try {
               const outcome = await analyzeAndRecordDocument({
@@ -192,6 +204,8 @@ export async function POST(request: Request) {
                   language,
                   profile: auth.profile,
                   documentContext: outcome.detection,
+                  forceDocumentContext: true,
+                  history,
                   customApiKey,
                 });
                 return {
@@ -230,13 +244,15 @@ export async function POST(request: Request) {
             language,
             profile: auth.profile,
             documentContext: activeDocContext,
+            documentContextIsLatestTopic: latestTopicIsDocument,
+            history,
             customApiKey,
           });
 
           return {
             text: llmReply.text,
             chips: llmReply.chips,
-            docDetection: activeDocContext,
+            docDetection: llmReply.usedDocument ? activeDocContext : undefined,
           };
         })(),
         REPLY_TIMEOUT_MS

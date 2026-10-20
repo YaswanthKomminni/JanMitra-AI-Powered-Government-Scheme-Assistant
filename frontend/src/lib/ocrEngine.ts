@@ -7,7 +7,7 @@ import englishData from "@tesseract.js-data/eng";
 import teluguData from "@tesseract.js-data/tel";
 import { analyzeDocumentWithNlpSuite } from "@/lib/nlpDocumentAnalyzer";
 import { assessUploadText } from "@/lib/uploadScope";
-import { classifyImageObjects, clearlyIrrelevantObject, agriculturalScene } from "@/lib/localImageModel";
+import { classifyImageObjects, clearlyIrrelevantObject, agriculturalScene, documentScene } from "@/lib/localImageModel";
 
 export interface ExtractedBoundingBox {
   id: string; label: string; text: string;
@@ -21,6 +21,7 @@ export interface ExtractedDocumentResult {
   extractedTextSnippet?: string; extractedData: Record<string, any>;
   boundingBoxes: ExtractedBoundingBox[]; schemesUnlocked: string[];
   suggestions?: string[]; parsedDetails?: any;
+  analysisQuality?: "partial" | "complete";
 }
 
 export async function performOcr(fileBase64: string, timeoutMs = 20000): Promise<string> {
@@ -38,6 +39,7 @@ export async function performOcr(fileBase64: string, timeoutMs = 20000): Promise
   // Terminate workers on completion AND timeout; a timed-out OCR job must not keep running.
   let worker: Awaited<ReturnType<typeof Tesseract.createWorker>> | undefined;
   let expired = false;
+  let bestText = "";
   let timer: ReturnType<typeof setTimeout> | undefined;
   const task = (async () => {
     const codes = (process.env.OCR_LANGUAGES || "eng+tel").split("+");
@@ -63,18 +65,23 @@ export async function performOcr(fileBase64: string, timeoutMs = 20000): Promise
     if (expired) { await worker.terminate(); return ""; }
     const image = await sharp(bytes, { limitInputPixels: 40_000_000 }).rotate()
       .resize({ width: 1600, height: 2200, fit: "inside" }).grayscale().normalize().sharpen().png().toBuffer();
+    // Read English first for dense tables; add Telugu only when the first pass needs help.
+    await worker.reinitialize(codes.includes("eng") ? "eng" : codes.join("+"));
     const first = (await worker.recognize(image)).data.text.trim();
+    bestText = first;
     if (assessUploadText(first) === "in_scope" || expired) return first.slice(0, 40000);
     // Posters and collages often need sparse text segmentation instead of a page layout.
     await worker.setParameters({ tessedit_pageseg_mode: Tesseract.PSM.SPARSE_TEXT });
+    if (codes.length > 1) await worker.reinitialize(codes.join("+"));
     const second = (await worker.recognize(image)).data.text.trim();
-    return `${first}\n${second}`.trim().slice(0, 40000);
+    bestText = `${first}\n${second}`.trim().slice(0, 40000);
+    return bestText;
   })();
   try {
     return await Promise.race([task, new Promise<string>((resolve) => {
-      timer = setTimeout(() => { expired = true; void worker?.terminate(); resolve(""); }, timeoutMs);
+      timer = setTimeout(() => { expired = true; void worker?.terminate(); resolve(bestText); }, timeoutMs);
     })]);
-  } catch (error) { console.warn("[ocr] Local text extraction unavailable:", (error as Error).message); return ""; }
+  } catch (error) { console.warn("[ocr] Local text extraction unavailable:", (error as Error).message); return bestText; }
   finally { if (timer) clearTimeout(timer); if (worker && !expired) await worker.terminate(); }
 }
 
@@ -83,8 +90,9 @@ export async function analyzeDocumentComprehensive(fileBase64: string, fileName 
 }> {
   const text = await performOcr(fileBase64);
   const scope = assessUploadText(text);
+  let predictions: Awaited<ReturnType<typeof classifyImageObjects>> = [];
   if (scope === "uncertain" && fileBase64.startsWith("data:image/")) {
-    const predictions = await classifyImageObjects(Buffer.from(fileBase64.replace(/^data:[^;]+;base64,/, ""), "base64"));
+    predictions = await classifyImageObjects(Buffer.from(fileBase64.replace(/^data:[^;]+;base64,/, ""), "base64"));
     const unrelated = clearlyIrrelevantObject(predictions);
     if (unrelated) {
       const reason = `This image appears to show ${unrelated.label}, with no readable agriculture or government scheme document.`;
@@ -100,6 +108,19 @@ export async function analyzeDocumentComprehensive(fileBase64: string, fileName 
           "If you need crop health advice, photograph the affected leaves and the whole plant in good light.",
           "Describe the crop, location, symptoms, and when the problem started so the advice can be specific.",
           "Confirm any suspected disease with a local agricultural officer before selecting a pesticide.",
+        ] };
+    }
+  }
+  if (scope === "uncertain" && fileBase64.startsWith("data:image/")) {
+    const document = documentScene(predictions);
+    if (document) {
+      return { docType: "land_record", title: "Document image — partial reading", isAgriRelated: document.scopeStatus === "in_scope", scopeStatus: document.scopeStatus || "uncertain",
+        analysisQuality: "partial", confidenceScore: document.probability,
+        detectionSummary: "I can see a printed document/table. Its fine print is too small or unclear to reliably read all the details, so I cannot confirm individual scheme names, amounts, dates or eligibility conditions from this copy.",
+        extractedTextSnippet: text, extractedData: {}, boundingBoxes: [], schemesUnlocked: [], suggestions: [
+          "Tell me which scheme or table row you want help with; I can explain the application process or farming topic in the meantime.",
+          "Upload a close-up of one row at a time, or the original image/PDF rather than a screenshot thumbnail.",
+          "Before applying, check the current eligibility, assistance limit and deadline with the issuing agriculture office or official portal.",
         ] };
     }
   }

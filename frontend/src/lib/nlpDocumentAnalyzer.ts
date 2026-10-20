@@ -8,6 +8,19 @@ export interface ParsedDocumentDetails {
   requiredDocuments?: string[]; scheduleDates?: string; reportingVenue?: string;
   unlockedSchemes: string[]; actionableSuggestions: string[];
   boundingBoxes: ExtractedBoundingBox[]; fullOcrText: string;
+  schemeEntries?: Array<{ name: string; source: string }>;
+}
+
+export function extractAgriculturalEntries(text: string): Array<{ name: string; source: string }> {
+  const pattern = /certified\s+seeds?(?:\s+of\s+(?:maize|rice|paddy))?|gypsum|(?:manually\s+operated\s+)?plant\s+protection\s+equipment|mini\s*kits?(?:\s+of\s+maize)?|(?:knapsack|power)\s+sprayer/gi;
+  const positions: Array<{ name: string; index: number }> = [];
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(text))) {
+    const name = match[0];
+    if (!positions.some((item) => item.name.toLowerCase() === name.toLowerCase())) positions.push({ name, index: match.index });
+  }
+  return positions.map((item, index) => ({ name: item.name,
+    source: text.slice(item.index, positions[index + 1]?.index || text.length).trim().slice(0, 1000) }));
 }
 
 // Local extraction is deliberately literal: never substitute a remembered sample notice.
@@ -22,6 +35,7 @@ export function parseAndSummarizeDocumentContent(ocrText: string, _fileName = "d
     : /aadhaar|identity card|voter id|ration card/i.test(text) ? "identity_card"
     : /patta|pahani|land record|khasra/i.test(text) ? "land_record" : "general_document";
   const parameters: Record<string, string> = {};
+  const schemeEntries = extractAgriculturalEntries(text);
   const fields: Array<[string, RegExp]> = [
     ["Vendor (Seller)", /^(?:vendor(?:\s*\(seller\))?|seller)\s*[:=-]\s*(.+)$/im],
     ["Vendee (Purchaser)", /^(?:vendee(?:\s*\(purchaser\))?|buyer|purchaser)\s*[:=-]\s*(.+)$/im],
@@ -59,7 +73,9 @@ export function parseAndSummarizeDocumentContent(ocrText: string, _fileName = "d
     requiredDocuments.length ? "Prepare the documents listed in this notice and confirm any missing requirements with its issuing office." : "Ask the issuing office for the application checklist; no explicit checklist was identified in the readable text.",
   ] : ["Upload a sharp, well-lit image of the entire page, or paste its text."];
   if (isPoster) actionableSuggestions.unshift("Send a close-up of the specific scheme panel you are interested in so its benefits, eligibility and application instructions can be read accurately.");
-  return { genre, title, summary, extractedParameters: parameters, requiredDocuments,
+  const tableSummary = schemeEntries.length >= 2
+    ? `This document lists agricultural support for ${schemeEntries.map((item) => item.name).join(", ")}. The entries below quote the readable text; verify unclear figures and current availability with the issuing agriculture office.\n\n${schemeEntries.map((item) => `• ${item.source}`).join("\n\n")}` : summary;
+  return { genre, title, summary: tableSummary, extractedParameters: parameters, requiredDocuments, schemeEntries,
     scheduleDates: parameters["Schedule / Dates"], reportingVenue: parameters.Venue,
     unlockedSchemes, actionableSuggestions, boundingBoxes: [], fullOcrText: text };
 }
@@ -94,9 +110,18 @@ export function answerDocumentQuestion(query: string, detection: any, lang: Supp
   const q = query.toLowerCase();
   const l = labels[lang] || labels.en;
   const chips = ["Summarize this document", "Give me suggestions", "What documents are required?"];
+  if (detection?.analysisQuality === "partial") {
+    return { text: `${summary}\n\n**${l.suggestions}**\n${suggestions.map((item) => `• ${item}`).join("\n")}`, chips: ["Help with a scheme application", "I will upload a close-up", "Ask an agriculture question"] };
+  }
   const bullets = (entries: Array<[string, any]>) => entries.map(([key, value]) => `• **${key}:** ${typeof value === "object" ? JSON.stringify(value) : value}`).join("\n") || l.missing;
   const select = (pattern: RegExp) => Object.entries(p).filter(([key]) => pattern.test(key));
   const suggestedText = `**${l.suggestions}**\n${suggestions.map((s, i) => `${i + 1}. ${s}`).join("\n")}\n\n**${l.schemes}**\n${schemes.join("\n") || l.missing}`;
+  if (base.schemeEntries?.length && /subsid|benefit|eligible|maize|seed|gypsum|sprayer|minikit|equipment|how much|amount/i.test(q)) {
+    const words = q.match(/[a-z]{4,}/g) || [];
+    const matched = base.schemeEntries.filter((entry: { name: string }) => words.some((word) => entry.name.toLowerCase().includes(word)));
+    const entries = matched.length ? matched : base.schemeEntries;
+    return { text: `${entries.map((entry: { name: string; source: string }) => `**${entry.name}**\n${entry.source}`).join("\n\n")}\n\nCheck current availability and any unclear figures with the agriculture office listed in the document.`, chips };
+  }
   // Specific intents precede summary. Short questions are still questions.
   if (/suggest|recommend|advice|next step|సలహా|సూచన|सुझाव|सलाह|பரிந்துரை|ಸಲಹೆ|পরামর্শ/i.test(q)) return { text: suggestedText, chips };
   if (/what.*documents?.*(required|need|submit|bring|carry)|which.*documents?.*(required|need|submit|bring|carry)|required documents?|documents? (required|needed)|checklist|what to (bring|carry)|కావలసిన పత్ర|आवश्यक दस्तावेज|தேவையான ஆவண|ಅಗತ್ಯ ದಾಖಲೆ|প্রয়োজনীয় নথি/i.test(q)) {
@@ -114,7 +139,7 @@ export function answerDocumentQuestion(query: string, detection: any, lang: Supp
     const instructions = select(/apply|application|submission|portal|url|website|procedure|instructions/i);
     return { text: `${bullets(instructions)}\n\n${suggestedText}`, chips };
   }
-  if (/summar|analy|overview|explain|brief|tell me about|సారాంశ|सारांश|சுருக்க|ಸಾರಾಂಶ|সারসংক্ষেপ/i.test(q) || !q.trim()) {
+  if (/summar|analy|overview|explain|brief|tell me about|inspect|read this|attached|what.*(?:show|contain|say|about)|సారాంశ|सारांश|சுருக்க|ಸಾರಾಂಶ|সারসংক্ষেপ/i.test(q) || !q.trim()) {
     return { text: `**${l.summary}**\n${summary}\n\n**${l.details}**\n${bullets(Object.entries(p))}\n\n${suggestedText}`, chips };
   }
   if (/scheme|subsid|eligible|benefit|పథక|योजना|திட்ட|ಯೋಜನೆ|প্রকল্প/i.test(q)) return { text: `**${l.schemes}**\n${schemes.join("\n") || summary}\n\n${suggestedText}`, chips };

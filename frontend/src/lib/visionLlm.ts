@@ -1,5 +1,5 @@
 import { analyzeDocumentComprehensive, type ExtractedBoundingBox } from "@/lib/ocrEngine";
-import { providerKeys, providerModels, type AiProvider } from "@/lib/aiProviders";
+import { providerKeys, providerModels, discoverProviderModels, type AiProvider } from "@/lib/aiProviders";
 
 export interface VisionAnalysisResult {
   isAgriRelated: boolean;
@@ -15,6 +15,7 @@ export interface VisionAnalysisResult {
   schemesUnlocked?: string[];
   suggestions: string[];
   parsedDetails?: any;
+  analysisQuality?: "partial" | "complete";
 }
 
 const VISION_PROMPT = `Analyze the actual uploaded content for JanMithra, an Indian agriculture and ALL government welfare schemes assistant.
@@ -43,7 +44,9 @@ export function normalizeVisionResult(parsed: any): VisionAnalysisResult | null 
 
 async function cloudVision(provider: AiProvider, key: string, dataUrl: string, mimeType: string, signal: AbortSignal): Promise<VisionAnalysisResult | null> {
   if (provider !== "gemini" && !mimeType.startsWith("image/")) return null;
-  for (const model of providerModels(provider, true)) {
+  const models = providerModels(provider, true);
+  let discovered = false;
+  for (const model of models) {
     if (signal.aborted) break;
     try {
       const gemini = provider === "gemini";
@@ -62,6 +65,11 @@ async function cloudVision(provider: AiProvider, key: string, dataUrl: string, m
       });
       if (!response.ok) {
         console.warn(`[vision] ${provider}/${model}: HTTP ${response.status}`);
+        if (!discovered && [404, 410].includes(response.status)) {
+          discovered = true;
+          const available = await discoverProviderModels(provider, key, true, signal);
+          models.push(...available.filter((id) => !models.includes(id)));
+        }
         if ([401, 403, 429].includes(response.status)) break;
         continue;
       }
@@ -81,7 +89,7 @@ export async function analyzeImageIntelligently(opts: {
   const dataUrl = opts.fileBase64.startsWith("data:") ? opts.fileBase64 : `data:${mimeType};base64,${opts.fileBase64}`;
   // OCR checks model scope decisions against real document text, independently of pixel hints.
   const localPromise = analyzeDocumentComprehensive(dataUrl, opts.fileName, mimeType);
-  const signal = AbortSignal.timeout(24000);
+  const signal = AbortSignal.timeout(14000);
   let cloud: VisionAnalysisResult | null = null;
   for (const entry of providerKeys(opts.customApiKey)) {
     if (signal.aborted) break;

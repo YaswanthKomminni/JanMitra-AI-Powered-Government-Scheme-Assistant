@@ -390,101 +390,10 @@ export const useFarmerStore = create<FarmerState>((set, get) => {
   clearOutOfScopeError: () => set({ outOfScopeError: null }),
 
   setLanguage: (lang) => {
-    set({ language: lang });
-
-    // Automatically update existing chat messages into the newly selected language
-    const currentMessages = get().chatMessages;
-    const farmer = get().currentFarmer;
-    const t = translations[lang] as any;
-
-    const updatedMessages = currentMessages.map((msg) => {
-      // 1. Initial greeting
-      if (msg.id === "msg_init" || msg.id === "msg_01") {
-        return getInitialChatMessage(lang, farmer.name);
-      }
-
-      // 2. Verified document AI response
-      if (
-        msg.sender === "ai" &&
-        (msg.docDetection ||
-          msg.text.includes("🏛️") ||
-          msg.text.includes("Sale Deed") ||
-          msg.text.includes("ధరణి") ||
-          msg.text.includes("धरणी") ||
-          msg.text.includes("తరணி") ||
-          msg.text.includes("ధృవీకరించబడిన") ||
-          msg.text.includes("పత్ర వివరాలు") ||
-          msg.text.includes("దస్తావేజు") ||
-          msg.text.includes("దస్త్రం") ||
-          msg.text.includes("విక్రయ") ||
-          msg.text.includes("விற்பனை") ||
-          msg.text.includes("ಮಾರಾಟ") ||
-          msg.text.includes("বিক্রয়") ||
-          msg.text.includes("Analyzed Successfully") ||
-          msg.text.includes("విజయవంతంగా విశ్లేషించబడింది") ||
-          msg.text.includes("வெற்றிகரமாக பகுப்பாய்வு"))
-      ) {
-        const det = msg.docDetection || get().verificationResult;
-        if (!det) return msg;
-        const localized = formatDocumentAnalysisReply(det, lang);
-        return {
-          ...msg,
-          text: localized.text,
-          clarificationChips: localized.chips,
-          docDetection: det,
-        };
-      }
-
-      // 3. User default inspect image message
-      if (
-        msg.sender === "user" &&
-        msg.image &&
-        (msg.text.includes("inspect this attached") ||
-          msg.text.includes("పరిశీలించండి") ||
-          msg.text.includes("విశ్లేషించండి") ||
-          msg.text.includes("विश्लेषण") ||
-          msg.text.includes("ஆய்வு") ||
-          msg.text.includes("ಪರಿಶೀಲಿಸಿ") ||
-          msg.text.includes("পরীক্ষা"))
-      ) {
-        return {
-          ...msg,
-          text: t.inspectDocPrompt || "Please inspect this attached crop/document photo using AI Vision",
-        };
-      }
-
-      // 4. User default inspect file message
-      if (
-        msg.sender === "user" &&
-        msg.fileName &&
-        !msg.image &&
-        (msg.text.includes("analyze this attached") ||
-          msg.text.includes("పరిశీలించండి") ||
-          msg.text.includes("విశ్లేషించండి") ||
-          msg.text.includes("विश्लेषण") ||
-          msg.text.includes("ஆய்வு") ||
-          msg.text.includes("ಪರಿಶೀಲಿಸಿ") ||
-          msg.text.includes("পরীক্ষা"))
-      ) {
-        return {
-          ...msg,
-          text: `${t.inspectDocFilePrompt || "Please analyze this attached government document"}: ${msg.fileName}`,
-        };
-      }
-
-      // 5. Conversational AI responses in chat history
-      if (msg.sender === "ai" && !msg.docDetection && msg.isClarification) {
-        const textReply = generateTextReply(msg.text, lang, get().currentFarmer);
-        return {
-          ...msg,
-          text: textReply.text,
-          clarificationChips: textReply.chips,
-        };
-      }
-      return msg;
-    });
-
-    set({ chatMessages: updatedMessages });
+    // Saved answers are part of the conversation, not templates to regenerate on a locale change.
+    set((state) => ({ language: lang, chatMessages: state.chatMessages.map((msg) =>
+      msg.id === "msg_init" || msg.id === "msg_01" ? getInitialChatMessage(lang, state.currentFarmer.name) : msg
+    ) }));
   },
 
   setCurrentFarmer: (farmer) => {
@@ -971,6 +880,7 @@ export const useFarmerStore = create<FarmerState>((set, get) => {
   confirmExtractedData: () => {
     const result = get().verificationResult;
     if (!result) return;
+    if ((result as any).analysisQuality === "partial") return;
 
     // Send to backend PostgreSQL JanMithra
     try {

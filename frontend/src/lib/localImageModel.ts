@@ -1,7 +1,7 @@
 import path from "node:path";
 import sharp from "sharp";
 
-export interface ObjectPrediction { label: string; probability: number }
+export interface ObjectPrediction { label: string; probability: number; scopeStatus?: "in_scope" | "uncertain" }
 let classifierPromise: Promise<any> | undefined;
 const unrelatedLabels = [
   "an indoor room with a ceiling, walls, a fan and furniture",
@@ -12,6 +12,7 @@ const unrelatedLabels = [
   "an everyday household object unrelated to farming",
   "a plate of cooked food",
   "an empty wall, floor or ceiling",
+  "a school worksheet, shopping receipt, restaurant menu or unrelated printed document",
 ];
 const relatedLabels = [
   "an agricultural crop plant, leaves, fruit or a crop pest",
@@ -20,6 +21,7 @@ const relatedLabels = [
   "an official government document, certificate, application form or identity card",
   "an agricultural university admission, recruitment or research document",
   "an Indian land record, sale deed, farmer passbook or soil health card",
+  "an agricultural subsidy table listing seeds, fertilizers and farm equipment assistance",
 ];
 
 async function getClassifier() {
@@ -63,4 +65,15 @@ export function clearlyIrrelevantObject(predictions: ObjectPrediction[]): Object
 export function agriculturalScene(predictions: ObjectPrediction[]): ObjectPrediction | undefined {
   const first = predictions[0];
   return first?.probability >= 0.65 && relatedLabels.slice(0, 2).includes(first.label) ? first : undefined;
+}
+
+export function documentScene(predictions: ObjectPrediction[]): ObjectPrediction | undefined {
+  const documents = predictions.filter((item) => relatedLabels.slice(2).includes(item.label));
+  const total = documents.reduce((sum, item) => sum + item.probability, 0);
+  const unrelated = predictions.filter((item) => unrelatedLabels.includes(item.label)).reduce((sum, item) => sum + item.probability, 0);
+  if (documents[0] && total >= 0.85 && unrelated < 0.1) return { ...documents[0], probability: total, scopeStatus: "in_scope" };
+  const otherPaper = predictions.find((item) => item.label === "a school worksheet, shopping receipt, restaurant menu or unrelated printed document");
+  const paper = total + (otherPaper?.probability || 0);
+  return documents[0] && paper >= 0.85 && unrelated - (otherPaper?.probability || 0) < 0.1
+    ? { ...documents[0], probability: paper, scopeStatus: "uncertain" } : undefined;
 }
