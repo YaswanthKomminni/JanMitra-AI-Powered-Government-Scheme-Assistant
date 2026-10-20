@@ -4,7 +4,7 @@ export function providerKeys(customKey?: string): Array<{ provider: AiProvider; 
   const keys: Array<{ provider: AiProvider; key: string }> = [];
   const custom = customKey?.trim();
   if (custom) {
-    const provider = custom.startsWith("AIza") ? "gemini" : custom.startsWith("gsk_") ? "groq" : custom.startsWith("sk-") ? "openai" : null;
+    const provider = /^(?:AIza|AQ\.)/.test(custom) ? "gemini" : custom.startsWith("gsk_") ? "groq" : custom.startsWith("sk-") ? "openai" : null;
     if (provider) keys.push({ provider, key: custom });
   }
   for (const [provider, key] of [

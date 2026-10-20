@@ -322,7 +322,7 @@ export default function DocumentVerificationModal() {
                     type="password"
                     value={apiKeyInput}
                     onChange={(e) => setApiKeyInput(e.target.value)}
-                    placeholder="Paste free Google Gemini (AIza...) or Groq (gsk_...) key..."
+                    placeholder="Gemini (AQ. or AIza), Groq (gsk_) or OpenAI (sk-) key"
                     className="flex-1 px-3 py-1.5 rounded-xl border border-stone-300 text-xs focus:ring-2 focus:ring-emerald-500 bg-white"
                   />
                   <div className="flex items-center gap-1.5">

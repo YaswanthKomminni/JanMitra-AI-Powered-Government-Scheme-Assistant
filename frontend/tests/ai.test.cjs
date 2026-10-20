@@ -28,11 +28,18 @@ const { buildConversationMemory, finishConversationMemory, knownFarmerFacts, rea
 const { retrieveDocumentEvidence, validateGroundedAnswer } = require('../src/lib/documentEvidence.ts');
 const { reconcileImageEvidence, normalizeCropAnalysis, answerCropImage } = require('../src/lib/imageEvidence.ts');
 const { retrieveOfficialGuidance, readableOfficialHtml } = require('../src/lib/officialGuidance.ts');
+const { providerKeys } = require('../src/lib/aiProviders.ts');
 const env = { ...process.env };
 const realFetch = global.fetch;
 after(() => { process.env = env; global.fetch = realFetch; Module._resolveFilename = resolve; });
 const upload = (text) => 'data:text/plain;base64,' + Buffer.from(text).toString('base64');
 const notice = 'Government Welfare Department\nPension Scheme Application\nApplicant: Meena Devi\nLast date: 30.11.2026\nRequired documents:\n1. Income certificate\n2. Aadhaar card';
+
+test('custom provider routing accepts Gemini authorization keys and existing provider formats', () => {
+  for (const key of ['AQ.synthetic-test-not-a-real-key', 'AIza-synthetic-test']) assert.equal(providerKeys(key)[0].provider, 'gemini');
+  assert.equal(providerKeys('gsk_synthetic-test')[0].provider, 'groq');
+  assert.equal(providerKeys('sk-synthetic-test')[0].provider, 'openai');
+});
 
 test('all welfare documents and multilingual notices are relevant; software-only screens are rejected', () => {
   for (const text of [notice, 'Birsa Agricultural University admission counselling for 2026', 'Directorate of Agriculture recruitment notice', 'ICAR DARE agricultural research foreword', 'ప్రభుత్వ పథకానికి దరఖాస్తు మరియు పత్రాలు', 'सरकारी पेंशन योजना आवेदन दस्तावेज']) assert.equal(assessUploadText(text), 'in_scope');
