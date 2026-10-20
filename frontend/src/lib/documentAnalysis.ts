@@ -23,17 +23,19 @@ export async function analyzeAndRecordDocument(opts: {
   fileName?: string;
   fileType?: string;
   classification?: any;
+  customApiKey?: string;
 }): Promise<DocumentAnalysisOutcome> {
-  const { userId, fileBase64, classification } = opts;
+  const { userId, fileBase64, classification, customApiKey } = opts;
   const fileName = opts.fileName || "uploaded_document.jpg";
   const fileType = opts.fileType || "image/jpeg";
 
-  // 1. Analyze with Vision LLM (Gemini/Groq/OpenAI) or High-Accuracy Local Engine
+  // 1. Analyze with Vision LLM (Gemini/Groq/OpenAI) or High-Accuracy Local Dynamic Engine
   const outcome = await analyzeImageIntelligently({
     fileBase64,
     fileName,
     fileType,
     classification,
+    customApiKey,
   });
 
   // 2. Strict Agricultural & Scheme Scope Enforcement:

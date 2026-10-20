@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   X,
   UploadCloud,
@@ -52,6 +52,30 @@ export default function DocumentVerificationModal() {
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
   const [uploadedFileSize, setUploadedFileSize] = useState<string | null>(null);
   const [inputMode, setInputMode] = useState<"camera" | "upload">("camera");
+  const [apiKeyInput, setApiKeyInput] = useState("");
+  const [showKeyInput, setShowKeyInput] = useState(false);
+  const [keySaved, setKeySaved] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const existing = localStorage.getItem("janmitra_custom_vision_key") || "";
+      setApiKeyInput(existing);
+      if (existing) setKeySaved(true);
+    }
+  }, []);
+
+  const handleSaveKey = () => {
+    if (typeof window !== "undefined") {
+      if (apiKeyInput.trim()) {
+        localStorage.setItem("janmitra_custom_vision_key", apiKeyInput.trim());
+        setKeySaved(true);
+        setShowKeyInput(false);
+      } else {
+        localStorage.removeItem("janmitra_custom_vision_key");
+        setKeySaved(false);
+      }
+    }
+  };
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const t = translations[language];
@@ -270,6 +294,63 @@ export default function DocumentVerificationModal() {
                   );
                 })}
               </div>
+            </div>
+          )}
+
+          {/* AI Vision Engine Status & Optional Key Config */}
+          {!verificationResult && !verificationScanning && !outOfScopeError && (
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-3 text-xs shadow-sm">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-emerald-700 shrink-0" />
+                  <span className="font-extrabold text-stone-800">
+                    AI Engine: {keySaved ? "Multimodal Vision AI Active" : "Built-in Dynamic Vision & OCR Active"}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowKeyInput(!showKeyInput)}
+                  className="text-[11px] font-bold text-emerald-800 hover:text-emerald-950 underline shrink-0"
+                >
+                  {showKeyInput ? "Close" : keySaved ? "Change Key" : "Add Free Gemini/Groq Key (Optional)"}
+                </button>
+              </div>
+
+              {showKeyInput && (
+                <div className="mt-2.5 pt-2.5 border-t border-emerald-200 flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="password"
+                    value={apiKeyInput}
+                    onChange={(e) => setApiKeyInput(e.target.value)}
+                    placeholder="Paste free Google Gemini (AIza...) or Groq (gsk_...) key..."
+                    className="flex-1 px-3 py-1.5 rounded-xl border border-stone-300 text-xs focus:ring-2 focus:ring-emerald-500 bg-white"
+                  />
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={handleSaveKey}
+                      className="px-3 py-1.5 rounded-xl bg-emerald-800 text-white font-bold text-xs hover:bg-emerald-900 transition"
+                    >
+                      Save Key
+                    </button>
+                    {keySaved && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setApiKeyInput("");
+                          if (typeof window !== "undefined") {
+                            localStorage.removeItem("janmitra_custom_vision_key");
+                          }
+                          setKeySaved(false);
+                        }}
+                        className="px-2.5 py-1.5 rounded-xl bg-stone-200 text-stone-700 font-bold text-xs hover:bg-stone-300 transition"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

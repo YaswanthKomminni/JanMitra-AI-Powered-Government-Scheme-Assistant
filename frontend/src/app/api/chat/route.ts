@@ -169,6 +169,11 @@ export async function POST(request: Request) {
                 fileName,
                 fileType,
                 classification,
+                customApiKey:
+                  attachment.customApiKey ||
+                  body?.customApiKey ||
+                  request.headers.get("x-vision-api-key") ||
+                  undefined,
               });
               if (!outcome.success && outcome.isOutOfScope) {
                 return buildOutOfScopeReply(language, outcome.reason);

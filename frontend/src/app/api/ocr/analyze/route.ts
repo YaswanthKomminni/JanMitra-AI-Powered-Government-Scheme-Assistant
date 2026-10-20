@@ -21,6 +21,7 @@ export async function POST(request: Request) {
       fileName = "uploaded_document.jpg",
       fileType = "image/jpeg",
       classification,
+      customApiKey,
     } = body || {};
 
     if (!fileBase64 || typeof fileBase64 !== "string") {
@@ -39,6 +40,7 @@ export async function POST(request: Request) {
       fileName: String(fileName).slice(0, 200),
       fileType: String(fileType).slice(0, 100),
       classification,
+      customApiKey: customApiKey || request.headers.get("x-vision-api-key") || undefined,
     });
     return NextResponse.json(outcome);
   } catch (error: any) {

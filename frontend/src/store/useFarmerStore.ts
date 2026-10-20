@@ -290,6 +290,7 @@ export const useFarmerStore = create<FarmerState>((set, get) => {
           text: msg.text,
           language: get().language,
           attachment,
+          customApiKey: typeof window !== "undefined" ? localStorage.getItem("janmitra_custom_vision_key") || undefined : undefined,
         }),
       });
     } catch {
@@ -1196,27 +1197,18 @@ export const useFarmerStore = create<FarmerState>((set, get) => {
       selectedPresetKey: null,
     });
 
-    // 1. Strict Agricultural & Scheme Scope Check
-    const classification = await classifyBase64Image(fileBase64, fileName, category);
-
-    if (!classification.isAgriRelated) {
-      set({
-        verificationScanning: false,
-        verificationResult: null,
-        outOfScopeError: {
-          title: "Image Out of Scope",
-          message: classification.message,
-          reason: `Detected: ${classification.metrics.dominantDomain}. JanMithra is dedicated exclusively to agriculture, crop disease diagnostics, and government farmer schemes.`,
-          previewUrl: fileBase64,
-          suggestions: [
-            "Capture a clear photo of an affected farm crop or plant leaf for disease diagnosis.",
-            "Take a photo of an official Land Patta, RoR 1B, Soil Health Card, or Farmer ID.",
-            "Avoid everyday indoor items, clothes, or non-agricultural objects.",
-          ],
-        },
-      });
-      return false;
+    // 1. Client-side pixel domain hints
+    let classification: any = null;
+    try {
+      classification = await classifyBase64Image(fileBase64, fileName, category);
+    } catch (e) {
+      console.warn("Client-side classification notice:", e);
     }
+
+    const customApiKey =
+      typeof window !== "undefined"
+        ? localStorage.getItem("janmitra_custom_vision_key") || undefined
+        : undefined;
 
     try {
       const res = await fetch("/api/ocr/analyze", {
@@ -1228,6 +1220,7 @@ export const useFarmerStore = create<FarmerState>((set, get) => {
           fileType,
           docCategory: category,
           classification,
+          customApiKey,
         }),
       });
 

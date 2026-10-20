@@ -129,8 +129,10 @@ export function classifyImagePixels(
   const textDensity = totalSampled > 0 ? highContrastTextEdges / totalSampled : 0;
   const skinRatio = totalSampled > 0 ? humanSkinCount / totalSampled : 0;
 
-  // STRICT RULE 1: Human Selfies, Faces, and Portraits are ALWAYS OUT OF SCOPE!
-  if (skinRatio >= 0.016) {
+  // STRICT RULE 1: Clear Human Face / Portrait / Selfie with NO document paper or crop foliage:
+  // (A farmer holding a leaf or document with fingers has small skinRatio < 0.22, which is normal and allowed!)
+  const isClearPortrait = skinRatio >= 0.22 && greenRatio < 0.05 && docRatio < 0.18 && !hasAgriKeyword;
+  if (isClearPortrait) {
     return {
       isAgriRelated: false,
       detectedType: "out_of_scope",

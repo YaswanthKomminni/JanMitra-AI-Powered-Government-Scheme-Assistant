@@ -186,45 +186,61 @@ export function formatDocumentAnalysisReply(det: any, lang: SupportedLanguage): 
     };
   }
 
-  const isTelanganaDeed =
-    det.title?.toLowerCase().includes("sale deed") ||
-    det.title?.toLowerCase().includes("dharani") ||
-    det.title?.toLowerCase().includes("విక్రయ");
+  const isLandDeed =
+    det.docType === "land_record" &&
+    (det.title?.toLowerCase().includes("deed") ||
+     det.title?.toLowerCase().includes("patta") ||
+     det.title?.toLowerCase().includes("pahani") ||
+     det.title?.toLowerCase().includes("dharani") ||
+     det.title?.toLowerCase().includes("land") ||
+     det.title?.toLowerCase().includes("విక్రయ"));
 
-  if (isTelanganaDeed) {
+  if (isLandDeed) {
+    const lines: string[] = [];
+    if (ext.ownerName) lines.push(`• Owner / Pattadar: ${ext.ownerName}`);
+    if (ext.sellerName) lines.push(`• Vendor / Seller: ${ext.sellerName}`);
+    if (ext.surveyNumber) lines.push(`• ${ext.surveyNumber}`);
+    if (ext.landExtent) lines.push(`• Land Extent: ${ext.landExtent}`);
+    if (ext.considerationAmount) lines.push(`• Consideration / Value: ${ext.considerationAmount}`);
+    if (ext.passBookNumber) lines.push(`• Passbook Number: ${ext.passBookNumber}`);
+    if (ext.districtMandal) lines.push(`• Jurisdiction: ${ext.districtMandal}`);
+    if (ext.revenueStatus) lines.push(`• Status: ${ext.revenueStatus}`);
+
+    const detailsStr = lines.length > 0 ? lines.join("\n") : `• ${det.detectionSummary}`;
+
     if (lang === "te") {
       return {
-        text: `🏛️ తెలంగాణ ప్రభుత్వం - ధరణి నమోదిత విక్రయ పత్రం (Registered Sale Deed) విశ్లేషించబడింది!\n\n📋 ధృవీకరించబడిన పత్ర వివరాలు:\n• పత్రం రకం: వ్యవసాయ భూమి విక్రయ పత్రం (Registered Sale Deed)\n• కొనుగోలుదారు (Vendee / నూతన యజమాని): ${ext.ownerName || "బానోతు వెంకన్న"}\n• విక్రేత (Vendor): ${ext.sellerName || "నరాల నవ్యశ్రీ"}\n• సర్వే నంబర్: ${ext.surveyNumber || "65/ఆ/1 (రెడ్లవాడ)"}\n• విస్తీర్ణం: ${ext.extentAcGts || "0.2250 ఎకరాలు"}\n• రిజిస్ట్రేషన్ ప్రతిఫలం: ${ext.considerationAmount || "₹1,26,518"}\n• పాస్ పుస్తకం నం: ${ext.passBookNumber || "T22090081201"}\n• ప్రాంతం: ${ext.districtMandal || "రెడ్లవాడ, నెక్కొండ మండలం, వరంగల్ జిల్లా"}\n\n✅ అర్హత గల ప్రభుత్వ సంక్షేమ పథకాలు & తదుపరి చర్యలు:\n1. ధరణి ఆటో-మ్యుటేషన్ & ఈ-పాస్ పుస్తకం: సేల్ డీడ్ ఆధారంగా మీ పేరిట డిజిటల్ పట్టాదారు పాస్ పుస్తకం జారీ.\n2. PM-KISAN: మ్యుటేషన్ తర్వాత సంవత్సరానికి ₹6,000 నేరుగా బ్యాంక్ ఖాతాలో జమ.\n3. రైతు బంధు / రైతు భరోసా: ఎకరాకు సాగు పెట్టుబడి సాయం.\n4. కిసాన్ క్రెడిట్ కార్డ్ (KCC): 4% రాయితీ వడ్డీకే బ్యాంకు పంట రుణం.\n5. PM-KUSUM: 60% సబ్సిడీతో సోలార్ వాటర్ పంపు.`,
-        chips: ["ధరణి మ్యుటేషన్ దరఖాస్తు", "PM-KISAN అర్హత పరిశీలన", "KCC బ్యాంక్ లోన్ వివరాలు", "దస్తావేజు వెరిఫికేషన్ చూడండి"],
+        text: `🏛️ **${det.title} విశ్లేషించబడింది!**\n\n📋 **ధృవీకరించబడిన పత్ర వివరాలు:**\n${detailsStr}\n\n✅ **అర్హత గల ప్రభుత్వ సంక్షేమ పథకాలు & తదుపరి చర్యలు:**\n1. **PM-KISAN:** సర్వే నంబర్ ఆధారంగా సంవత్సరానికి ₹6,000 నేరుగా బ్యాంక్ ఖాతాలో జమ.\n2. **కిసాన్ క్రెడిట్ కార్డ్ (KCC):** 4% రాయితీ వడ్డీకే బ్యాంకు పంట రుణం.\n3. **PM-KUSUM:** 60% సబ్సిడీతో సోలార్ వాటర్ పంపు పథకం.\n4. **రెవెన్యూ టైటిల్ మ్యుటేషన్ & ఈ-పాస్ పుస్తకం:** డిజిటల్ పట్టాదారు పాస్ పుస్తకం జారీ.`,
+        chips: ["PM-KISAN అర్హత పరిశీలన", "KCC బ్యాంక్ లోన్ వివరాలు", "సోలార్ పంపు సబ్సిడీ", "దస్తావేజు వెరిఫికేషన్ చూడండి"],
       };
     }
     if (lang === "hi") {
       return {
-        text: `🏛️ तेलंगाना सरकार धरणी पंजीकृत विक्रय पत्र (Registered Sale Deed) सत्यापित:\n\n📋 दस्तावेज़ विवरण:\n• दस्तावेज़: कृषि भूमि बैनामा (Sale Deed)\n• क्रेता (खरीदार / Vendee): ${ext.ownerName || "बनोथु वेंकन्ना"}\n• विक्रेता (Seller / Vendor): ${ext.sellerName || "नराला नव्या श्री"}\n• सर्वे संख्या: ${ext.surveyNumber || "65/ఆ/1 (रेडलावाड़ा)"}\n• रकबा: ${ext.extentAcGts || "0.2250 एकड़"}\n• प्रतिफल राशि: ${ext.considerationAmount || "₹1,26,518"}\n• पासबुक नंबर: ${ext.passBookNumber || "T22090081201"}\n• क्षेत्र: ${ext.districtMandal || "रेडलावाड़ा, नेक्कोंडा, वारंगल"}\n\n✅ अनुशंसित सरकारी योजनाएं एवं कानूनी प्रक्रिया:\n1. धरणी नामांतरण (Dharani Mutation): डिजिटल ई-पासबुक और खाता संख्या जारी करना.\n2. PM-KISAN: ₹6,000 वार्षिक डायरेक्ट बेनिफिट ट्रांसफर (DBT).\n3. किसान क्रेडिट कार्ड (KCC): 4% ब्याज पर रियायती कृषि ऋण.\n4. PM-KUSUM सोलर पंप: 60% सब्सिडी पर सौर ऊर्जा पंप.`,
-        chips: ["धरणी म्यूटेशन प्रक्रिया", "PM-KISAN ₹6,000 जांचें", "KCC 4% ऋण आवेदन", "दस्तावेज़ विवरण देखें"],
+        text: `🏛️ **${det.title} सत्यापित!**\n\n📋 **दस्तावेज़ से सत्यापित विवरण:**\n${detailsStr}\n\n✅ **अनुशंसित सरकारी योजनाएं एवं कानूनी प्रक्रिया:**\n1. **PM-KISAN:** सर्वे संख्या अनुसार ₹6,000 वार्षिक डायरेक्ट बेनिफिट ट्रांसफर (DBT).\n2. **किसान क्रेडिट कार्ड (KCC):** 4% ब्याज पर रियायती कृषि ऋण.\n3. **PM-KUSUM सोलर पंप:** 60% सब्सिडी पर सौर ऊर्जा पंप योजना.\n4. **नामांतरण (Mutation):** डिजिटल खतौनी / ई-पासबुक जारी करना.`,
+        chips: ["PM-KISAN ₹6,000 जांचें", "KCC 4% ऋण आवेदन", "सोलर पंप सब्सिडी", "दस्तावेज़ विवरण देखें"],
       };
     }
     if (lang === "ta") {
       return {
-        text: `🏛️ தெலங்கானா அரசு - தரணி பதிவு செய்யப்பட்ட விற்பனைப் பத்திரம் (Registered Sale Deed) சரிபார்க்கப்பட்டது!\n\n📋 சரிபார்க்கப்பட்ட ஆவண விவரங்கள்:\n• ஆவண வகை: விவசாய நில விற்பனைப் பத்திரம் (Registered Sale Deed)\n• வாங்குபவர் (Vendee / புதிய உரிமையாளர்): ${ext.ownerName || "பனோத்து வெங்கன்னா"}\n• விற்பனையாளர் (Vendor): ${ext.sellerName || "நராலா நவ்யா ஸ்ரீ"}\n• சர்வே எண்: ${ext.surveyNumber || "65/ஆ/1 (ரெட்லவாடா)"}\n• நில அளவு: ${ext.extentAcGts || "0.2250 ஏக்கர்"}\n• பதிவுத் தொகை: ${ext.considerationAmount || "₹1,26,518"}\n• பாஸ்புக் எண்: ${ext.passBookNumber || "T22090081201"}\n• வருவாய் பகுதி: ${ext.districtMandal || "ரெட்லவாடா, நெக்கொண்டா மண்டலம், வாரங்கல் மாவட்டம்"}\n\n✅ தகுதியான அரசு நலத்திட்டங்கள் & அடுத்த நடவடிக்கைகள்:\n1. தரணி தானியங்கி பட்டா மாற்றம் & இ-பாஸ்புக்: விற்பனைப் பத்திரத்தின் அடிப்படையில் டிஜிட்டல் பட்டாதாரர் பாஸ்புக் வழங்கல்.\n2. PM-KISAN: பட்டா மாற்றத்திற்குப் பிறகு ஆண்டுக்கு ₹6,000 வங்கி கணக்கில் நேரடியாக வரவு.\n3. ரைத்து பந்து / ரைத்து பரோசா: ஏக்கருக்கு சாகுபடி முதலீட்டு உதவி.\n4. கிசான் கிரெடிட் கார்டு (KCC): பதிவு செய்யப்பட்ட நிலத்திற்கு 4% மானிய வட்டியில் வங்கிப் பயிர்க்கடன்.\n5. PM-KUSUM: 60% மானியத்தில் சோலார் நீர் பம்ப்.`,
-        chips: ["தரணி பட்டா மாற்றம் விண்ணப்பம்", "PM-KISAN தகுதி சரிபார்", "KCC வங்கி கடன் விவரங்கள்", "ஆவண சரிபார்ப்பை திறக்கவும்"],
+        text: `🏛️ **${det.title} சரிபார்க்கப்பட்டது!**\n\n📋 **சரிபார்க்கப்பட்ட ஆவண விவரங்கள்:**\n${detailsStr}\n\n✅ **தகுதியான அரசு நலத்திட்டங்கள் & அடுத்த நடவடிக்கைகள்:**\n1. **PM-KISAN:** ஆண்டுக்கு ₹6,000 வங்கி கணக்கில் நேரடியாக வரவு.\n2. **கிசான் கிரெடிட் கார்டு (KCC):** 4% மானிய வட்டியில் பயிர்க்கடன்.\n3. **PM-KUSUM:** 60% மானியத்தில் சோலார் நீர் பம்ப்.\n4. **பட்டா மாற்றம் & இ-பாஸ்புக்:** டிஜிட்டல் பட்டாதாரர் பாஸ்புக் வழங்கல்.`,
+        chips: ["PM-KISAN தகுதி சரிபார்", "KCC வங்கி கடன் விவரங்கள்", "சோலார் பம்ப் மானியம்", "ஆவண சரிபார்ப்பை திறக்கவும்"],
       };
     }
     if (lang === "kn") {
       return {
-        text: `🏛️ ತೆಲಂಗಾಣ ಸರ್ಕಾರ - ಧರಣಿ ನೋಂದಾಯಿತ ಮಾರಾಟ ಪತ್ರ (Registered Sale Deed) ಪರಿಶೀಲಿಸಲಾಗಿದೆ!\n\n📋 ಪರಿಶೀಲಿಸಲಾದ ದಾಖಲೆಯ ವಿವರಗಳು:\n• ದಾಖಲೆಯ ಪ್ರಕಾರ: ಕೃಷಿ ಭೂಮಿ ಮಾರಾಟ ಪತ್ರ (Registered Sale Deed)\n• ಖರೀದಿದಾರ (Vendee / ಹೊಸ ಮಾಲೀಕ): ${ext.ownerName || "ಬಾನೋತು ವೆಂಕಣ್ಣ"}\n• ಮಾರಾಟಗಾರ (Vendor): ${ext.sellerName || "ನರಾಲ ನವ್ಯಶ್ರೀ"}\n• ಸರ್ವೆ ಸಂಖ್ಯೆ: ${ext.surveyNumber || "65/ಆ/1 (ರೆಡ್ಲವಾಡ)"}\n• ವಿಸ್ತೀರ್ಣ: ${ext.extentAcGts || "0.2250 ಎಕರೆ"}\n• ನೋಂದಣಿ ಮೌಲ್ಯ: ${ext.considerationAmount || "₹1,26,518"}\n• ಪಾಸ್ ಬುಕ್ ಸಂಖ್ಯೆ: ${ext.passBookNumber || "T22090081201"}\n• ಕಂದಾಯ ಪ್ರದೇಶ: ${ext.districtMandal || "ರೆಡ್ಲವಾಡ, ನೆಕ್ಕೊಂಡ ಮಂಡಲ, ವಾರಂಗಲ್ ಜಿಲ್ಲೆ"}\n\n✅ ಅರ್ಹ ಸರ್ಕಾರಿ ಕಲ್ಯಾಣ ಯೋಜನೆಗಳು & ಮುಂದಿನ ಕ್ರಮಗಳು:\n1. ಧರಣಿ ಸ್ವಯಂ-ಮ್ಯುಟೇಶನ್ & ಇ-ಪಾಸ್ ಬುಕ್: ಮಾರಾಟ ಪತ್ರದ ಆಧಾರದ ಮೇಲೆ ಡಿಜಿಟಲ್ ಪಟ್ಟಾದಾರ ಪಾಸ್ ಬುಕ್ ವಿತರಣೆ.\n2. PM-KISAN: ಮ್ಯುಟೇಶನ್ ನಂತರ ವರ್ಷಕ್ಕೆ ₹6,000 ನೇರ ಬ್ಯಾಂಕ್ ಖಾತೆಗೆ ಜಮೆ.\n3. ರೈತ ಬಂಧು / ರೈತ ಭರೋಸಾ: ಪ್ರತಿ ಎಕರೆಗೆ ಕೃಷಿ ಹೂಡಿಕೆ ನೆರವು.\n4. ಕಿಸಾನ್ ಕ್ರೆಡಿಟ್ ಕಾರ್ಡ್ (KCC): ನೋಂದಾಯಿತ ಭೂಮಿಗೆ 4% ರಿಯಾಯಿತಿ ಬಡ್ಡಿಯಲ್ಲಿ ಬೆಳೆ ಸಾಲ.\n5. PM-KUSUM: 60% ಸಬ್ಸಿಡಿಯೊಂದಿಗೆ ಸೋಲಾರ್ ವಾಟರ್ ಪಂಪ್.`,
-        chips: ["ಧರಣಿ ಮ್ಯುಟೇಶನ್ ಪ್ರಕ್ರಿಯೆ", "PM-KISAN ಲಿಂಕ್ ಪರಿಶೀಲಿಸಿ", "KCC ಬ್ಯಾಂಕ್ ಸಾಲ ವಿವರ", "ದಾಖಲೆ ವಿವರ ನೋಡಿ"],
+        text: `🏛️ **${det.title} ಪರಿಶೀಲಿಸಲಾಗಿದೆ!**\n\n📋 **ಪರಿಶೀಲಿಸಲಾದ ದಾಖಲೆಯ ವಿವರಗಳು:**\n${detailsStr}\n\n✅ **ಅರ್ಹ ಸರ್ಕಾರಿ ಕಲ್ಯಾಣ ಯೋಜನೆಗಳು & ಮುಂದಿನ ಕ್ರಮಗಳು:**\n1. **PM-KISAN:** ವರ್ಷಕ್ಕೆ ₹6,000 ನೇರ ಬ್ಯಾಂಕ್ ಖಾತೆಗೆ ಜಮೆ.\n2. **ಕಿಸಾನ್ ಕ್ರೆಡಿಟ್ ಕಾರ್ಡ್ (KCC):** 4% ರಿಯಾಯಿತಿ ಬಡ್ಡಿಯಲ್ಲಿ ಬೆಳೆ ಸಾಲ.\n3. **PM-KUSUM:** 60% ಸಬ್ಸಿಡಿಯೊಂದಿಗೆ ಸೋಲಾರ್ ವಾಟರ್ ಪಂಪ್.\n4. **ಮ್ಯುಟೇಶನ್ & ಇ-ಪಾಸ್ ಬುಕ್:** ಡಿಜಿಟಲ್ ಪಟ್ಟಾದಾರ ಪಾಸ್ ಬುಕ್ ವಿತರಣೆ.`,
+        chips: ["PM-KISAN ಲಿಂಕ್ ಪರಿಶೀಲಿಸಿ", "KCC ಬ್ಯಾಂಕ್ ಸಾಲ ವಿವರ", "ಸೋಲಾರ್ ಪಂಪ್ ಅರ್ಜಿ", "ದಾಖಲೆ ವಿವರ ನೋಡಿ"],
       };
     }
     if (lang === "bn") {
       return {
-        text: `🏛️ তেলেঙ্গানা সরকার - ধরণী নিবন্ধিত বিক্রয় দলিল (Registered Sale Deed) যাচাইকৃত!\n\n📋 যাচাইকৃত দলিলের বিবরণ:\n• দলিলের ধরন: কৃষিজমি বিক্রয় দলিল (Registered Sale Deed)\n• ক্রেতা (Vendee / নতুন মালিক): ${ext.ownerName || "বানোথু ভেঙ্কান্না"}\n• বিক্রেতা (Vendor): ${ext.sellerName || "নরালা নব্যাশ্রী"}\n• দাগ/সার্ভে নং: ${ext.surveyNumber || "৬৫/আ/১ (রেডলাওয়াদা)"}\n• জমির পরিমাণ: ${ext.extentAcGts || "০.২২৫০ একর"}\n• রেজিস্ট্রেশন মূল্য: ${ext.considerationAmount || "₹১,২৬,৫১৮"}\n• পাসবুক নং: ${ext.passBookNumber || "T22090081201"}\n• এলাকা: ${ext.districtMandal || "রেডলাওয়াদা, নেক্কোন্ডা, ওয়ারাঙ্গল"}\n\n✅ যোগ্য সরকারি কল্যাণ প্রকল্প ও পরবর্তী করণীয়:\n1. ধরণী অটো-মিউটেশন ও ই-পাসবুক: দলিলের ভিত্তিতে ডিজিটাল পাট্টাদার পাসবুক প্রদান।\n2. PM-KISAN: বার্ষিক ₹৬,০০০ সরাসরি ব্যাংক অ্যাকাউন্টে জমা।\n3. রায়থু বন্ধু / রায়থু ভরসা: একর প্রতি চাষের বিনিয়োগ সহায়তা।\n4. কিষাণ ক্রেডিট কার্ড (KCC): ৪% রেয়াতি সুদে ফসল ঋণ।\n5. PM-KUSUM: ৬০% ভর্তুকিতে সৌর জল পাম্প।`,
-        chips: ["ধরণী মিউটেশন আবেদন", "PM-KISAN স্থিতি যাচাই", "KCC লোন তথ্য", "দলিল বিবরণ দেখুন"],
+        text: `🏛️ **${det.title} যাচাইকৃত!**\n\n📋 **যাচাইকৃত দলিলের বিবরণ:**\n${detailsStr}\n\n✅ **যোগ্য সরকারি কল্যাণ প্রকল্প ও পরবর্তী করণীয়:**\n1. **PM-KISAN:** বার্ষিক ₹৬,০০০ সরাসরি ব্যাংক অ্যাকাউন্টে জমা।\n2. **কিষাণ ক্রেডিট কার্ড (KCC):** ৪% রেয়াতি সুদে ফসল ঋণ।\n3. **PM-KUSUM:** ৬০% ভর্তুকিতে সৌর জল পাম্প।\n4. **মিউটেশন ও ই-পাসবুক:** ডিজিটাল পাট্টাদার পাসবুক প্রদান।`,
+        chips: ["PM-KISAN স্থিতি যাচাই", "KCC লোন তথ্য", "সৌর পাম্প ভর্তুকি", "দলিল বিবরণ দেখুন"],
       };
     }
     return {
-      text: `🏛️ Government of Telangana Dharani Registered Sale Deed Verified:\n\n📋 Verified Title & Conveyance Parameters:\n• Document Type: Farmland Registered Deed of Sale (Sale Deed)\n• Vendee (Buyer / Absolute Owner): ${ext.ownerName || "Banothu Venkanna"}\n• Vendor (Seller): ${ext.sellerName || "Narala Navya Sri"}\n• Survey Number: ${ext.surveyNumber || "Survey No: 65/ఆ/1 (Redlawada)"}\n• Land Extent: ${ext.extentAcGts || "0.2250 Ac.Gts"}\n• Consideration Paid: ${ext.considerationAmount || "₹1,26,518"}\n• Passbook Number: ${ext.passBookNumber || "T22090081201"}\n• Revenue Location: ${ext.districtMandal || "Redlawada (V), Nekkonda (M), Warangal Dist"}\n\n✅ Unlocked Welfare Schemes & Actions:\n1. Dharani Auto-Mutation & e-Passbook: Automatic transfer of title and issuance of digital Pattadar Passbook.\n2. PM-KISAN: Direct Benefit Transfer of ₹6,000/year to linked bank account.\n3. Rythu Bharosa / Rythu Bandhu: Seasonal farm investment support.\n4. Kisan Credit Card (KCC): Concessional crop credit at 4% interest against registered land.\n5. PM-KUSUM Component-B: 60% subsidy for solar water pump.`,
-      chips: ["Dharani Mutation Process", "Check PM-KISAN Linkage", "Apply for KCC Loan", "Open in Document Modal"],
+      text: `🏛️ **${det.title} Verified!**\n\n📋 **Verified Parameters:**\n${detailsStr}\n\n✅ **Unlocked Welfare Schemes & Next Actions:**\n1. **PM-KISAN:** Direct Benefit Transfer of ₹6,000/year to linked bank account.\n2. **Kisan Credit Card (KCC):** Concessional crop credit at 4% interest against registered land.\n3. **PM-KUSUM Component-B:** 60% subsidy for solar water pump installation.\n4. **Title Mutation & e-Passbook:** Digital land title linkage and verification.`,
+      chips: ["Check PM-KISAN Linkage", "Apply for KCC Loan", "Solar Pump 60% Subsidy", "Open in Document Modal"],
     };
   }
 
