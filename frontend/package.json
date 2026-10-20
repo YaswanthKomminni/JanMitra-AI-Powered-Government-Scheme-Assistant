@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "prebuild": "node scripts/prepare-vision.mjs",
     "dev": "next dev -p 3000",
     "build": "next build",
     "start": "next start",
@@ -16,6 +17,9 @@
     "db:transfer-mysql": "node scripts/migrate-mysql-data.mjs"
   },
   "dependencies": {
+    "@huggingface/transformers": "^4.3.1",
+    "@tesseract.js-data/eng": "^1.0.0",
+    "@tesseract.js-data/tel": "^1.0.0",
     "bcryptjs": "^3.0.2",
     "clsx": "^2.1.1",
     "lucide-react": "^0.453.0",
@@ -25,6 +29,7 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "server-only": "^0.0.1",
+    "sharp": "^0.35.5",
     "tailwind-merge": "^2.5.4",
     "tesseract.js": "^7.0.0",
     "zustand": "^4.5.5"

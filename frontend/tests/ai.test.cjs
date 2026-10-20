@@ -20,6 +20,8 @@ const { parseAndSummarizeDocumentContent, answerDocumentQuestion } = require('..
 const { analyzeImageIntelligently, normalizeVisionResult } = require('../src/lib/visionLlm.ts');
 const { performOcr } = require('../src/lib/ocrEngine.ts');
 const { generateIntelligentChatReply } = require('../src/lib/llmService.ts');
+const { classifyImagePixels } = require('../src/lib/visionClassifier.ts');
+const { classifyImageObjects, clearlyIrrelevantObject } = require('../src/lib/localImageModel.ts');
 const env = { ...process.env };
 const realFetch = global.fetch;
 after(() => { process.env = env; global.fetch = realFetch; Module._resolveFilename = resolve; });
@@ -101,6 +103,29 @@ test('malformed model output is not silently accepted as a relevant document', (
   assert.equal(normalizeVisionResult({ scopeStatus: 'uncertain' }).isAgriRelated, false);
 });
 
+test('filenames, image colors and manually selected categories cannot verify an upload', () => {
+  for (const category of ['auto_detect', 'crop_disease', 'land_record', 'identity_card']) {
+    const result = classifyImagePixels([0, 255, 0, 255], 1, 1, 'government_scheme.pdf', category);
+    assert.equal(result.scopeStatus, 'pending');
+    assert.equal(result.isAgriRelated, false);
+    assert.equal(result.confidence, 0);
+  }
+});
+
+test('poster explanation includes its readable summary and suggested steps', () => {
+  const detection = { parsedDetails: parseAndSummarizeDocumentContent('TELANGANA GOVT SCHEMES AND POLICIES\nMahalakshmi\nRythu Bharosa\nCheck eligibility with the issuing department.') };
+  const reply = answerDocumentQuestion('tell me about this schemes', detection, 'en');
+  assert.match(reply.text, /TELANGANA/);
+  assert.match(reply.text, /Suggested next steps/);
+  assert.match(reply.text, /Mahalakshmi/);
+});
+
+test('object rejection requires confident explicit unrelated evidence', () => {
+  assert.ok(clearlyIrrelevantObject([{ label: 'an indoor room with a ceiling, walls, a fan and furniture', probability: 0.9 }]));
+  assert.equal(clearlyIrrelevantObject([{ label: 'electric fan, blower', probability: 0.2 }]), undefined);
+  assert.equal(clearlyIrrelevantObject([{ label: 'book jacket', probability: 0.99 }]), undefined);
+});
+
 test('searchable PDF bytes are extracted instead of passed to image OCR', async () => {
   const content = 'BT /F1 12 Tf 40 740 Td (Government Welfare Pension Scheme) Tj ET';
   const objects = [
@@ -118,7 +143,7 @@ test('searchable PDF bytes are extracted instead of passed to image OCR', async 
 
 test('real agricultural notice image is read locally with no cloud key', { skip: !process.env.TEST_REAL_OCR }, async () => {
   global.fetch = realFetch;
-  process.env.OCR_LANG_PATH = path.resolve(__dirname, '..');
+  delete process.env.OCR_LANG_PATH;
   const filename = process.env.TEST_OCR_FILE || path.resolve(__dirname, '../public/documents/bau_ranchi_admission_notice.jpg');
   const data = 'data:image/jpeg;base64,' + fs.readFileSync(filename).toString('base64');
   const result = await analyzeImageIntelligently({ fileBase64: data, fileName: path.basename(filename) });
@@ -126,4 +151,25 @@ test('real agricultural notice image is read locally with no cloud key', { skip:
   assert.match(result.extractedTextSnippet, /agricultur|government|icar|directorate/i);
   assert.ok(result.extractedTextSnippet.length > 100);
   assert.doesNotMatch(result.detectionSummary, /portrait|indoor surroundings|Ramesh Goud/);
+});
+
+test('real unrelated room photo is rejected without a cloud key', { skip: !process.env.TEST_ROOM_IMAGE }, async () => {
+  global.fetch = realFetch;
+  const filename = process.env.TEST_ROOM_IMAGE;
+  const bytes = fs.readFileSync(filename);
+  const predictions = await classifyImageObjects(bytes);
+  console.log('Room object evidence:', JSON.stringify(predictions));
+  const result = await analyzeImageIntelligently({ fileBase64: 'data:image/jpeg;base64,' + bytes.toString('base64') });
+  assert.equal(result.scopeStatus, 'out_of_scope');
+  assert.match(result.title, /Irrelevant/);
+});
+
+test('real small scheme poster is analyzed with bundled OCR data', { skip: !process.env.TEST_POSTER_IMAGE }, async () => {
+  global.fetch = realFetch;
+  delete process.env.OCR_LANG_PATH;
+  const bytes = fs.readFileSync(process.env.TEST_POSTER_IMAGE);
+  const result = await analyzeImageIntelligently({ fileBase64: 'data:image/png;base64,' + bytes.toString('base64') });
+  console.log('Poster OCR:', result.extractedTextSnippet);
+  assert.equal(result.scopeStatus, 'in_scope');
+  assert.match(answerDocumentQuestion('tell me about this schemes', result, 'en').text, /Suggested next steps/);
 });

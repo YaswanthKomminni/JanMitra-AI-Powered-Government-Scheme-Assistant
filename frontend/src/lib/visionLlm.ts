@@ -50,7 +50,7 @@ async function cloudVision(provider: AiProvider, key: string, dataUrl: string, m
       const response = await fetch(gemini
         ? `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`
         : `https://api.${provider === "groq" ? "groq.com/openai" : "openai.com"}/v1/chat/completions`, {
-        method: "POST", signal,
+        method: "POST", signal: AbortSignal.any([signal, AbortSignal.timeout(8000)]),
         headers: { "Content-Type": "application/json", ...(gemini ? { "x-goog-api-key": key } : { Authorization: `Bearer ${key}` }) },
         body: JSON.stringify(gemini ? {
           contents: [{ parts: [{ text: VISION_PROMPT }, { inlineData: { mimeType, data: dataUrl.replace(/^data:[^;]+;base64,/, "") } }] }],
@@ -81,7 +81,7 @@ export async function analyzeImageIntelligently(opts: {
   const dataUrl = opts.fileBase64.startsWith("data:") ? opts.fileBase64 : `data:${mimeType};base64,${opts.fileBase64}`;
   // OCR checks model scope decisions against real document text, independently of pixel hints.
   const localPromise = analyzeDocumentComprehensive(dataUrl, opts.fileName, mimeType);
-  const signal = AbortSignal.timeout(14000);
+  const signal = AbortSignal.timeout(24000);
   let cloud: VisionAnalysisResult | null = null;
   for (const entry of providerKeys(opts.customApiKey)) {
     if (signal.aborted) break;

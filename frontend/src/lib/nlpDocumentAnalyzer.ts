@@ -46,14 +46,19 @@ export function parseAndSummarizeDocumentContent(ocrText: string, _fileName = "d
   }
   const requiredDocuments = lines.filter((line) => /certificate|marksheet|mark sheet|passbook|aadha?ar|photocop|allotment letter|admit card|CLC\s*\/\s*SLC|photograph/i.test(line));
   // Scheme names are suggestions only when explicitly mentioned in the source.
-  const unlockedSchemes = Array.from(new Set(text.match(/PM[-\s]?KISAN|PMFBY|PM[-\s]?KUSUM|Kisan Credit Card|Soil Health Card|\bSMAM\b/gi) || []));
-  const title = lines[0]?.slice(0, 160) || "Unreadable upload";
-  const summary = text ? lines.slice(0, 10).join(" ").slice(0, 1800) : "I could not read this upload. Please send a clearer image or paste the document text.";
+  const unlockedSchemes = Array.from(new Set(text.match(/PM[-\s]?KISAN|PMFBY|PM[-\s]?KUSUM|Kisan Credit Card|Soil Health Card|\bSMAM\b|Maha\s*lakshmi|Rythu\s*Bharosa|Gruha\s*Jyothi|Indiramma\s*(?:Indlu|Housing)|Cheyutha|మహాలక్ష్మి|రైతు భరోసా|గృహ జ్యోతి|ఇందిరమ్మ ఇండ్లు|చేయూత/gi) || []));
+  const heading = lines.find((line) => /government|govt|schemes? and policies|agricultur|admission|directorate|sale deed|soil health|ప్రభుత్వ|పథకాల/i.test(line));
+  const title = (heading || lines[0])?.slice(0, 160) || "Unreadable upload";
+  const isPoster = /schemes? and policies|scheme.*poster/i.test(text);
+  const summary = isPoster
+    ? `This image is a government scheme information poster headed "${title}".${unlockedSchemes.length ? ` Readable scheme names: ${unlockedSchemes.join(", ")}.` : " The individual scheme names and conditions could not all be read reliably at this resolution."} Small or unclear amounts, eligibility conditions and deadlines must be checked from a clear close-up or the official notice.`
+    : text ? lines.slice(0, 10).join(" ").slice(0, 1800) : "I could not read this upload. Please send a clearer image or paste the document text.";
   const actionableSuggestions = text ? [
     "Check the issuing department and official portal shown in the document before submitting an application.",
     parameters["Schedule / Dates"] ? `Check the stated schedule: ${parameters["Schedule / Dates"]}. Confirm that the notice is still current.` : "Confirm the current application deadline with the issuing office; it was not identified in the readable text.",
     requiredDocuments.length ? "Prepare the documents listed in this notice and confirm any missing requirements with its issuing office." : "Ask the issuing office for the application checklist; no explicit checklist was identified in the readable text.",
   ] : ["Upload a sharp, well-lit image of the entire page, or paste its text."];
+  if (isPoster) actionableSuggestions.unshift("Send a close-up of the specific scheme panel you are interested in so its benefits, eligibility and application instructions can be read accurately.");
   return { genre, title, summary, extractedParameters: parameters, requiredDocuments,
     scheduleDates: parameters["Schedule / Dates"], reportingVenue: parameters.Venue,
     unlockedSchemes, actionableSuggestions, boundingBoxes: [], fullOcrText: text };
@@ -109,10 +114,10 @@ export function answerDocumentQuestion(query: string, detection: any, lang: Supp
     const instructions = select(/apply|application|submission|portal|url|website|procedure|instructions/i);
     return { text: `${bullets(instructions)}\n\n${suggestedText}`, chips };
   }
-  if (/scheme|subsid|eligible|benefit|పథక|योजना|திட்ட|ಯೋಜನೆ|প্রকল্প/i.test(q)) return { text: `**${l.schemes}**\n${schemes.join("\n") || l.missing}`, chips };
-  if (/summar|analy|overview|explain|brief|సారాంశ|सारांश|சுருக்க|ಸಾರಾಂಶ|সারসংক্ষেপ/i.test(q) || !q.trim()) {
+  if (/summar|analy|overview|explain|brief|tell me about|సారాంశ|सारांश|சுருக்க|ಸಾರಾಂಶ|সারসংক্ষেপ/i.test(q) || !q.trim()) {
     return { text: `**${l.summary}**\n${summary}\n\n**${l.details}**\n${bullets(Object.entries(p))}\n\n${suggestedText}`, chips };
   }
+  if (/scheme|subsid|eligible|benefit|పథక|योजना|திட்ட|ಯೋಜನೆ|প্রকল্প/i.test(q)) return { text: `**${l.schemes}**\n${schemes.join("\n") || summary}\n\n${suggestedText}`, chips };
   // Unknown questions retrieve literal source lines rather than inventing an answer.
   const terms = q.match(/[a-zA-Z0-9\u0900-\u0d7f]{4,}/g) || [];
   const lines = source.split(/\r?\n/).filter((line: string) => terms.some((term) => line.toLowerCase().includes(term))).slice(0, 8);

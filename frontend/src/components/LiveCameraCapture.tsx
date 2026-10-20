@@ -12,7 +12,7 @@ import {
   Layers,
   ZoomIn,
 } from "lucide-react";
-import { classifyImagePixels } from "@/lib/visionClassifier";
+
 
 interface LiveCameraCaptureProps {
   onCapture: (base64Image: string) => void;
@@ -36,7 +36,6 @@ export default function LiveCameraCapture({
   const [cameraLoading, setCameraLoading] = useState(true);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
-  const [scopePreview, setScopePreview] = useState<{ isAgriRelated: boolean; message: string; domain: string } | null>(null);
   const [isFlashing, setIsFlashing] = useState(false);
 
   // Check available devices
@@ -147,25 +146,12 @@ export default function LiveCameraCapture({
     const base64 = canvas.toDataURL("image/jpeg", 0.92);
     setCapturedImage(base64);
 
-    try {
-      const imgData = ctx.getImageData(0, 0, width, height);
-      const result = classifyImagePixels(imgData.data, width, height, "live_scan.jpg", category);
-      setScopePreview({
-        isAgriRelated: result.isAgriRelated,
-        message: result.message,
-        domain: result.metrics.dominantDomain,
-      });
-    } catch {
-      // ignore
-    }
-
     // Stop active camera stream while reviewing
     stopStream();
   };
 
   const handleRetake = () => {
     setCapturedImage(null);
-    setScopePreview(null);
     startCamera();
   };
 
@@ -268,26 +254,11 @@ export default function LiveCameraCapture({
               alt="Captured from live camera"
               className="w-full h-full object-contain bg-black"
             />
-            {scopePreview && (
-              <div className="absolute top-4 inset-x-4 flex justify-center pointer-events-none z-20">
-                {scopePreview.isAgriRelated ? (
-                  <span className="px-3.5 py-1.5 rounded-full bg-emerald-950/90 text-emerald-300 border border-emerald-500/50 text-xs font-black shadow-lg flex items-center gap-1.5 backdrop-blur-sm">
-                    <Check className="w-3.5 h-3.5 text-emerald-400" />
-                    In Scope: {scopePreview.domain}
-                  </span>
-                ) : (
-                  <div className="flex flex-col items-center gap-1">
-                    <span className="px-4 py-1.5 rounded-full bg-rose-950/95 text-rose-300 border border-rose-500/80 text-xs font-black shadow-2xl flex items-center gap-2 backdrop-blur-md">
-                      <X className="w-4 h-4 text-rose-400 shrink-0" />
-                      Not Related to Agriculture or Schemes ({scopePreview.domain})
-                    </span>
-                    <span className="text-[11px] font-bold text-rose-200 bg-black/85 px-3 py-0.5 rounded-full shadow border border-rose-500/30">
-                      Please point camera at a farming crop, plant leaf, or official land document
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
+            <div className="absolute top-4 inset-x-4 flex justify-center pointer-events-none z-20">
+              <span className="px-3 py-1.5 rounded-full bg-stone-950/90 text-stone-200 text-xs font-bold border border-stone-500">
+                Photo captured · Relevance checked when you scan
+              </span>
+            </div>
           </div>
         )}
 
@@ -306,7 +277,7 @@ export default function LiveCameraCapture({
               <div className="absolute inset-x-2 h-0.5 bg-gradient-to-r from-transparent via-emerald-400 to-transparent shadow-[0_0_12px_#34d399] animate-scan-laser" />
 
               <div className="px-3 py-1 rounded-full bg-black/60 backdrop-blur-sm border border-emerald-400/30 text-[11px] font-bold text-emerald-300">
-                Llama 3.2 Live View
+                Camera preview
               </div>
             </div>
 
@@ -387,23 +358,10 @@ export default function LiveCameraCapture({
 
             <button
               onClick={handleConfirm}
-              className={`flex-1 py-3 px-4 rounded-2xl font-black text-sm shadow-lg transition flex items-center justify-center gap-2 ${
-                scopePreview && !scopePreview.isAgriRelated
-                  ? "bg-rose-700 hover:bg-rose-600 text-white shadow-rose-700/30"
-                  : "bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/30"
-              }`}
+              className="flex-1 py-3 px-4 rounded-2xl font-black text-sm shadow-lg transition flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white"
             >
-              {scopePreview && !scopePreview.isAgriRelated ? (
-                <>
-                  <X className="w-4 h-4" />
-                  <span>Verify Scope & Scan</span>
-                </>
-              ) : (
-                <>
-                  <Check className="w-4 h-4" />
-                  <span>Use Photo & Scan</span>
-                </>
-              )}
+              <Check className="w-4 h-4" />
+              <span>Use Photo & Scan</span>
             </button>
           </div>
         )}

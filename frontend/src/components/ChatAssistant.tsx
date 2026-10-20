@@ -284,7 +284,7 @@ export default function ChatAssistant({ variant = "full" }: { variant?: "full" |
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                       <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                     </span>
-                    <span>Document Verified</span>
+                    <span>Image uploaded</span>
                   </div>
                 </div>
               ) : (
@@ -292,7 +292,7 @@ export default function ChatAssistant({ variant = "full" }: { variant?: "full" |
                   <FileText className="w-8 h-8 text-emerald-300 shrink-0" />
                   <div className="text-xs truncate">
                     <p className="font-bold truncate">{msg.fileName || "Uploaded Document"}</p>
-                    <p className="opacity-80 text-[10px]">Verified Document File</p>
+                    <p className="opacity-80 text-[10px]">Uploaded document file</p>
                   </div>
                 </div>
               ))}
@@ -310,7 +310,7 @@ export default function ChatAssistant({ variant = "full" }: { variant?: "full" |
               <div className="mt-3 pt-2.5 border-t border-stone-200/80 flex items-center justify-between gap-2">
                 <span className="text-[11px] font-bold text-stone-500 flex items-center gap-1.5">
                   <CheckCheck className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Document Verified</span>
+                  <span>Image analyzed</span>
                 </span>
                 <button
                   type="button"
@@ -744,7 +744,7 @@ export default function ChatAssistant({ variant = "full" }: { variant?: "full" |
                 const fileName = `Live_Scan_${Date.now()}.jpg`;
                 let classification: any = null;
                 try {
-                  classification = await classifyBase64Image(base64, fileName, "crop_disease");
+                  classification = await classifyBase64Image(base64, fileName, "auto_detect");
                 } catch (e) {
                   console.warn("[chat] Live scan classification error:", e);
                 }
