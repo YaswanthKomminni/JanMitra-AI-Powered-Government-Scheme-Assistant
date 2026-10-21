@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { MessageSquare, Landmark, ScanLine, History, Users, ArrowRight, Sparkles } from "lucide-react";
 import { useFarmerStore } from "@/store/useFarmerStore";
 import { useSchemes } from "@/hooks/useSchemes";
-import { translations, getLocalizedCategory } from "@/lib/i18n";
+import { translations, getLocalizedCategory, getLocalizedScheme } from "@/lib/i18n";
 import { PageContainer, EmptyState, LoadingState, ErrorState, primaryBtn, secondaryBtn } from "@/components/PageKit";
 import { relativeTime } from "@/components/ConversationSidebar";
 
@@ -69,18 +69,21 @@ export default function HomePage() {
             <EmptyState icon={Landmark} title="No schemes available yet" description="Schemes will appear here once they are available." />
           ) : (
             <div className="space-y-3">
-              {top.map((s) => (
-                <article key={s.id} className="rounded-2xl border border-jm-border bg-jm-surface p-5">
-                  <div className="flex flex-wrap items-center gap-2 text-xs">
-                    <span className="rounded-full border border-jm-border bg-jm-muted px-2.5 py-1 text-jm-text2">{getLocalizedCategory(s.categoryName, language)}</span>
-                    {s.code && <span className="text-jm-text2">{s.code}</span>}
-                  </div>
-                  <h3 className="mt-2 text-base font-semibold text-jm-text">{s.name}</h3>
-                  <p className="mt-1 line-clamp-2 text-sm text-jm-text2">{s.description}</p>
-                  {s.eligibilitySummary && <p className="mt-2 line-clamp-2 text-sm text-jm-text"><span className="font-medium">{t.eligibilityLabel || "Eligibility"}: </span>{s.eligibilitySummary}</p>}
-                  <button onClick={() => setSelectedScheme(s)} className="mt-3 inline-flex h-9 items-center rounded-lg border border-jm-border px-3 text-sm font-medium text-jm-text hover:bg-jm-muted">{t.viewDetails || "View Details"}</button>
-                </article>
-              ))}
+              {top.map((rawScheme) => {
+                const s = getLocalizedScheme(rawScheme, language);
+                return (
+                  <article key={s.id} className="rounded-2xl border border-jm-border bg-jm-surface p-5">
+                    <div className="flex flex-wrap items-center gap-2 text-xs">
+                      <span className="rounded-full border border-jm-border bg-jm-muted px-2.5 py-1 text-jm-text2">{s.categoryName || getLocalizedCategory(s.categoryName, language)}</span>
+                      {s.code && <span className="text-jm-text2">{s.code}</span>}
+                    </div>
+                    <h3 className="mt-2 text-base font-semibold text-jm-text">{s.name}</h3>
+                    <p className="mt-1 line-clamp-2 text-sm text-jm-text2">{s.description}</p>
+                    {s.eligibilitySummary && <p className="mt-2 line-clamp-2 text-sm text-jm-text"><span className="font-medium">{t.eligibilityLabel || "Eligibility"}: </span>{s.eligibilitySummary}</p>}
+                    <button onClick={() => setSelectedScheme(s)} className="mt-3 inline-flex h-9 items-center rounded-lg border border-jm-border px-3 text-sm font-medium text-jm-text hover:bg-jm-muted">{t.viewDetails || "View Details"}</button>
+                  </article>
+                );
+              })}
             </div>
           )}
         </section>

@@ -4,7 +4,7 @@ import React, { useMemo, useState } from "react";
 import { ScanLine, FileText, Search, X } from "lucide-react";
 import { useFarmerStore } from "@/store/useFarmerStore";
 import { useSchemes } from "@/hooks/useSchemes";
-import { translations } from "@/lib/i18n";
+import { translations, getLocalizedScheme, DOCUMENT_TRANSLATIONS } from "@/lib/i18n";
 import { PageContainer, PageTitle, LoadingState, ErrorState, EmptyState, primaryBtn } from "@/components/PageKit";
 
 function canonicalizeDocName(raw: string): { key: string; displayName: string } {
@@ -215,7 +215,9 @@ export default function DocumentsPage() {
                 >
                   <span className="flex min-w-0 items-center gap-3 text-sm text-jm-text">
                     <FileText className="h-4 w-4 shrink-0 text-jm-primary" />
-                    <span className="truncate font-medium">{d.displayName}</span>
+                    <span className="truncate font-medium">
+                      {(DOCUMENT_TRANSLATIONS[language] && DOCUMENT_TRANSLATIONS[language][d.displayName]) || d.displayName}
+                    </span>
                   </span>
                   <span className="shrink-0 text-xs font-semibold text-jm-text2 bg-jm-muted/80 px-2.5 py-1 rounded-full border border-jm-border">
                     {typeof t.neededByCount === "function" ? t.neededByCount(d.n) : `Needed by ${d.n} schemes`}
@@ -226,19 +228,24 @@ export default function DocumentsPage() {
                 {isExpanded && (
                   <div className="mt-3 space-y-2 border-t border-jm-border pt-3">
                     <p className="text-xs text-jm-text2">
-                      These saved scheme checklists mention this document. This does not establish your eligibility.
+                      {language === "te" ? "ఈ సేవ్ చేసిన పథకాల జాబితాలో ఈ పత్రం ప్రస్తావించబడింది. ఇది మీ పూర్తి అర్హతను నిర్ధారించదు." :
+                       language === "hi" ? "ये सहेजी गई योजना चेकलिस्ट इस दस्तावेज़ का उल्लेख करती हैं। यह आपकी पात्रता सुनिश्चित नहीं करता।" :
+                       "These saved scheme checklists mention this document. This does not establish your eligibility."}
                     </p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-                      {d.schemes.slice(0, 10).map((s) => (
-                        <button
-                          key={s.id}
-                          onClick={() => selectScheme(s)}
-                          className="block w-full rounded-xl bg-jm-muted p-3 text-left text-sm hover:underline transition-all"
-                        >
-                          <strong className="block truncate text-jm-text">{s.name}</strong>
-                          <span className="block text-xs text-jm-text2 truncate">{s.department}</span>
-                        </button>
-                      ))}
+                      {d.schemes.slice(0, 10).map((s) => {
+                        const locS = getLocalizedScheme(s, language);
+                        return (
+                          <button
+                            key={s.id}
+                            onClick={() => selectScheme(locS)}
+                            className="block w-full rounded-xl bg-jm-muted p-3 text-left text-sm hover:underline transition-all"
+                          >
+                            <strong className="block truncate text-jm-text">{locS.name}</strong>
+                            <span className="block text-xs text-jm-text2 truncate">{locS.department}</span>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 )}

@@ -1356,7 +1356,11 @@ export default function DocumentVerificationModal() {
                   <div className="flex items-center gap-2">
                     <Sparkles className="w-4 h-4 text-amber-300" />
                     <span className="text-xs font-black uppercase tracking-wider text-emerald-200">
-                      Schemes Unlocked by this Document:
+                      {language === "te"
+                        ? "ఈ పత్రం ద్వారా అర్హత పొందిన పథకాలు:"
+                        : language === "hi"
+                        ? "इस दस्तावेज़ द्वारा अनलॉक की गई योजनाएं:"
+                        : "Schemes Unlocked by this Document:"}
                     </span>
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -1387,7 +1391,7 @@ export default function DocumentVerificationModal() {
               }}
               className="px-4 py-2.5 rounded-xl border border-stone-300 text-stone-700 font-bold text-xs sm:text-sm hover:bg-stone-100 transition"
             >
-              Close
+              {language === "te" ? "మూసివేయి" : language === "hi" ? "बंद करें" : "Close"}
             </button>
 
             {outOfScopeError && (
@@ -1399,7 +1403,7 @@ export default function DocumentVerificationModal() {
                 className="px-3.5 py-2.5 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-900 hover:bg-emerald-100 font-bold text-xs sm:text-sm transition flex items-center gap-1.5"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
-                <span>Retry Live Camera</span>
+                <span>{language === "te" ? "కెమెరాను మళ్లీ ప్రారంభించండి" : language === "hi" ? "लाइव कैमरा पुनः प्रयास करें" : "Retry Live Camera"}</span>
               </button>
             )}
 
@@ -1414,7 +1418,7 @@ export default function DocumentVerificationModal() {
                 className="px-3.5 py-2.5 rounded-xl border border-stone-300 bg-white text-stone-700 hover:text-emerald-800 hover:border-emerald-500 font-bold text-xs sm:text-sm transition flex items-center gap-1.5"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
-                <span>Take Another Photo</span>
+                <span>{language === "te" ? "మరొక ఫోటో తీయండి" : language === "hi" ? "दूसरी फ़ोटो लें" : "Take Another Photo"}</span>
               </button>
             )}
           </div>
@@ -1427,7 +1431,13 @@ export default function DocumentVerificationModal() {
               className="px-5 sm:px-7 py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs sm:text-sm shadow-md flex items-center gap-2 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <ShieldCheck className="w-4 h-4 text-emerald-300" />
-              <span>{(verificationResult as any).analysisQuality === "partial" ? "Clearer copy needed to confirm details" : !(verificationResult as any).analysisRecordId ? "Preview only — scan an upload to save" : "Confirm my review"}</span>
+              <span>
+                {(verificationResult as any).analysisQuality === "partial"
+                  ? (language === "te" ? "స్పష్టమైన కాపీ అవసరం" : "Clearer copy needed to confirm details")
+                  : !(verificationResult as any).analysisRecordId
+                  ? (language === "te" ? "కేవలం ప్రివ్యూ మాత్రమే" : "Preview only — scan an upload to save")
+                  : (language === "te" ? "నా పరిశీలనను నిర్ధారించండి" : language === "hi" ? "समीक्षा की पुष्टि करें" : "Confirm my review")}
+              </span>
             </button>
           )}
         </div>

@@ -4,6 +4,7 @@ import React from "react";
 import ThemeSelectorCards from "@/components/ThemeSelectorCards";
 import ProfileEditor from "@/components/ProfileEditor";
 import { useFarmerStore } from "@/store/useFarmerStore";
+import { translations } from "@/lib/i18n";
 
 function Row({ label, value }: { label: string; value?: string | number | null }) {
   if (value === undefined || value === null || value === "" || value === 0) return null;
@@ -16,19 +17,21 @@ function Row({ label, value }: { label: string; value?: string | number | null }
 }
 
 export default function SettingsPage() {
-  const { isAuthenticated, authStatus, currentFarmer: f, logout, setAuthModalOpen } = useFarmerStore();
+  const { isAuthenticated, authStatus, currentFarmer: f, logout, setAuthModalOpen, language } = useFarmerStore();
+  const t = translations[language] || translations.en;
+  const isTe = language === "te";
   const initials = (f.name || "?").split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 
   return (
     <>
       <div className="w-full max-w-[1000px] mx-auto px-4 sm:px-6 py-8 space-y-10">
-        <h1 className="text-[25px] sm:text-[32px] leading-tight font-semibold">Settings</h1>
+        <h1 className="text-[25px] sm:text-[32px] leading-tight font-semibold">{t.navSettings || "Settings"}</h1>
 
         <section aria-labelledby="profile-h" className="space-y-3">
-          <h2 id="profile-h" className="text-xl sm:text-[22px] font-semibold">Profile</h2>
+          <h2 id="profile-h" className="text-xl sm:text-[22px] font-semibold">{isTe ? "రైతు ప్రొఫైల్" : "Profile"}</h2>
           <div className="rounded-xl border border-jm-border bg-jm-surface p-5">
             {authStatus === "unknown" ? (
-              <p className="text-sm text-jm-text2">Checking your sign-in…</p>
+              <p className="text-sm text-jm-text2">{isTe ? "ఖాతా వివరాలు తనిఖీ చేస్తున్నాము…" : "Checking your sign-in…"}</p>
             ) : isAuthenticated ? (
               <>
                 <div className="flex items-center gap-4 mb-3">
@@ -39,23 +42,23 @@ export default function SettingsPage() {
                   </div>
                 </div>
                 <dl>
-                  <Row label="Phone" value={f.phone ? `+91 ${f.phone}` : ""} />
-                  <Row label="Email" value={f.email} />
-                  <Row label="Village" value={f.village} />
-                  <Row label="State" value={(f as any).state} />
-                  <Row label="District" value={(f as any).district} />
-                  <Row label="Crops" value={f.primaryCrops.join(", ")} />
-                  <Row label="Land (acres)" value={f.landSizeAcres} />
-                  <Row label="Soil" value={f.soilTypeName} />
-                  <Row label="Irrigation" value={f.irrigationTypeName} />
-                  <Row label="Preferred language" value={f.preferredLanguage} />
+                  <Row label={isTe ? "ఫోన్ నంబర్" : "Phone"} value={f.phone ? `+91 ${f.phone}` : ""} />
+                  <Row label={isTe ? "ఈమెయిల్" : "Email"} value={f.email} />
+                  <Row label={isTe ? "గ్రామం" : "Village"} value={f.village} />
+                  <Row label={isTe ? "రాష్ట్రం" : "State"} value={(f as any).state} />
+                  <Row label={isTe ? "జిల్లా" : "District"} value={(f as any).district} />
+                  <Row label={isTe ? "పంటలు" : "Crops"} value={f.primaryCrops.join(", ")} />
+                  <Row label={isTe ? "భూమి (ఎకరాలు)" : "Land (acres)"} value={f.landSizeAcres} />
+                  <Row label={isTe ? "నేల రకం" : "Soil"} value={f.soilTypeName} />
+                  <Row label={isTe ? "నీటిపారుదల" : "Irrigation"} value={f.irrigationTypeName} />
+                  <Row label={isTe ? "ఎంచుకున్న భాష" : "Preferred language"} value={f.preferredLanguage} />
                 </dl>
                 <ProfileEditor />
               </>
             ) : (
               <div className="flex items-center justify-between gap-3 flex-wrap">
-                <p className="text-sm text-jm-text2">Sign in to see your profile.</p>
-                <button onClick={() => setAuthModalOpen(true, "login")} className="h-10 px-4 rounded-lg bg-jm-primary text-jm-onprimary text-sm font-semibold hover:opacity-90">Sign in</button>
+                <p className="text-sm text-jm-text2">{isTe ? "మీ ప్రొఫైల్ చూడటానికి లాగిన్ అవ్వండి." : "Sign in to see your profile."}</p>
+                <button onClick={() => setAuthModalOpen(true, "login")} className="h-10 px-4 rounded-lg bg-jm-primary text-jm-onprimary text-sm font-semibold hover:opacity-90">{isTe ? "లాగిన్ అవ్వండి" : "Sign in"}</button>
               </div>
             )}
           </div>

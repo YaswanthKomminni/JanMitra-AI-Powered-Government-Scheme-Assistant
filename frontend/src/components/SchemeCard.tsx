@@ -4,7 +4,7 @@ import React from "react";
 import { Gift, FileText, ChevronRight } from "lucide-react";
 import { Scheme } from "@/lib/mockData";
 import { useFarmerStore } from "@/store/useFarmerStore";
-import { translations, getLocalizedCategory } from "@/lib/i18n";
+import { translations, getLocalizedCategory, getLocalizedScheme } from "@/lib/i18n";
 
 interface SchemeCardProps {
   scheme: Scheme;
@@ -15,7 +15,8 @@ const chip =
 
 export default function SchemeCard({ scheme }: SchemeCardProps) {
   const { language, setSelectedScheme } = useFarmerStore();
-  const t = translations[language];
+  const t = translations[language] || translations.en;
+  const loc = getLocalizedScheme(scheme, language);
 
   return (
     <article className="jm-card group flex h-full flex-col rounded-[18px] border border-jm-border bg-jm-surface p-5 sm:p-6 shadow-[0_1px_2px_rgb(0_0_0/0.04)] transition hover:border-jm-primary/40 hover:shadow-[0_4px_14px_rgb(0_0_0/0.06)]">
@@ -23,7 +24,7 @@ export default function SchemeCard({ scheme }: SchemeCardProps) {
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
         <div className="flex flex-wrap items-center gap-2 min-w-0">
           <span className={`${chip} bg-jm-muted border border-jm-border text-jm-text2 max-w-full truncate`}>
-            {getLocalizedCategory(scheme.categoryName, language)}
+            {loc.categoryName || getLocalizedCategory(scheme.categoryName, language)}
           </span>
         </div>
         {scheme.code && (
@@ -33,9 +34,9 @@ export default function SchemeCard({ scheme }: SchemeCardProps) {
 
       {/* Title + department */}
       <h3 className="mt-3 text-xl sm:text-[22px] lg:text-[23px] font-semibold leading-[1.3] text-jm-text break-words">
-        {scheme.name}
+        {loc.name}
       </h3>
-      <p className="mt-1 text-sm text-jm-text2">{scheme.department}</p>
+      <p className="mt-1 text-sm text-jm-text2">{loc.department}</p>
 
       {/* Benefit panel */}
       <div className="mt-4 flex items-center gap-3 rounded-xl border border-jm-primary/20 bg-jm-soft px-3.5 py-3">
@@ -44,13 +45,13 @@ export default function SchemeCard({ scheme }: SchemeCardProps) {
         </span>
         <div className="min-w-0">
           <p className="text-xs font-medium text-jm-text2">{scheme.id.startsWith("catalog:") ? (t.savedBenefitSummary || "Saved benefit summary · verify current terms") : t.subsidyAmount}</p>
-          <p className="text-[15px] font-semibold leading-snug text-jm-text break-words line-clamp-3">{scheme.subsidyAmount || "Check current scheme terms"}</p>
+          <p className="text-[15px] font-semibold leading-snug text-jm-text break-words line-clamp-3">{loc.subsidyAmount || t.checkCurrentTerms || "Check current scheme terms"}</p>
         </div>
       </div>
 
       {/* Description grows so documents and actions line up across cards */}
       <p className="mt-4 flex-1 text-[15px] leading-relaxed text-jm-text2 line-clamp-3">
-        {scheme.description}
+        {loc.description}
       </p>
 
       {/* Required documents */}
@@ -60,7 +61,7 @@ export default function SchemeCard({ scheme }: SchemeCardProps) {
           {t.documentsRequired}
         </p>
         <div className="flex flex-wrap gap-2">
-          {scheme.documentsRequired.slice(0, 3).map((doc, idx) => (
+          {(loc.documentsRequired || []).slice(0, 3).map((doc: string, idx: number) => (
             <span
               key={idx}
               className="inline-flex max-w-full items-center rounded-md border border-jm-border bg-jm-muted px-2.5 py-1 text-xs leading-snug text-jm-text"
@@ -68,10 +69,19 @@ export default function SchemeCard({ scheme }: SchemeCardProps) {
               <span className="truncate">{doc}</span>
             </span>
           ))}
-          {scheme.documentsRequired.length === 0 && <span className="text-xs text-jm-text2">Check the current official checklist.</span>}
-          {scheme.documentsRequired.length > 3 && (
+          {(!loc.documentsRequired || loc.documentsRequired.length === 0) && (
+            <span className="text-xs text-jm-text2">
+              {language === "te" ? "ప్రస్తుత అధికారిక పత్రాల జాబితాను పరిశీలించండి." :
+               language === "hi" ? "वर्तमान आधिकारिक चेकलिस्ट की जांच करें।" :
+               language === "ta" ? "தற்போதைய அதிகாரப்பூர்வ சரிபார்ப்புப் பட்டியலைச் சரிபார்க்கவும்." :
+               language === "kn" ? "ಪ್ರಸ್ತುತ ಅಧಿಕೃತ ಪರಿಶೀಲನಾ ಪಟ್ಟಿಯನ್ನು ಪರಿಶೀಲಿಸಿ." :
+               language === "bn" ? "বর্তমান অফিসিয়াল নথি তালিকা পরীক্ষা করুন।" :
+               "Check the current official checklist."}
+            </span>
+          )}
+          {loc.documentsRequired && loc.documentsRequired.length > 3 && (
             <span className="inline-flex items-center rounded-md px-2 py-1 text-xs text-jm-text2">
-              +{scheme.documentsRequired.length - 3} more
+              +{loc.documentsRequired.length - 3} more
             </span>
           )}
         </div>
@@ -80,7 +90,7 @@ export default function SchemeCard({ scheme }: SchemeCardProps) {
       {/* Actions */}
       <div className="mt-5 flex items-center gap-3">
         <button
-          onClick={() => setSelectedScheme(scheme)}
+          onClick={() => setSelectedScheme(loc)}
           className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-jm-primary px-4 text-sm font-semibold text-jm-onprimary transition hover:bg-jm-hover"
           title={t.viewDetails}
           aria-label={t.viewDetails}

@@ -20,6 +20,7 @@ import {
   formatDocumentAnalysisReply,
   formatFarmerProfileReply,
   generateTextReply,
+  buildOutOfScopeReply,
 } from "@/lib/chatEngine";
 
 let narrationGeneration = 0;
@@ -356,8 +357,20 @@ export const useFarmerStore = create<FarmerState>((set, get) => {
     set({ isAwaitingReply: false });
   };
 
+  const getSavedLanguage = (): SupportedLanguage => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("janmitra_language") as SupportedLanguage;
+        if (saved && ["en", "hi", "te", "ta", "kn", "bn"].includes(saved)) {
+          return saved;
+        }
+      } catch {}
+    }
+    return "en";
+  };
+
   return {
-  language: "en",
+  language: getSavedLanguage(),
   currentFarmer: GUEST_FARMER,
   authStatus: "unknown",
   isAuthenticated: false,
@@ -395,17 +408,42 @@ export const useFarmerStore = create<FarmerState>((set, get) => {
   clearOutOfScopeError: () => set({ outOfScopeError: null }),
 
   setLanguage: (lang) => {
-    // Saved answers are part of the conversation, not templates to regenerate on a locale change.
-    set((state) => ({ language: lang, chatMessages: state.chatMessages.map((msg) =>
-      msg.id === "msg_init" || msg.id === "msg_01" ? getInitialChatMessage(lang, state.currentFarmer.name) : msg
-    ) }));
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("janmitra_language", lang);
+      } catch {}
+    }
+    set((state) => ({
+      language: lang,
+      chatMessages: state.chatMessages.map((msg) => {
+        if (msg.id === "msg_init" || msg.id === "msg_01") {
+          return getInitialChatMessage(lang, state.currentFarmer.name);
+        }
+        if (
+          msg.sender === "ai" &&
+          (msg.text.includes("Irrelevant image") ||
+            msg.text.includes("Out of Scope") ||
+            msg.text.includes("పరిధి వెలుపల") ||
+            msg.text.includes("कार्यक्षेत्र से बाहर") ||
+            msg.text.includes("எல்லைக்கு அப்பாற்பட்ட") ||
+            msg.text.includes("ವ್ಯಾಪ್ತಿಯಿಂದ ಹೊರಗಿದೆ") ||
+            msg.text.includes("আওতা বহির্ভূত"))
+        ) {
+          const updated = buildOutOfScopeReply(lang);
+          return { ...msg, text: updated.text, chips: updated.chips };
+        }
+        return msg;
+      }),
+    }));
   },
 
   setCurrentFarmer: (farmer) => {
     set({
       currentFarmer: farmer,
     });
-    get().setLanguage((farmer.preferredLanguage as SupportedLanguage) || "en");
+    if (farmer.preferredLanguage && ["en", "hi", "te", "ta", "kn", "bn"].includes(farmer.preferredLanguage)) {
+      get().setLanguage(farmer.preferredLanguage as SupportedLanguage);
+    }
   },
 
   setAuthModalOpen: (open, mode) => {

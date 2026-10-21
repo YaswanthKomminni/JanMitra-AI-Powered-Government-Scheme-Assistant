@@ -9,7 +9,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { useFarmerStore } from "@/store/useFarmerStore";
-import { translations } from "@/lib/i18n";
+import { translations, getLocalizedScheme } from "@/lib/i18n";
 
 export default function SchemeDetailModal() {
   const {
@@ -21,9 +21,10 @@ export default function SchemeDetailModal() {
 
   const router = useRouter();
   const sendMessage = useFarmerStore(s => s.sendChatMessage);
-  const t = translations[language];
+  const t = translations[language] || translations.en;
 
   if (!selectedScheme) return null;
+  const loc = getLocalizedScheme(selectedScheme, language);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
@@ -41,16 +42,18 @@ export default function SchemeDetailModal() {
               {selectedScheme.code}
             </span>
           </div>
-          <h2 className="text-2xl font-black">{selectedScheme.name}</h2>
+          <h2 className="text-2xl font-black">{loc.name}</h2>
           <p className="text-xs text-emerald-200 mt-1">
-            {selectedScheme.department}
+            {loc.department}
           </p>
         </div>
 
         {/* Modal Body */}
         <div className="p-6 overflow-y-auto space-y-6">
           <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
-            This is a saved scheme summary. Check current rules, benefits, documents and application dates with the official scheme source before applying.
+            {language === "te" ? "ఇది సేవ్ చేయబడిన పథకం సారాంశం. దరఖాస్తు చేసే ముందు అధికారిక పోర్టల్‌లో ప్రస్తుత నిబంధనలు, ప్రయోజనాలు మరియు పత్రాలను తనిఖీ చేయండి." :
+             language === "hi" ? "यह एक सहेजा गया योजना सारांश है। आवेदन करने से पहले आधिकारिक स्रोत से वर्तमान नियम और शर्तें सत्यापित करें।" :
+             "This is a saved scheme summary. Check current rules, benefits, documents and application dates with the official scheme source before applying."}
           </p>
           {/* Subsidy Highlight */}
           <div className="p-4 rounded-2xl bg-amber-50 border-2 border-amber-300 flex items-center gap-3">
@@ -62,7 +65,7 @@ export default function SchemeDetailModal() {
                 {t.subsidyAmount}
               </p>
               <p className="text-lg font-black text-amber-950">
-                {selectedScheme.subsidyAmount || "Check current scheme terms"}
+                {loc.subsidyAmount || t.checkCurrentTerms || "Check current scheme terms"}
               </p>
             </div>
           </div>
@@ -70,32 +73,32 @@ export default function SchemeDetailModal() {
           {/* Detailed Benefits */}
           <div>
             <h4 className="text-sm font-extrabold text-stone-900 uppercase tracking-wider mb-2">
-              Key Scheme Benefits
+              {t.keySchemeBenefits || "Key Scheme Benefits"}
             </h4>
             <p className="text-sm text-stone-700 leading-relaxed bg-stone-50 p-4 rounded-2xl border border-stone-200">
-              {selectedScheme.benefits}
+              {loc.benefits || loc.description}
             </p>
           </div>
 
           {/* Eligibility Breakdown */}
           <div>
             <h4 className="text-sm font-extrabold text-stone-900 uppercase tracking-wider mb-2">
-              Eligibility to check
+              {t.eligibilityToCheck || "Eligibility to check"}
             </h4>
             <div className="space-y-2 bg-emerald-50/60 p-4 rounded-2xl border border-emerald-200">
               <p className="text-sm text-emerald-950 font-medium">
-                {selectedScheme.eligibilitySummary}
+                {loc.eligibilitySummary}
               </p>
               {currentFarmer.landSizeAcres > 0 || currentFarmer.soilTypeName || currentFarmer.annualIncomeSlab ? (
               <div className="flex flex-wrap gap-2 pt-2 border-t border-emerald-200/60">
                 {currentFarmer.landSizeAcres > 0 && (
                 <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-white text-emerald-900 border border-emerald-300">
-                  Your land: {currentFarmer.landSizeAcres} acres
+                  {t.yourLand || "Your land"}: {currentFarmer.landSizeAcres} {t.acres || "acres"}
                 </span>
                 )}
                 {currentFarmer.soilTypeName && (
                 <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-white text-emerald-900 border border-emerald-300">
-                  Your soil: {currentFarmer.soilTypeName}
+                  {t.yourSoil || "Your soil"}: {currentFarmer.soilTypeName}
                 </span>
                 )}
                 {currentFarmer.annualIncomeSlab && (
@@ -118,7 +121,7 @@ export default function SchemeDetailModal() {
               {t.documentsRequired}
             </h4>
             <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {selectedScheme.documentsRequired.map((doc, idx) => (
+              {(loc.documentsRequired || []).map((doc: string, idx: number) => (
                 <li
                   key={idx}
                   className="flex items-center gap-2 p-3 rounded-xl bg-stone-50 border border-stone-200 text-xs font-bold text-stone-800"
@@ -128,7 +131,13 @@ export default function SchemeDetailModal() {
                 </li>
               ))}
             </ul>
-            {selectedScheme.documentsRequired.length === 0 && <p className="text-sm text-stone-600">The saved entry does not list a verified document checklist. Check the current official scheme page.</p>}
+            {(!loc.documentsRequired || loc.documentsRequired.length === 0) && (
+              <p className="text-sm text-stone-600">
+                {language === "te" ? "ప్రస్తుత అధికారిక పత్రాల జాబితాను పరిశీలించండి." :
+                 language === "hi" ? "वर्तमान आधिकारिक चेकलिस्ट की जांच करें।" :
+                 "The saved entry does not list a verified document checklist. Check the current official scheme page."}
+              </p>
+            )}
           </div>
 
           {/* The implementing authority can confirm current local process. */}

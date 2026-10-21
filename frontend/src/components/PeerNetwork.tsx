@@ -465,7 +465,7 @@ export default function PeerNetwork() {
                   {/* Implemented Scheme Badge */}
                   <div className="mb-3">
                     <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider block mb-0.5">
-                      Implemented Scheme:
+                      {language === "te" ? "లబ్ధి పొందిన పథకం:" : language === "hi" ? "लागू की गई योजना:" : "Implemented Scheme:"}
                     </span>
                     <span className="text-sm font-extrabold text-stone-900 block">
                       {peer.schemeName}
@@ -476,7 +476,13 @@ export default function PeerNetwork() {
                   <div className="p-3.5 rounded-2xl bg-emerald-50/80 border border-emerald-200 mb-4">
                     <div className="flex items-center gap-1.5 text-emerald-800 text-xs font-extrabold mb-1">
                       <TrendingUp className="w-4 h-4 text-emerald-600" />
-                      <span>{peer.isDemo ? "Illustrative success story:" : "Reported outcome (verified member):"}</span>
+                      <span>
+                        {language === "te"
+                          ? (peer.isDemo ? "రైతు విజయ గాథ (నమూనా):" : "ధృవీకరించబడిన ఫలితం:")
+                          : language === "hi"
+                          ? (peer.isDemo ? "किसान सफलता की कहानी:" : "सत्यापित परिणाम:")
+                          : (peer.isDemo ? "Illustrative success story:" : "Reported outcome (verified member):")}
+                      </span>
                     </div>
                     <p className="text-xs text-stone-800 leading-relaxed font-medium">
                       {peer.outcomeSummary}
@@ -484,7 +490,7 @@ export default function PeerNetwork() {
 
                     <div className="mt-2 pt-2 border-t border-emerald-200 flex items-center justify-between text-[11px]">
                       <span className="font-bold text-emerald-900">
-                        Subsidy: {peer.subsidyReceived}
+                        {language === "te" ? "పొందిన రాయితీ:" : language === "hi" ? "प्राप्त सब्सिडी:" : "Subsidy:"} {peer.subsidyReceived}
                       </span>
                       <span className="text-stone-500 font-medium">
                         {peer.implementationDate}

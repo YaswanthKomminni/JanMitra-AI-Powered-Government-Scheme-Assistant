@@ -3,9 +3,13 @@
 import React, { useState } from "react";
 import type { ModelReport } from "@/lib/modelReport";
 import { Activity, Sparkles, CheckCircle2, ChevronDown, ChevronUp, Cpu, ShieldCheck } from "lucide-react";
+import { useFarmerStore } from "@/store/useFarmerStore";
+import { translations } from "@/lib/i18n";
 
 export default function ModelReportPanel({ report }: { report?: ModelReport }) {
   const [isOpen, setIsOpen] = useState(false);
+  const { language } = useFarmerStore();
+  const t = translations[language] || translations.en;
 
   return (
     <div className="mt-3 rounded-2xl border border-emerald-500/30 bg-stone-900/95 text-stone-100 overflow-hidden shadow-md text-xs">
@@ -21,10 +25,10 @@ export default function ModelReportPanel({ report }: { report?: ModelReport }) {
           </span>
           <div>
             <span className="font-extrabold text-stone-200 block text-xs">
-              Models, measured performance & explanation
+              {t.modelsButtonLabel || "Models, measured performance & explanation"}
             </span>
             <span className="text-[10px] text-stone-400">
-              3 Deep Learning Models Executed &bull; XAI Attribution Active
+              {t.modelsButtonSub || "3 Deep Learning Models Executed • XAI Attribution Active"}
             </span>
           </div>
         </div>

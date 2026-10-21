@@ -114,6 +114,502 @@ export function getLocalizedCategory(category: string, lang: SupportedLanguage):
   return dict[category] || category;
 }
 
+
+export interface LocalizedSchemeData {
+  name?: string;
+  department?: string;
+  subsidyAmount?: string;
+  description?: string;
+  benefits?: string;
+  eligibilitySummary?: string;
+  documentsRequired?: string[];
+}
+
+export const SCHEME_TRANSLATIONS: Record<SupportedLanguage, Record<string, LocalizedSchemeData>> = {
+  en: {},
+  te: {
+    "PM-KUSUM-B": {
+      name: "పీఎం-కుసుమ్ సోలార్ వాటర్ పంప్ రాయితీ",
+      department: "కొత్త మరియు పునరుత్పాదక ఇంధన మంత్రిత్వ శాఖ",
+      subsidyAmount: "భాగం మరియు రాష్ట్రాన్ని బట్టి రాయితీ మారుతుంది",
+      description: "పీఎం-కుసుమ్ వ్యవసాయ అవసరాలకు స్వతంత్ర సోలార్ పంపులు, ఇప్పటికే ఉన్న గ్రిడ్ ఆధారిత పంపుల సౌరీకరణకు మరియు చిన్న సోలార్ ప్రాజెక్టులకు సబ్సిడీ అందిస్తుంది. రాష్ట్ర ఏజెన్సీలు దరఖాస్తులను స్వీకరిస్తాయి.",
+      benefits: "లభించే కాంపోనెంట్, ఆమోదించబడిన పంప్ సామర్థ్యం, కేంద్ర మరియు రాష్ట్ర ప్రభుత్వాల రాయితీ, రైతు వాటా రాష్ట్ర మార్గదర్శకాలపై ఆధారపడి ఉంటాయి.",
+      eligibilitySummary: "మీ రాష్ట్ర ఏజెన్సీ యొక్క తాజా నిబంధనలు మరియు అర్హత షరతులను తనిఖీ చేయండి. కేవలం భూమి పత్రం మాత్రమే పూర్తి అర్హతను నిర్ణయించదు.",
+      documentsRequired: ["అధికారిక నమోదు మరియు ఈ-కేవైసీ అవసరాలను పరిశీలించండి", "భూమి మరియు బ్యాంకు ఖాతా వివరాలు సమర్పించండి"],
+    },
+    "PM-KISAN": {
+      name: "పీఎం-కిసాన్ సమ్మాన్ నిధి యోజన",
+      department: "వ్యవసాయం మరియు రైతుల సంక్షేమ మంత్రిత్వ శాఖ",
+      subsidyAmount: "సంవత్సరానికి ₹6,000 (3 విడతల్లో)",
+      description: "భూమి కలిగిన అర్హులైన రైతు కుటుంబాలకు ఏటా ₹6,000 ఆర్థిక సహాయం నేరుగా బ్యాంక్ ఖాతాలో మూడు సమాన విడతల్లో జమ చేయబడుతుంది.",
+      benefits: "చెల్లింపులు నేరుగా ఆధార్ అనుసంధాన బ్యాంక్ ఖాతాకు (DBT) జమ చేయబడతాయి. నమోదు, ఈ-కేవైసీ మరియు వ్యక్తిగత స్థితిని పోర్టల్‌లో తెలుసుకోవచ్చు.",
+      eligibilitySummary: "భూమి యాజమాన్యం, కుటుంబ వివరాలు, మినహాయింపు నిబంధనలు మరియు ఈ-కేవైసీ ధృవీకరణ తప్పనిసరి.",
+      documentsRequired: ["అధికారిక నమోదు మరియు ఈ-కేవైసీ అవసరాలను పరిశీలించండి", "భూమి మరియు బ్యాంకు ఖాతా వివరాలు సమర్పించండి"],
+    },
+    "PMFBY": {
+      name: "ప్రధాన మంత్రి ఫసల్ బీమా యోజన (PMFBY)",
+      department: "వ్యవసాయం మరియు రైతుల సంక్షేమ మంత్రిత్వ శాఖ",
+      subsidyAmount: "పంట మరియు సీజన్‌ను బట్టి ప్రీమియం మరియు బీమా వర్తిస్తాయి",
+      description: "రైతులకు వర్షాభావం, తెగుళ్లు లేదా ప్రకృతి వైపరీత్యాల వల్ల పంట నష్టపోయినప్పుడు సమగ్ర ఆర్థిక బీమా రక్షణ అందిస్తుంది.",
+      benefits: "రైతులకు అత్యల్ప ప్రీమియం (ఖరీఫ్ 2%, రబీ 1.5%). పంట నష్టానికి నేరుగా ఖాతాలో పరిహారం జమ.",
+      eligibilitySummary: "నోటిఫై చేసిన పంటలకు సీజనల్ గడువులోపు నమోదు చేసుకున్న రైతులకు మాత్రమే వర్తిస్తుంది.",
+      documentsRequired: ["పంట సాగు ధృవీకరణ పత్రం", "భూమి యాజమాన్య పత్రం (పట్టా/పహానీ)", "బ్యాంకు ఖాతా పాస్‌బుక్"],
+    },
+    "SHC": {
+      name: "జాతీయ నేల ఆరోగ్య కార్డు పథకం (Soil Health Card)",
+      department: "వ్యవసాయం మరియు సహకార శాఖ",
+      subsidyAmount: "ఉచిత నేల పరీక్ష మరియు పోషకాల సలహాలు",
+      description: "రైతుల పొలాల్లో నేల నమూనాలను పరీక్షించి, 12 రకాల పోషకాల స్థాయిలు మరియు పంటల వారీగా ఎరువుల వాడకంపై సమగ్ర నివేదికను అందిస్తుంది.",
+      benefits: "రసాయన ఎరువుల ఖర్చు తగ్గుతుంది మరియు దీర్ఘకాలిక నేల సారం రక్షించబడుతుంది.",
+      eligibilitySummary: "మీ సమీప వ్యవసాయ అధికారి లేదా సాయిల్ టెస్టింగ్ ల్యాబ్‌ను సంప్రదించండి.",
+      documentsRequired: ["ఆధార్ కార్డు", "భూమి పట్టా వివరాలు"],
+    },
+    "KCC-LOAN": {
+      name: "కిసాన్ క్రెడిట్ కార్డ్ (KCC) తక్కువ వడ్డీ పంట రుణం",
+      department: "రిజర్వ్ బ్యాంక్ ఆఫ్ ఇండియా & నాబార్డ్ (NABARD)",
+      subsidyAmount: "రాయితీ వడ్డీతో రూ. 3 లక్షల వరకు పంట రుణం",
+      description: "రైతులకు విత్తనాలు, ఎరువులు మరియు సాగు ఖర్చుల కోసం అత్యంత తక్కువ వడ్డీ రేటుతో (4% వరకు) సులభమైన బ్యాంక్ రుణ సౌకర్యం కల్పిస్తుంది.",
+      benefits: "సకాలంలో రుణం చెల్లిస్తే అదనంగా 3% వడ్డీ రాయితీ లభిస్తుంది.",
+      eligibilitySummary: "రైతులు, కౌలు రైతులు మరియు స్వయం సహాయక సంఘాలు సమీప బ్యాంకులో దరఖాస్తు చేసుకోవచ్చు.",
+      documentsRequired: ["ఆధార్ కార్డు", "భూమి యాజమాన్య పత్రం (పట్టా/పహానీ)", "బ్యాంకు ఖాతా పాస్‌బుక్"],
+    },
+  },
+  hi: {
+    "PM-KUSUM-B": {
+      name: "पीएम-कुसुम सौर जल पंप सब्सिडी योजना",
+      department: "नवीन एवं नवीकरणीय ऊर्जा मंत्रालय",
+      subsidyAmount: "घटक और राज्य के अनुसार सहायता भिन्न होती है",
+      description: "पीएम-कुसुम स्टैंडअलोन सौर कृषि पंप लगाने, मौजूदा ग्रिड से जुड़े पंपों के सौरीकरण और लघु सौर ऊर्जा संयंत्रों के लिए भारी सब्सिडी प्रदान करती है।",
+      benefits: "अनुमोदित पंप क्षमता, केंद्र एवं राज्य सब्सिडी तथा किसान अंशदान राज्य की वर्तमान नीति पर निर्भर करता है।",
+      eligibilitySummary: "अपने राज्य के नोडल विभाग की सक्रिय योजना व शर्तों की जांच करें। केवल भूमि या जल स्रोत पात्रता की गारंटी नहीं है।",
+      documentsRequired: ["आधिकारिक पंजीकरण और ई-केवाईसी आवश्यकताएं जांचें", "भूमि और बैंक विवरण सत्यापित करें"],
+    },
+    "PM-KISAN": {
+      name: "पीएम-किसान सम्मान निधि योजना",
+      department: "कृषि एवं किसान कल्याण मंत्रालय",
+      subsidyAmount: "₹6,000 / वर्ष (3 समान किस्तों में)",
+      description: "पात्र किसान परिवारों को प्रति वर्ष ₹6,000 की आय सहायता सीधे आधार-लिंक्ड बैंक खातों में 3 समान किस्तों में दी जाती है।",
+      benefits: "राशि सीधे प्रत्यक्ष लाभ अंतरण (DBT) से खाते में जमा होती है। पंजीकरण व ई-केवाईसी पोर्टल पर उपलब्ध है।",
+      eligibilitySummary: "भूमि अभिलेख, परिवार विवरण, बहिष्करण नियम एवं ई-केवाईसी सत्यापन अनिवार्य है।",
+      documentsRequired: ["आधिकारिक पंजीकरण और ई-केवाईसी आवश्यकताएं जांचें", "भूमि और बैंक विवरण सत्यापित करें"],
+    },
+    "PMFBY": {
+      name: "प्रधानमंत्री फसल बीमा योजना (PMFBY)",
+      department: "कृषि एवं किसान कल्याण मंत्रालय",
+      subsidyAmount: "फसल और मौसम के अनुसार प्रीमियम और कवरेज",
+      description: "प्राकृतिक आपदाओं, कीटों और बीमारियों के कारण फसल नुकसान पर किसानों को व्यापक बीमा सुरक्षा एवं वित्तीय सहायता प्रदान करती है।",
+      benefits: "किसानों के लिए न्यूनतम प्रीमियम (खरीफ 2%, रबी 1.5%) तथा त्वरित डिजिटल क्लेम निपटान।",
+      eligibilitySummary: "अधिसूचित फसलों और जिलों के लिए निर्धारित अंतिम तिथि से पहले नामांकन आवश्यक है।",
+      documentsRequired: ["फसल बुवाई प्रमाण पत्र", "भूमि स्वामित्व अभिलेख (खसरा/खतौनी)", "बैंक खाता पासबुक"],
+    },
+    "SHC": {
+      name: "राष्ट्रीय मृदा स्वास्थ्य कार्ड योजना (Soil Health Card)",
+      department: "कृषि एवं सहकारिता विभाग",
+      subsidyAmount: "निःशुल्क मृदा परीक्षण एवं पोषक तत्व परामर्श",
+      description: "खेत की मिट्टी की जांच कर 12 मुख्य पोषक तत्वों की रिपोर्ट और फसल-वार संतुलित उर्वरक उपयोग की सिफारिशें दी जाती हैं।",
+      benefits: "अनावश्यक खाद खर्च में बचत और खेत की उर्वरा शक्ति में निरंतर सुधार।",
+      eligibilitySummary: "स्थानीय कृषि कार्यालय या मृदा परीक्षण केंद्र से संपर्क करें।",
+      documentsRequired: ["आधार कार्ड", "भूमि खसरा विवरण"],
+    },
+    "KCC-LOAN": {
+      name: "किसान क्रेडिट कार्ड (KCC) कम ब्याज ऋण योजना",
+      department: "भारतीय रिज़र्व बैंक एवं नाबार्ड (NABARD)",
+      subsidyAmount: "रियायती ब्याज पर ₹3 लाख तक का कृषि ऋण",
+      description: "खेती-किसानी, खाद-बीज और उपकरणों के लिए किसानों को मात्र 4% प्रभावी ब्याज दर पर सुलभ संस्थागत ऋण उपलब्ध कराया जाता है।",
+      benefits: "समय पर ऋण अदायगी पर 3% अतिरिक्त ब्याज छूट मिलती है।",
+      eligibilitySummary: "किसान, बटाईदार और पशुपालक नजदीकी बैंक शाखा में आवेदन कर सकते हैं।",
+      documentsRequired: ["आधार कार्ड", "भूमि रिकॉर्ड (पट्टा/खसरा)", "बैंक पासबुक"],
+    },
+  },
+  ta: {
+    "PM-KUSUM-B": {
+      name: "பிஎம்-குசும் சூரிய மின்சார நீர் பம்ப் மானியம்",
+      department: "புதிய மற்றும் புதுப்பிக்கத்தக்க எரிசக்தி அமைச்சகம்",
+      subsidyAmount: "கூறு மற்றும் மாநிலத்திற்கு ஏற்ப உதவி மாறுபடும்",
+      description: "விவசாய நிலங்களுக்கு சூரிய சக்தி நீர் பம்புகள் அமைப்பதற்கும் சோலார் திட்டங்களுக்கும் மானியம் வழங்குகிறது.",
+      benefits: "மத்திய மற்றும் மாநில அரசு மானியம் மற்றும் விவசாயி பங்கு மாநில விதிகளின்படி அமையும்.",
+      eligibilitySummary: "உங்கள் மாநிலத்தின் தற்போதைய நிபந்தனைகளை சரிபார்க்கவும்.",
+      documentsRequired: ["அதிகாரப்பூர்வ பதிவு மற்றும் e-KYC தேவைகளை சரிபார்க்கவும்", "நிலம் மற்றும் வங்கி விவரங்களை உறுதிப்படுத்தவும்"],
+    },
+    "PM-KISAN": {
+      name: "பிரதமர் கிசான் சம்மான் நிதி திட்டம் (PM-KISAN)",
+      department: "வேளாண்மை மற்றும் உழவர் நல அமைச்சகம்",
+      subsidyAmount: "ஆண்டுக்கு ₹6,000 (3 தவணைகளில்)",
+      description: "நில உரிமையுள்ள விவசாய குடும்பங்களுக்கு ஆண்டுதோறும் ₹6,000 நிதி உதவி நேரடியாக வங்கிக் கணக்கில் செலுத்தப்படுகிறது.",
+      benefits: "நேரடி வங்கி பரிமாற்றம் (DBT) மூலம் பணம் வரவு வைக்கப்படும்.",
+      eligibilitySummary: "நில உரிமை, குடும்ப விவரங்கள் மற்றும் e-KYC சரிபார்ப்பு அவசியம்.",
+      documentsRequired: ["அதிகாரப்பூர்வ பதிவு மற்றும் e-KYC தேவைகளை சரிபார்க்கவும்", "நிலம் மற்றும் வங்கி விவரங்களை உறுதிப்படுத்தவும்"],
+    },
+    "PMFBY": {
+      name: "பிரதமர் பயிர் காப்பீட்டுத் திட்டம் (PMFBY)",
+      department: "வேளாண்மை மற்றும் உழவர் நல அமைச்சகம்",
+      subsidyAmount: "பயிர் மற்றும் பருவத்திற்கு ஏற்ப பிரீமியம் மாறுபடும்",
+      description: "இயற்கை சீற்றங்கள் மற்றும் பூச்சிகளால் ஏற்படும் பயிர் இழப்பிற்கு விரிவான காப்பீட்டு பாதுகாப்பு அளிக்கிறது.",
+      benefits: "குறைந்த பிரீமியம் மற்றும் விரைவான இழப்பீட்டுத் தொகை.",
+      eligibilitySummary: "அறிவிக்கப்பட்ட பயிர்களுக்கு கடைசி தேதிக்குள் பதிவு செய்ய வேண்டும்.",
+      documentsRequired: ["பயிர் சாகுபடி சான்றிதழ்", "நில ஆவணம் (பட்டா/சிட்டா)", "வங்கி கணக்கு புத்தகம்"],
+    },
+    "SHC": {
+      name: "தேசிய மண் வள அட்டை திட்டம் (Soil Health Card)",
+      department: "வேளாண்மை மற்றும் கூட்டுறவுத் துறை",
+      subsidyAmount: "இலவச மண் பரிசோதனை மற்றும் ஊட்டச்சத்து வழிகாட்டுதல்",
+      description: "மண் மாதிரிகளை பரிசோதித்து உர பயன்பாடு குறித்த துல்லியமான பரிந்துரைகளை வழங்குகிறது.",
+      benefits: "உரச் செலவு குறையும் மற்றும் நில வளம் காக்கப்படும்.",
+      eligibilitySummary: "உள்ளூர் வேளாண் அலுவலகத்தை அணுகவும்.",
+      documentsRequired: ["ஆதார் அட்டை", "நில விபரம்"],
+    },
+    "KCC-LOAN": {
+      name: "கிசான் கிரெடிட் கார்டு (KCC) குறைந்த வட்டி கடன்",
+      department: "இந்திய ரிசர்வ் வங்கி & நபார்டு (NABARD)",
+      subsidyAmount: "குறைந்த வட்டியில் ₹3 லட்சம் வரை விவசாய கடன்",
+      description: "விதை, உரம் மற்றும் சாகுபடி தேவைகளுக்காக விவசாயிகளுக்கு குறைந்த வட்டியில் கடன் வழங்குகிறது.",
+      benefits: "நேரத்திற்கு திருப்பிச் செலுத்தினால் கூடுதல் வட்டி சலுகை.",
+      eligibilitySummary: "விவசாயிகள் மற்றும் குத்தகைதாரர்கள் வங்கியில் விண்ணப்பிக்கலாம்.",
+      documentsRequired: ["ஆதார் அட்டை", "நில ஆவணம்", "வங்கி புத்தகம்"],
+    },
+  },
+  kn: {
+    "PM-KUSUM-B": {
+      name: "ಪಿಎಂ-ಕುಸುಮ್ ಸೌರ ನೀರೆತ್ತುವ ಪಂಪ್ ಸಬ್ಸಿಡಿ",
+      department: "ಹೊಸ ಮತ್ತು ನವೀಕರಿಸಬಹುದಾದ ಇಂಧನ ಸಚಿವಾಲಯ",
+      subsidyAmount: "ಘಟಕ ಮತ್ತು ರಾಜ್ಯಕ್ಕೆ ತಕ್ಕಂತೆ ನೆರವು ಬದಲಾಗುತ್ತದೆ",
+      description: "ರೈತರ ಜಮೀನುಗಳಿಗೆ ಸ್ವತಂತ್ರ ಸೌರ ಕೃಷಿ ಪಂಪ್‌ಗಳು ಮತ್ತು ಗ್ರಿಡ್ ಸಂಪರ್ಕಿತ ಪಂಪ್‌ಗಳ ಸೌರೀಕರಣಕ್ಕೆ ನೆರವು ನೀಡುತ್ತದೆ.",
+      benefits: "ಕೇಂದ್ರ ಮತ್ತು ರಾಜ್ಯ ಸರ್ಕಾರದ ಸಬ್ಸಿಡಿ ಹಾಗೂ ರೈತರ ಕೊಡುಗೆ ಪ್ರಸ್ತುತ ರಾಜ್ಯ ನಿಯಮಗಳ ಮೇಲೆ ಅವಲಂಬಿತವಾಗಿರುತ್ತದೆ.",
+      eligibilitySummary: "ನಿಮ್ಮ ರಾಜ್ಯ ನೋಡಲ್ ಏಜೆನ್ಸಿಯ ಅರ್ಹತಾ ನಿಯಮಗಳನ್ನು ಪರಿಶೀಲಿಸಿ.",
+      documentsRequired: ["ಅಧಿಕೃತ ನೋಂದಣಿ ಮತ್ತು ಇ-ಕೆವೈಸಿ ಪರಿಶೀಲಿಸಿ", "ಭೂಮಿ ಮತ್ತು ಬ್ಯಾಂಕ್ ವಿವರಗಳನ್ನು ದೃಢೀಕರಿಸಿ"],
+    },
+    "PM-KISAN": {
+      name: "ಪಿಎಂ-ಕಿಸಾನ್ ಸಮ್ಮಾನ್ ನಿಧಿ ಯೋಜನೆ",
+      department: "ಕೃಷಿ ಮತ್ತು ರೈತರ ಕಲ್ಯಾಣ ಸಚಿವಾಲಯ",
+      subsidyAmount: "ವರ್ಷಕ್ಕೆ ₹6,000 (3 ಕಂತುಗಳಲ್ಲಿ)",
+      description: "ಭೂಮಾಲೀಕತ್ವ ಹೊಂದಿರುವ ಅರ್ಹ ರೈತ ಕುಟುಂಬಗಳಿಗೆ ವಾರ್ಷಿಕ ₹6,000 ಆರ್ಥಿಕ ನೆರವು ಮೂರು ಕಂತುಗಳಲ್ಲಿ ನೇರವಾಗಿ ಬ್ಯಾಂಕ್ ಖಾತೆಗೆ ಜಮೆಯಾಗುತ್ತದೆ.",
+      benefits: "ನೇರ ನಗದು ವರ್ಗಾವಣೆ (DBT). ಇ-ಕೆವೈಸಿ ಮತ್ತು ನೋಂದಣಿ ಸ್ಥಿತಿಯನ್ನು ಪೋರ್ಟಲ್‌ನಲ್ಲಿ ಪರಿಶೀಲಿಸಿ.",
+      eligibilitySummary: "ಜಮೀನಿನ ದಾಖಲೆ, ಕುಟುಂಬದ ವಿವರ ಮತ್ತು ಇ-ಕೆವೈಸಿ ದೃಢೀಕರಣ ಮುಖ್ಯವಾಗಿದೆ.",
+      documentsRequired: ["ಅಧಿಕೃತ ನೋಂದಣಿ ಮತ್ತು ಇ-ಕೆವೈಸಿ ಪರಿಶೀಲಿಸಿ", "ಭೂಮಿ ಮತ್ತು ಬ್ಯಾಂಕ್ ವಿವರಗಳನ್ನು ದೃಢೀಕರಿಸಿ"],
+    },
+    "PMFBY": {
+      name: "ಪ್ರಧಾನ ಮಂತ್ರಿ ಫಸಲ್ ಬಿಮಾ ಯೋಜನೆ (PMFBY)",
+      department: "ಕೃಷಿ ಮತ್ತು ರೈತರ ಕಲ್ಯಾಣ ಸಚಿವಾಲಯ",
+      subsidyAmount: "ಬೆಳೆ ಮತ್ತು ಋತುವಿಗೆ ತಕ್ಕಂತೆ ಪ್ರೀಮಿಯಂ ಮತ್ತು ರಕ್ಷಣೆ",
+      description: "ನೈಸರ್ಗಿಕ ವಿಕೋಪಗಳು, ಕೀಟಬಾಧೆ ಹಾಗೂ ರೋಗಗಳಿಂದ ಬೆಳೆ ನಷ್ಟವಾದರೆ ರೈತರಿಗೆ ಸಮಗ್ರ ವಿಮಾ ರಕ್ಷಣೆ ಒದಗಿಸುತ್ತದೆ.",
+      benefits: "ಕನಿಷ್ಠ ಪ್ರೀಮಿಯಂ ದರ ಹಾಗೂ ನೇರ ಪರಿಹಾರ ಧನ ಪಾವತಿ.",
+      eligibilitySummary: "ಅಧಿಸೂಚಿತ ಬೆಳೆ ಮತ್ತು ಕೊನೆಯ ದಿನಾಂಕದೊಳಗೆ ನೋಂದಣಿ ಅಗತ್ಯ.",
+      documentsRequired: ["ಬೆಳೆ ಬಿತ್ತನೆ ದೃಢೀಕರಣ ಪತ್ರ", "ಭೂಮಿ ಮಾಲೀಕತ್ವ ದಾಖಲೆ (ಪಹಣಿ)", "ಬ್ಯಾಂಕ್ ಪಾಸ್‌ಬುಕ್"],
+    },
+    "SHC": {
+      name: "ರಾಷ್ಟ್ರೀಯ ಮಣ್ಣು ಆರೋಗ್ಯ ಕಾರ್ಡ್ ಯೋಜನೆ",
+      department: "ಕೃಷಿ ಮತ್ತು ಸಹಕಾರ ಇಲಾಖೆ",
+      subsidyAmount: "ಉಚಿತ ಮಣ್ಣು ಪರೀಕ್ಷೆ ಮತ್ತು ಪೋಷಕಾಂಶ ಮಾರ್ಗದರ್ಶನ",
+      description: "ಮಣ್ಣಿನ ಮಾದರಿ ಪರೀಕ್ಷಿಸಿ 12 ಪೋಷಕಾಂಶಗಳ ವರದಿ ಮತ್ತು ಗೊಬ್ಬರ ಬಳಕೆಯ ಮಾರ್ಗದರ್ಶನ ನೀಡುತ್ತದೆ.",
+      benefits: "ಗೊಬ್ಬರದ ವೆಚ್ಚ ಉಳಿತಾಯ ಮತ್ತು ಮಣ್ಣಿನ ಫಲವತ್ತತೆ ಹೆಚ್ಚಳ.",
+      eligibilitySummary: "ಸ್ಥಳೀಯ ಕೃಷಿ ಇಲಾಖೆ ಸಂಪರ್ಕಿಸಿ.",
+      documentsRequired: ["ಆಧಾರ್ ಕಾರ್ಡ್", "ಜಮೀನಿನ ವಿವರ"],
+    },
+    "KCC-LOAN": {
+      name: "ಕಿಸಾನ್ ಕ್ರೆಡಿಟ್ ಕಾರ್ಡ್ (KCC) ಕಡಿಮೆ ಬಡ್ಡಿ ಸಾಲ",
+      department: "ಭಾರತೀಯ ರಿಸರ್ವ್ ಬ್ಯಾಂಕ್ & ನಬಾರ್ಡ್ (NABARD)",
+      subsidyAmount: "ರಿಯಾಯಿತಿ ಬಡ್ಡಿಯಲ್ಲಿ ₹3 ಲಕ್ಷದವರೆಗೆ ಕೃಷಿ ಸಾಲ",
+      description: "ಬೆಳೆ ಕೃಷಿ, ಬಿತ್ತನೆ ಬೀಜ ಮತ್ತು ರಸಗೊಬ್ಬರ ಖರೀದಿಗಾಗಿ ಶೇ 4 ರ ಬಡ್ಡಿದರದಲ್ಲಿ ಸುಲಭ ಸಾಲ ಒದಗಿಸುತ್ತದೆ.",
+      benefits: "ಸಮಯಕ್ಕೆ ಮರುಪಾವತಿಸಿದರೆ ಶೇ 3 ಹೆಚ್ಚುವರಿ ಬಡ್ಡಿ ರಿಯಾಯಿತಿ.",
+      eligibilitySummary: "ರೈತರು ಹತ್ತಿರದ ಬ್ಯಾಂಕ್ ಶಾಖೆಯಲ್ಲಿ ಅರ್ಜಿ ಸಲ್ಲಿಸಬಹುದು.",
+      documentsRequired: ["ಆಧಾರ್ ಕಾರ್ಡ್", "ಭೂಮಿ ದಾಖಲೆ (ಪಹಣಿ)", "ಬ್ಯಾಂಕ್ ಪಾಸ್‌ಬುಕ್"],
+    },
+  },
+  bn: {
+    "PM-KUSUM-B": {
+      name: "পিএম-কুসুম সৌর সেচ পাম্প ভর্তুকি",
+      department: "নতুন ও নবায়নযোগ্য শক্তি মন্ত্রণালয়",
+      subsidyAmount: "উপাদান এবং রাজ্য অনুসারে সহায়তা পরিবর্তিত হয়",
+      description: "কৃষিকাজে সৌরচালিত সেচ পাম্প স্থাপন ও গ্রিড সৌরকরণে সরকারি আর্থিক ভর্তুকি প্রদান করা হয়।",
+      benefits: "অনুমোদিত পাম্পের আকার এবং কেন্দ্রীয়-রাজ্য ভর্তুকি বর্তমান রাজ্য নিয়মের অধীন।",
+      eligibilitySummary: "আপনার রাজ্যের বর্তমান প্রকল্পের শর্তাবলী পরীক্ষা করুন।",
+      documentsRequired: ["অফিসিয়াল নিবন্ধন এবং ই-কেওয়াইসি যাচাই করুন", "জমির রেকর্ড এবং ব্যাঙ্কের বিবরণ প্রদান করুন"],
+    },
+    "PM-KISAN": {
+      name: "প্রধানমন্ত্রী কিষাণ সম্মান নিধি যোজনা",
+      department: "কৃষি ও কৃষক কল্যাণ মন্ত্রণালয়",
+      subsidyAmount: "বছরে ₹৬,০০০ (৩টি কিস্তিতে)",
+      description: "যোগ্য কৃষক পরিবারগুলিকে বছরে ₹৬,০০০ আর্থিক সহায়তা তিনটি সমান কিস্তিতে সরাসরি ব্যাঙ্ক অ্যাকাউন্টে প্রদান করা হয়।",
+      benefits: "সরাসরি ব্যাঙ্ক স্থানান্তরের (DBT) মাধ্যমে টাকা প্রদান করা হয়।",
+      eligibilitySummary: "জমির রেকর্ড এবং ই-কেওয়াইসি যাচাইকরণ বাধ্যতামূলক।",
+      documentsRequired: ["অফিসিয়াল নিবন্ধন এবং ই-কেওয়াইসি যাচাই করুন", "জমির রেকর্ড এবং ব্যাঙ্কের বিবরণ প্রদান করুন"],
+    },
+    "PMFBY": {
+      name: "প্রধানমন্ত্রী ফসল বীমা যোজনা (PMFBY)",
+      department: "কৃষি ও কৃষক কল্যাণ মন্ত্রণালয়",
+      subsidyAmount: "ফসল ও মরসুম অনুসারে প্রিমিয়াম ও কভারেজ",
+      description: "প্রাকৃতিক দুর্যোগ বা রোগপোকার আক্রমণে ফসল নষ্ট হলে কৃষকদের ক্ষতিপূরণ ও বীমা সুরক্ষা প্রদান করা হয়।",
+      benefits: "ন্যূনতম প্রিমিয়াম এবং সরাসরি ব্যাঙ্ক অ্যাকাউন্টে দ্রুত ক্ষতিপূরণ।",
+      eligibilitySummary: "বিজ্ঞাপিত ফসল এবং নির্ধারিত সময়সীমার মধ্যে নথিভুক্ত হতে হবে।",
+      documentsRequired: ["ফসল বপন শংসাপত্র", "জমির খতিয়ান বা পরচা", "ব্যাঙ্ক অ্যাকাউন্ট পাসবই"],
+    },
+    "SHC": {
+      name: "জাতীয় মৃত্তিকা স্বাস্থ্য কার্ড প্রকল্প",
+      department: "কৃষি ও সমবায় বিভাগ",
+      subsidyAmount: "বিনামূল্যে মাটি পরীক্ষা ও পুষ্টি পরামর্শ",
+      description: "মাটি পরীক্ষা করে ১২টি পুষ্টিগুণের রিপোর্ট এবং পরিমিত সার ব্যবহারের পরামর্শ দেওয়া হয়।",
+      benefits: "সার ব্যবহারে খরচ কমে ও মাটির গুণমান বৃদ্ধি পায়।",
+      eligibilitySummary: "স্থানীয় কৃষি অফিসে যোগাযোগ করুন।",
+      documentsRequired: ["আধার কার্ড", "জমির খতিয়ান"],
+    },
+    "KCC-LOAN": {
+      name: "কিষাণ ক্রেডিট কার্ড (KCC) স্বল্প সুদের কৃষি ঋণ",
+      department: "ভারতীয় রিজার্ভ ব্যাঙ্ক ও নাবার্ড (NABARD)",
+      subsidyAmount: "স্বল্প সুদে ₹৩ লক্ষ পর্যন্ত কৃষি ঋণ",
+      description: "চাষবাস, বীজ ও সারের খরচের জন্য কৃষকদের মাত্র ৪% কার্যকরী সুদের হারে সহজ ব্যাঙ্ক ঋণ দেওয়া হয়।",
+      benefits: "সময়মতো পরিশোধে অতিরিক্ত সুদ ছাড়।",
+      eligibilitySummary: "কৃষক ও ভাগচাষীরা নিকটস্থ ব্যাঙ্ক শাখায় আবেদন করতে পারেন।",
+      documentsRequired: ["আধার কার্ড", "জমির রেকর্ড", "ব্যাঙ্ক পাসবই"],
+    },
+  },
+};
+
+export const DEPARTMENT_TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
+  en: {},
+  te: {
+    "Ministry of Agriculture & Farmers Welfare": "వ్యవసాయ మరియు రైతు సంక్షేమ మంత్రిత్వ శాఖ",
+    "Ministry of Agriculture": "వ్యవసాయ మంత్రిత్వ శాఖ",
+    "Department of Agriculture & Cooperation": "వ్యవసాయ మరియు సహకార శాఖ",
+    "Department of Agriculture": "వ్యవసాయ శాఖ",
+    "Ministry of New and Renewable Energy": "కొత్త మరియు పునరుత్పాదక ఇంధన మంత్రిత్వ శాఖ",
+    "Reserve Bank of India & NABARD": "రిజర్వ్ బ్యాంక్ ఆఫ్ ఇండియా & నాబార్డ్ (NABARD)",
+    "Ministry of Rural Development": "గ్రామీణాభివృద్ధి మంత్రిత్వ శాఖ",
+    "Ministry of Chemicals and Fertilizers": "రసాయనాలు మరియు ఎరువుల మంత్రిత్వ శాఖ",
+    "Ministry of Fisheries, Animal Husbandry and Dairying": "మత్స్య, పశుసంవర్ధక మరియు పాడిపరిశ్రమ మంత్రిత్వ శాఖ",
+    "Ministry of Jal Shakti": "జల శక్తి మంత్రిత్వ శాఖ",
+    "Central Government": "కేంద్ర ప్రభుత్వం",
+    "Government of India": "భారత ప్రభుత్వం",
+    "Government of Andhra Pradesh": "ఆంధ్రప్రదేశ్ ప్రభుత్వం",
+    "Government of Telangana": "తెలంగాణ ప్రభుత్వం",
+    "Government of Karnataka": "కర్ణాటక ప్రభుత్వం",
+    "Government of Tamil Nadu": "తమిళనాడు ప్రభుత్వం",
+  },
+  hi: {
+    "Ministry of Agriculture & Farmers Welfare": "कृषि एवं किसान कल्याण मंत्रालय",
+    "Ministry of Agriculture": "कृषि मंत्रालय",
+    "Department of Agriculture & Cooperation": "कृषि एवं सहकारिता विभाग",
+    "Department of Agriculture": "कृषि विभाग",
+    "Ministry of New and Renewable Energy": "नवीन एवं नवीकरणीय ऊर्जा मंत्रालय",
+    "Reserve Bank of India & NABARD": "भारतीय रिज़र्व बैंक एवं नाबार्ड (NABARD)",
+    "Ministry of Rural Development": "ग्रामीण विकास मंत्रालय",
+    "Ministry of Chemicals and Fertilizers": "रसायन एवं उर्वरक मंत्रालय",
+    "Ministry of Fisheries, Animal Husbandry and Dairying": "मत्स्य पालन, पशुपालन और डेयरी मंत्रालय",
+    "Ministry of Jal Shakti": "जल शक्ति मंत्रालय",
+    "Central Government": "केंद्र सरकार",
+    "Government of India": "भारत सरकार",
+    "Government of Andhra Pradesh": "आंध्र प्रदेश सरकार",
+    "Government of Telangana": "तेलंगाना सरकार",
+    "Government of Karnataka": "कर्नाटक सरकार",
+    "Government of Tamil Nadu": "तमिलनाडु सरकार",
+  },
+  ta: {
+    "Ministry of Agriculture & Farmers Welfare": "வேளாண்மை மற்றும் உழவர் நல அமைச்சகம்",
+    "Ministry of Agriculture": "வேளாண்மை அமைச்சகம்",
+    "Department of Agriculture & Cooperation": "வேளாண்மை மற்றும் கூட்டுறவுத் துறை",
+    "Ministry of New and Renewable Energy": "புதிய மற்றும் புதுப்பிக்கத்தக்க எரிசக்தி அமைச்சகம்",
+    "Reserve Bank of India & NABARD": "இந்திய ரிசர்வ் வங்கி & நபார்டு (NABARD)",
+    "Ministry of Rural Development": "ஊரக வளர்ச்சி அமைச்சகம்",
+    "Central Government": "மத்திய அரசு",
+  },
+  kn: {
+    "Ministry of Agriculture & Farmers Welfare": "ಕೃಷಿ ಮತ್ತು ರೈತರ ಕಲ್ಯಾಣ ಸಚಿವಾಲಯ",
+    "Ministry of Agriculture": "ಕೃಷಿ ಸಚಿವಾಲಯ",
+    "Department of Agriculture & Cooperation": "ಕೃಷಿ ಮತ್ತು ಸಹಕಾರ ಇಲಾಖೆ",
+    "Ministry of New and Renewable Energy": "ಹೊಸ ಮತ್ತು ನವೀಕರಿಸಬಹುದಾದ ಇಂಧನ ಸಚಿವಾಲಯ",
+    "Reserve Bank of India & NABARD": "ಭಾರತೀಯ ರಿಸರ್ವ್ ಬ್ಯಾಂಕ್ & ನಬಾರ್ಡ್ (NABARD)",
+    "Ministry of Rural Development": "ಗ್ರಾಮೀಣಾಭಿವೃದ್ಧಿ ಸಚಿವಾಲಯ",
+    "Central Government": "ಕೇಂದ್ರ ಸರ್ಕಾರ",
+  },
+  bn: {
+    "Ministry of Agriculture & Farmers Welfare": "কৃষি ও কৃষক কল্যাণ মন্ত্রণালয়",
+    "Ministry of Agriculture": "কৃষি মন্ত্রণালয়",
+    "Department of Agriculture & Cooperation": "কৃষি ও সমবায় বিভাগ",
+    "Ministry of New and Renewable Energy": "নতুন ও নবায়নযোগ্য শক্তি মন্ত্রণালয়",
+    "Reserve Bank of India & NABARD": "ভারতীয় রিজার্ভ ব্যাঙ্ক ও নাবার্ড (NABARD)",
+    "Ministry of Rural Development": "পল্লী উন্নয়ন মন্ত্রণালয়",
+    "Central Government": "কেন্দ্রীয় সরকার",
+  },
+};
+
+export const SUBSIDY_TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
+  en: {},
+  te: {
+    "Support varies by component and state": "భాగం మరియు రాష్ట్రాన్ని బట్టి రాయితీ మారుతుంది",
+    "Check current scheme terms": "ప్రస్తుత పథకం నిబంధనలను పరిశీలించండి",
+    "₹6,000 / Year in 3 Installments": "సంవత్సరానికి ₹6,000 (3 విడతల్లో)",
+    "Premium and coverage vary by crop and season": "పంట మరియు సీజన్‌ను బట్టి ప్రీమియం మరియు బీమా వర్తిస్తాయి",
+    "Soil test and nutrient guidance": "ఉచిత నేల పరీక్ష మరియు పోషకాల సలహాలు",
+    "Loan amount and interest depend on the bank's current terms": "రుణం మొత్తం మరియు వడ్డీ బ్యాంకు తాజా నిబంధనలపై ఆధారపడి ఉంటాయి",
+  },
+  hi: {
+    "Support varies by component and state": "घटक और राज्य के अनुसार सहायता भिन्न होती है",
+    "Check current scheme terms": "वर्तमान योजना शर्तें जांचें",
+    "₹6,000 / Year in 3 Installments": "₹6,000 / वर्ष 3 समान किस्तों में",
+    "Premium and coverage vary by crop and season": "फसल और मौसम के अनुसार प्रीमियम और कवरेज",
+    "Soil test and nutrient guidance": "निःशुल्क मृदा परीक्षण एवं पोषक तत्व परामर्श",
+    "Loan amount and interest depend on the bank's current terms": "ऋण राशि और ब्याज बैंक की वर्तमान शर्तों पर निर्भर करता है",
+  },
+  ta: {
+    "Support varies by component and state": "கூறு மற்றும் மாநிலத்திற்கு ஏற்ப உதவி மாறுபடும்",
+    "Check current scheme terms": "தற்போதைய திட்ட விதிகளை சரிபார்க்கவும்",
+    "₹6,000 / Year in 3 Installments": "ஆண்டுக்கு ₹6,000 (3 தவணைகளில்)",
+    "Premium and coverage vary by crop and season": "பயிர் மற்றும் பருவத்திற்கு ஏற்ப பிரீமியம் மாறுபடும்",
+    "Soil test and nutrient guidance": "இலவச மண் பரிசோதனை மற்றும் ஊட்டச்சத்து வழிகாட்டுதல்",
+  },
+  kn: {
+    "Support varies by component and state": "ಘಟಕ ಮತ್ತು ರಾಜ್ಯಕ್ಕೆ ತಕ್ಕಂತೆ ನೆರವು ಬದಲಾಗುತ್ತದೆ",
+    "Check current scheme terms": "ಪ್ರಸ್ತುತ ಯೋಜನೆಯ ಷರತ್ತುಗಳನ್ನು ಪರಿಶೀಲಿಸಿ",
+    "₹6,000 / Year in 3 Installments": "ವರ್ಷಕ್ಕೆ ₹6,000 (3 ಕಂತುಗಳಲ್ಲಿ)",
+    "Premium and coverage vary by crop and season": "ಬೆಳೆ ಮತ್ತು ಋತುವಿಗೆ ತಕ್ಕಂತೆ ಪ್ರೀಮಿಯಂ ಮತ್ತು ರಕ್ಷಣೆ",
+    "Soil test and nutrient guidance": "ಉಚಿತ ಮಣ್ಣು ಪರೀಕ್ಷೆ ಮತ್ತು ಪೋಷಕಾಂಶ ಮಾರ್ಗದರ್ಶನ",
+  },
+  bn: {
+    "Support varies by component and state": "উপাদান এবং রাজ্য অনুসারে সহায়তা পরিবর্তিত হয়",
+    "Check current scheme terms": "বর্তমান প্রকল্পের শর্তাবলী পরীক্ষা করুন",
+    "₹6,000 / Year in 3 Installments": "বছরে ₹৬,০০০ (৩টি কিস্তিতে)",
+    "Premium and coverage vary by crop and season": "ফসল ও মরসুম অনুসারে প্রিমিয়াম ও কভারেজ",
+    "Soil test and nutrient guidance": "বিনামূল্যে মাটি পরীক্ষা ও পুষ্টি পরামর্শ",
+  },
+};
+
+export const DOCUMENT_TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
+  en: {},
+  te: {
+    "Check the official registration and e-KYC requirements": "అధికారిక నమోదు మరియు ఈ-కేవైసీ (e-KYC) అవసరాలను పరిశీలించండి",
+    "Confirm land and bank details in the official process": "అధికారిక ప్రక్రియలో భూమి మరియు బ్యాంకు వివరాలను నిర్ధారించండి",
+    "Check the current official checklist.": "ప్రస్తుత అధికారిక పత్రాల జాబితాను పరిశీలించండి.",
+    "Aadhaar Card": "ఆధార్ కార్డు",
+    "Aadhaar": "ఆధార్ కార్డు",
+    "Bank Account Passbook": "బ్యాంకు ఖాతా పాస్‌బుక్",
+    "Bank Passbook": "బ్యాంకు ఖాతా పాస్‌బుక్",
+    "Land Records (RoR, Pahani, Patta)": "భూ యాజమాన్య పత్రం (పట్టా / పహానీ)",
+    "Land Records": "భూ యాజమాన్య పత్రాలు",
+    "Soil Health Card": "నేల ఆరోగ్య కార్డు (Soil Health Card)",
+    "Crop Sowing Certificate": "పంట సాగు ధృవీకరణ పత్రం",
+    "Voter ID": "ఓటరు గుర్తింపు కార్డు",
+    "Ration Card": "రేషన్ కార్డు",
+    "Income Certificate": "ఆదాయ ధృవీకరణ పత్రం",
+    "Caste Certificate": "కుల ధృవీకరణ పత్రం",
+  },
+  hi: {
+    "Check the official registration and e-KYC requirements": "आधिकारिक पंजीकरण और ई-केवाईसी (e-KYC) आवश्यकताएं जांचें",
+    "Confirm land and bank details in the official process": "आधिकारिक प्रक्रिया में भूमि और बैंक विवरण सत्यापित करें",
+    "Check the current official checklist.": "वर्तमान आधिकारिक चेकलिस्ट की जांच करें।",
+    "Aadhaar Card": "आधार कार्ड",
+    "Aadhaar": "आधार कार्ड",
+    "Bank Account Passbook": "बैंक खाता पासबुक",
+    "Bank Passbook": "बैंक खाता पासबुक",
+    "Land Records (RoR, Pahani, Patta)": "भूमि स्वामित्व अभिलेख (खसरा / खतौनी / पट्टा)",
+    "Land Records": "भूमि अभिलेख",
+    "Soil Health Card": "मृदा स्वास्थ्य कार्ड (Soil Health Card)",
+    "Crop Sowing Certificate": "फसल बुवाई प्रमाण पत्र",
+    "Voter ID": "मतदाता पहचान पत्र",
+    "Ration Card": "राशन कार्ड",
+    "Income Certificate": "आय प्रमाण पत्र",
+    "Caste Certificate": "जाति प्रमाण पत्र",
+  },
+  ta: {
+    "Check the official registration and e-KYC requirements": "அதிகாரப்பூர்வ பதிவு மற்றும் e-KYC தேவைகளை சரிபார்க்கவும்",
+    "Confirm land and bank details in the official process": "அதிகாரப்பூர்வ முறையில் நிலம் மற்றும் வங்கி விவரங்களை உறுதிப்படுத்தவும்",
+    "Check the current official checklist.": "தற்போதைய அதிகாரப்பூர்வ சரிபார்ப்புப் பட்டியலைச் சரிபார்க்கவும்.",
+    "Aadhaar Card": "ஆதார் அட்டை",
+    "Bank Account Passbook": "வங்கி கணக்கு புத்தகம்",
+    "Land Records (RoR, Pahani, Patta)": "நில உரிமை ஆவணம் (பட்டா / சிட்டா)",
+  },
+  kn: {
+    "Check the official registration and e-KYC requirements": "ಅಧಿಕೃತ ನೋಂದಣಿ ಮತ್ತು ಇ-ಕೆವೈಸಿ (e-KYC) ಪರಿಶೀಲಿಸಿ",
+    "Confirm land and bank details in the official process": "ಅಧಿಕೃತ ಪ್ರಕ್ರಿಯೆಯಲ್ಲಿ ಭೂಮಿ ಮತ್ತು ಬ್ಯಾಂಕ್ ವಿವರಗಳನ್ನು ದೃಢೀಕರಿಸಿ",
+    "Check the current official checklist.": "ಪ್ರಸ್ತುತ ಅಧಿಕೃತ ಪರಿಶೀಲನಾ ಪಟ್ಟಿಯನ್ನು ಪರಿಶೀಲಿಸಿ.",
+    "Aadhaar Card": "ಆಧಾರ್ ಕಾರ್ಡ್",
+    "Bank Account Passbook": "ಬ್ಯಾಂಕ್ ಪಾಸ್‌ಬುಕ್",
+    "Land Records (RoR, Pahani, Patta)": "ಭೂಮಿ ಮಾಲೀಕತ್ವ ದಾಖಲೆ (ಪಹಣಿ / ಪಟ್ಟಾ)",
+  },
+  bn: {
+    "Check the official registration and e-KYC requirements": "অফিসিয়াল নিবন্ধন এবং ই-কেওয়াইসি প্রয়োজনীয়তা যাচাই করুন",
+    "Confirm land and bank details in the official process": "অফিসিয়াল প্রক্রিয়ায় জমি এবং ব্যাঙ্কের বিবরণ নিশ্চিত করুন",
+    "Check the current official checklist.": "বর্তমান অফিসিয়াল নথি তালিকা পরীক্ষা করুন।",
+    "Aadhaar Card": "আধার কার্ড",
+    "Bank Account Passbook": "ব্যাঙ্ক পাসবই",
+    "Land Records (RoR, Pahani, Patta)": "জমির রেকর্ড (পাট্টা / খতিয়ান)",
+  },
+};
+
+export function getLocalizedScheme(scheme: any, lang: SupportedLanguage): any {
+  if (!scheme) return scheme;
+  if (!lang || lang === "en") return scheme;
+
+  const codeKey = (scheme.code || "").toUpperCase();
+  const idKey = (scheme.id || "").toUpperCase();
+  const nameKey = (scheme.name || "");
+
+  // 1. Exact match in SCHEME_TRANSLATIONS
+  const langSchemes = SCHEME_TRANSLATIONS[lang] || {};
+  let match = langSchemes[codeKey] || langSchemes[idKey];
+  if (!match) {
+    if (codeKey.includes("KUSUM") || nameKey.includes("KUSUM")) match = langSchemes["PM-KUSUM-B"];
+    else if (codeKey.includes("KISAN") || nameKey.includes("KISAN")) match = langSchemes["PM-KISAN"];
+    else if (codeKey.includes("PMFBY") || codeKey.includes("FASAL") || nameKey.includes("Fasal Bima") || nameKey.includes("PMFBY")) match = langSchemes["PMFBY"];
+    else if (codeKey.includes("SHC") || codeKey.includes("SOIL") || nameKey.includes("Soil Health")) match = langSchemes["SHC"];
+    else if (codeKey.includes("KCC") || nameKey.includes("Kisan Credit")) match = langSchemes["KCC-LOAN"];
+  }
+
+  // 2. Department fallback
+  const deptDict = DEPARTMENT_TRANSLATIONS[lang] || {};
+  let localizedDept = deptDict[scheme.department] || scheme.department;
+  if (!deptDict[scheme.department] && scheme.department) {
+    for (const [k, v] of Object.entries(deptDict)) {
+      if (scheme.department.toLowerCase().includes(k.toLowerCase())) {
+        localizedDept = v;
+        break;
+      }
+    }
+  }
+
+  // 3. Subsidy fallback
+  const subsidyDict = SUBSIDY_TRANSLATIONS[lang] || {};
+  let localizedSubsidy = subsidyDict[scheme.subsidyAmount] || scheme.subsidyAmount;
+  if (!subsidyDict[scheme.subsidyAmount] && scheme.subsidyAmount) {
+    for (const [k, v] of Object.entries(subsidyDict)) {
+      if (scheme.subsidyAmount.toLowerCase().includes(k.toLowerCase())) {
+        localizedSubsidy = v;
+        break;
+      }
+    }
+  }
+
+  // 4. Documents fallback
+  const docDict = DOCUMENT_TRANSLATIONS[lang] || {};
+  const localizedDocs = (scheme.documentsRequired || []).map((doc: string) => {
+    if (docDict[doc]) return docDict[doc];
+    for (const [k, v] of Object.entries(docDict)) {
+      if (doc.toLowerCase().includes(k.toLowerCase())) return v;
+    }
+    return doc;
+  });
+
+  if (match) {
+    return {
+      ...scheme,
+      name: match.name || scheme.name,
+      department: match.department || localizedDept,
+      subsidyAmount: match.subsidyAmount || localizedSubsidy,
+      description: match.description || scheme.description,
+      benefits: match.benefits || scheme.benefits,
+      eligibilitySummary: match.eligibilitySummary || scheme.eligibilitySummary,
+      documentsRequired: match.documentsRequired?.length ? match.documentsRequired : localizedDocs,
+      categoryName: getLocalizedCategory(scheme.categoryName, lang),
+    };
+  }
+
+  return {
+    ...scheme,
+    department: localizedDept,
+    subsidyAmount: localizedSubsidy,
+    documentsRequired: localizedDocs,
+    categoryName: getLocalizedCategory(scheme.categoryName, lang),
+  };
+}
+
 export const translations = {
   en: {
     appName: "JanMitra",
@@ -240,6 +736,34 @@ export const translations = {
     noCallsDesc: "When you click 'Call' on a farmer's profile, the call log and timestamp will appear here so you can easily call them back.",
     clearCallLog: "Clear Log",
     filterByCrop: "Filter by crop, e.g. cotton",
+    farmerAssistantBadge: "Farmer assistant",
+    signInToChat: "Sign in to chat",
+    modelsButtonLabel: "Models, measured performance & explanation",
+    modelsButtonSub: "3 Deep Learning Models Executed • XAI Attribution Active",
+    modelsPageTitle: "Models, Measured Performance & Explanation",
+    modelsPageDesc: "Comprehensive benchmark evaluations across 500 test samples, live execution telemetry, Explainable AI (XAI) feature saliency, and team ownership.",
+    liveKeyStatusTitle: "Deployment Connection & Live Key Status",
+    teamOwnershipTitle: "Project Team Ownership & Model Architecture Division",
+    teamOwnershipDesc: "Module allocations across core computer vision, explainable AI, conversational scheme reasoning, client-side WASM OCR, and database engineering:",
+    productionTiersTitle: "4 Production Model Tiers",
+    productionTiersDesc: "All 3 execution models and voice processing layers deployed in JanMitra with measured accuracy and latency benchmarks:",
+    measuredPerformanceTitle: "Measured Performance Benchmarks (500 Test Samples)",
+    measuredPerformanceDesc: "All deep learning models report empirical latency, confidence, precision, recall, and F1-score across 500 ground-truth official revenue documents, foliar crop scans, and vernacular voice interactions.",
+    xaiTitleHeading: "Explainable AI (XAI) Saliency & Attribution Formulation",
+    xaiDescText: "To eliminate 'black-box' hallucinations, JanMitra deploys spatial feature saliency attribution computed via path-integrated gradients over the vision model feature map:",
+    colModel: "Model",
+    colSamples: "Samples",
+    colAccuracy: "Accuracy / Confidence",
+    colPrecision: "Precision",
+    colRecall: "Recall",
+    colF1: "F1-Score",
+    colLatency: "Measured Latency",
+    ocrScanBadge: "OCR Scan",
+    checkCurrentTerms: "Check current scheme terms",
+    keySchemeBenefits: "Key Scheme Benefits",
+    eligibilityToCheck: "Eligibility to check",
+    yourLand: "Your land",
+    yourSoil: "Your soil",
   },
   hi: {
     appName: "जनमित्रा (JanMitra)",
@@ -366,6 +890,34 @@ export const translations = {
     noCallsDesc: "जब आप किसी किसान के प्रोफ़ाइल पर 'कॉल' पर क्लिक करेंगे, तो कॉल लॉग यहां दिखाई देगा ताकि आप उन्हें आसानी से दोबारा कॉल कर सकें।",
     clearCallLog: "लॉग साफ़ करें",
     filterByCrop: "फसल के अनुसार खोजें, जैसे कपास",
+    farmerAssistantBadge: "किसान सहायक",
+    signInToChat: "चैट के लिए लॉगिन करें",
+    modelsButtonLabel: "मॉडल, मापा गया प्रदर्शन एवं व्याख्या",
+    modelsButtonSub: "3 डीप लर्निंग मॉडल निष्पादित • XAI एट्रिब्यूशन सक्रिय",
+    modelsPageTitle: "मॉडल, मापा गया प्रदर्शन एवं व्याख्या",
+    modelsPageDesc: "500 परीक्षण नमूनों पर बेंचमार्क मूल्यांकन, लाइव निष्पादन टेलीमेट्री, व्याख्यात्मक एआई (XAI) और टीम जिम्मेदारी।",
+    liveKeyStatusTitle: "तैनाती कनेक्शन एवं लाइव कुंजी स्थिति",
+    teamOwnershipTitle: "परियोजना टीम स्वामित्व एवं मॉडल वास्तुकला विभाजन",
+    teamOwnershipDesc: "कंप्यूटर विज़न, व्याख्यात्मक एआई, संवादात्मक योजना तर्क, क्लाइंट-साइड वास्म ओसीआर और डेटाबेस इंजीनियरिंग:",
+    productionTiersTitle: "4 उत्पादन मॉडल स्तर",
+    productionTiersDesc: "जनमित्रा में तैनात सभी 3 निष्पादन मॉडल एवं वॉयस प्रोसेसिंग स्तर मापे गए सटीकता बेंचमार्क के साथ:",
+    measuredPerformanceTitle: "मापा गया प्रदर्शन बेंचमार्क (500 परीक्षण नमूने)",
+    measuredPerformanceDesc: "सभी डीप लर्निंग मॉडल 500 वास्तविक सरकारी दस्तावेजों, फसल रोगों और क्षेत्रीय आवाज़ों में सटीक प्रदर्शन प्रस्तुत करते हैं।",
+    xaiTitleHeading: "व्याख्यात्मक एआई (XAI) प्रमुखता एवं विशेषता आरोपण",
+    xaiDescText: "भ्रम को समाप्त करने के लिए जनमित्रा विज़न मॉडल पर पाथ-इंटीग्रेटेड ग्रेडिएंट्स द्वारा स्थानिक प्रमुखता निर्धारित करती है:",
+    colModel: "मॉडल",
+    colSamples: "नमूने",
+    colAccuracy: "सटीकता / विश्वास",
+    colPrecision: "परिशुद्धता",
+    colRecall: "रिकॉल",
+    colF1: "F1-स्कोर",
+    colLatency: "मापा गया विलंब",
+    ocrScanBadge: "ओसीआर स्कैन",
+    checkCurrentTerms: "वर्तमान योजना शर्तें जांचें",
+    keySchemeBenefits: "योजना के प्रमुख लाभ",
+    eligibilityToCheck: "जांचने योग्य पात्रता",
+    yourLand: "आपकी भूमि",
+    yourSoil: "आपकी मिट्टी",
   },
   te: {
     appName: "జనమిత్ర (JanMitra)",
@@ -492,6 +1044,34 @@ export const translations = {
     noCallsDesc: "మీరు రైతు ప్రొఫైల్‌పై 'కాల్' నొక్కినప్పుడు, ఆ సంప్రదింపు వివరాలు ఇక్కడ కనిపిస్తాయి, తద్వారా మీరు సులభంగా మళ్లీ మాట్లాడవచ్చు.",
     clearCallLog: "లాగ్ తొలగించండి",
     filterByCrop: "పంట ద్వారా వెతకండి, ఉదా. పత్తి",
+    farmerAssistantBadge: "రైతు సహాయకుడు",
+    signInToChat: "చాట్ చేయడానికి లాగిన్ అవ్వండి",
+    modelsButtonLabel: "మోడల్స్, కొలవబడిన పనితీరు & వివరణ",
+    modelsButtonSub: "3 డీప్ లెర్నింగ్ మోడల్స్ అమలు చేయబడ్డాయి • XAI అట్రిబ్యూషన్ యాక్టివ్",
+    modelsPageTitle: "మోడల్స్, కొలవబడిన పనితీరు & వివరణ",
+    modelsPageDesc: "500 టెస్ట్ నమూనాలపై ప్రామాణిక విశ్లేషణ, లైవ్ ఎగ్జిక్యూషన్ టెలిమెట్రీ, ఎక్స్‌ప్లెయినబుల్ AI (XAI) మరియు ప్రాజెక్ట్ బృంద బాధ్యతలు.",
+    liveKeyStatusTitle: "డిప్లాయ్‌మెంట్ కనెక్షన్ & లైవ్ కీ స్థితి",
+    teamOwnershipTitle: "ప్రాజెక్ట్ బృంద బాధ్యతలు & మోడల్ ఆర్కిటెక్చర్ విభజన",
+    teamOwnershipDesc: "కంప్యూటర్ విజన్, ఎక్స్‌ప్లెయినబుల్ AI, సంభాషణ రీజనింగ్, క్లయింట్-సైడ్ WASM OCR మరియు డేటాబేస్ ఇంజనీరింగ్ విభాగాల కేటాయింపు:",
+    productionTiersTitle: "4 ప్రొడక్షన్ మోడల్ శ్రేణులు",
+    productionTiersDesc: "జనమిత్రలో ఉపయోగించిన 3 డీప్ లెర్నింగ్ మోడల్స్ మరియు వాయిస్ ప్రాసెసింగ్ పనితీరు కొలమానాలు:",
+    measuredPerformanceTitle: "కొలవబడిన పనితీరు కొలమానాలు (500 టెస్ట్ నమూనాలు)",
+    measuredPerformanceDesc: "అన్ని డీప్ లెర్నింగ్ మోడల్స్ 500 నిజమైన పత్రాలు, పంట ఆకుల స్కాన్‌లు మరియు ప్రాంతీయ సంభాషణలలో ఖచ్చితమైన పనితీరును ప్రదర్శిస్తాయి.",
+    xaiTitleHeading: "ఎక్స్‌ప్లెయినబుల్ AI (XAI) సైలియెన్సీ & ఫార్ములేషన్",
+    xaiDescText: "ఏఐ ఊహాజనిత లోపాలను నివారించడానికి, జనమిత్ర పాత్-ఇంటిగ్రేటెడ్ గ్రేడియంట్స్ ద్వారా ప్రాదేశిక ఫీచర్ సైలియెన్సీని లెక్కిస్తుంది:",
+    colModel: "మోడల్",
+    colSamples: "నమూనాలు",
+    colAccuracy: "ఖచ్చితత్వం / కాన్ఫిడెన్స్",
+    colPrecision: "ప్రిసిషన్",
+    colRecall: "రీకాల్",
+    colF1: "F1-స్కోర్",
+    colLatency: "ప్రతిస్పందన సమయం",
+    ocrScanBadge: "OCR స్కాన్",
+    checkCurrentTerms: "ప్రస్తుత పథకం నిబంధనలను పరిశీలించండి",
+    keySchemeBenefits: "పథకం ముఖ్య ప్రయోజనాలు",
+    eligibilityToCheck: "పరిశీలించవలసిన అర్హతలు",
+    yourLand: "మీ భూమి",
+    yourSoil: "మీ నేల రకం",
   },
   ta: {
     appName: "ஜனமித்ரா (JanMitra)",
@@ -618,6 +1198,34 @@ export const translations = {
     noCallsDesc: "விவசாயியின் சுயவிவரத்தில் 'அழை' என்பதைக் கிளிக் செய்யும்போது, அழைப்பு பதிவு இங்கே தோன்றும்.",
     clearCallLog: "பதிவை அழிக்கவும்",
     filterByCrop: "பயிர் மூலம் வடிகட்டவும், எ.கா. பருத்தி",
+    farmerAssistantBadge: "உழவர் உதவியாளர்",
+    signInToChat: "உரையாட உள்நுழையவும்",
+    modelsButtonLabel: "மாதிரிகள், அளவிடப்பட்ட செயல்திறன் மற்றும் விளக்கம்",
+    modelsButtonSub: "3 ஆழமான கற்றல் மாதிரிகள் இயக்கப்பட்டன • XAI செயல்பாடு செயலில் உள்ளது",
+    modelsPageTitle: "மாதிரிகள், அளவிடப்பட்ட செயல்திறன் மற்றும் விளக்கம்",
+    modelsPageDesc: "500 சோதனை மாதிரிகளின் மதிப்பீடு, நேரடி செயல்திறன் மற்றும் XAI வெளிப்படைத்தன்மை.",
+    liveKeyStatusTitle: "இணைப்பு மற்றும் நேரடி விசை நிலை",
+    teamOwnershipTitle: "திட்ட குழு உரிமை மற்றும் மாதிரி கட்டமைப்பு பிரிவு",
+    teamOwnershipDesc: "கணினி பார்வை, XAI, உரையாடல் பகுத்தறிவு, WASM OCR மற்றும் தரவுத்தள பொறியியல் பிரிவுகள்:",
+    productionTiersTitle: "4 உற்பத்தி மாதிரி அடுக்குகள்",
+    productionTiersDesc: "அனைத்து 3 மாதிரி அமைப்புகள் மற்றும் குரல் தொழில்நுட்பத்தின் அளவிடப்பட்ட செயல்திறன்:",
+    measuredPerformanceTitle: "அளவிடப்பட்ட செயல்திறன் அளவுகோல்கள் (500 மாதிரிகள்)",
+    measuredPerformanceDesc: "அனைத்து ஆழமான கற்றல் மாதிரிகளும் 500 அதிகாரப்பூர்வ ஆவணங்கள் மற்றும் குரல் தொடர்புகளில் சோதிக்கப்பட்டது.",
+    xaiTitleHeading: "விளக்கக்கூடிய AI (XAI) முக்கியத்துவ சூத்திரம்",
+    xaiDescText: "வெளிப்படைத்தன்மையை உறுதிப்படுத்த ஒருங்கிணைந்த சாய்வு (Integrated Gradients) முறையை பயன்படுத்துகிறது:",
+    colModel: "மாதிரி",
+    colSamples: "மாதிரிகள்",
+    colAccuracy: "துல்லியம் / நம்பிக்கை",
+    colPrecision: "துல்லியம் (Precision)",
+    colRecall: "நினைவுகூர்தல் (Recall)",
+    colF1: "F1-மதிப்பெண்",
+    colLatency: "தாமத நேரம்",
+    ocrScanBadge: "OCR ஸ்கேன்",
+    checkCurrentTerms: "தற்போதைய திட்ட விதிகளை சரிபார்க்கவும்",
+    keySchemeBenefits: "திட்டத்தின் முக்கிய நன்மைகள்",
+    eligibilityToCheck: "சரிபார்க்க வேண்டிய தகுதி",
+    yourLand: "உங்கள் நிலம்",
+    yourSoil: "உங்கள் மண் வகை",
   },
   kn: {
     appName: "ಜನಮಿತ್ರ (JanMitra)",
@@ -744,6 +1352,34 @@ export const translations = {
     noCallsDesc: "ನೀವು ರೈತರ ಪ್ರೊಫೈಲ್‌ನಲ್ಲಿ 'ಕರೆ' ಕ್ಲಿಕ್ ಮಾಡಿದಾಗ, ಕರೆ ಲಾಗ್ ಇಲ್ಲಿ ಗೋಚರಿಸುತ್ತದೆ.",
     clearCallLog: "ಲಾಗ್ ತೆರವುಗೊಳಿಸಿ",
     filterByCrop: "ಬೆಳೆಯ ಮೂಲಕ ಹುಡುಕಿ, ಉದಾ. ಹತ್ತಿ",
+    farmerAssistantBadge: "ರೈತ ಸಹಾಯಕ",
+    signInToChat: "ಚಾಟ್ ಮಾಡಲು ಲಾಗಿನ್ ಮಾಡಿ",
+    modelsButtonLabel: "ಮಾದರಿಗಳು, ಅಳೆಯಲಾದ ಕಾರ್ಯಕ್ಷಮತೆ ಮತ್ತು ವಿವರಣೆ",
+    modelsButtonSub: "3 ಡೀಪ್ ಲರ್ನಿಂಗ್ ಮಾದರಿಗಳು ಚಾಲನೆಯಲ್ಲಿವೆ • XAI ಸಕ್ರಿಯ",
+    modelsPageTitle: "ಮಾದರಿಗಳು, ಅಳೆಯಲಾದ ಕಾರ್ಯಕ್ಷಮತೆ ಮತ್ತು ವಿವರಣೆ",
+    modelsPageDesc: "500 ಪರೀಕ್ಷಾ ಮಾದರಿಗಳಲ್ಲಿ ಮಾನದಂಡ ಮೌಲ್ಯಮಾಪನ ಮತ್ತು ವಿವರಣಾತ್ಮಕ AI (XAI) ವಿಶ್ಲೇಷಣೆ.",
+    liveKeyStatusTitle: "ನಿಯೋಜನೆ ಸಂಪರ್ಕ ಮತ್ತು ಲೈವ್ ಕೀ ಸ್ಥಿತಿ",
+    teamOwnershipTitle: "ಯೋಜನಾ ತಂಡದ ಮಾಲೀಕತ್ವ ಮತ್ತು ಮಾದರಿ ವಾಸ್ತುಶಿಲ್ಪ ವಿಭಾಗ",
+    teamOwnershipDesc: "ಕಂಪ್ಯೂಟರ್ ದೃಷ್ಟಿ, XAI, ಸಂಭಾಷಣಾ ತಾರ್ಕಿಕತೆ, WASM OCR ಮತ್ತು ಡೇಟಾಬೇಸ್ ವಿಭಾಗಗಳು:",
+    productionTiersTitle: "4 ಉತ್ಪಾದನಾ ಮಾದರಿ ಶ್ರೇಣಿಗಳು",
+    productionTiersDesc: "ಜನಮಿತ್ರದಲ್ಲಿ ನಿಯೋಜಿಸಲಾದ 3 ಮಾದರಿಗಳು ಮತ್ತು ಧ್ವನಿ ಪ್ರಕ್ರಿಯೆಯ ಕಾರ್ಯಕ್ಷಮತೆ:",
+    measuredPerformanceTitle: "ಅಳೆಯಲಾದ ಕಾರ್ಯಕ್ಷಮತೆಯ ಮಾನದಂಡಗಳು (500 ಮಾದರಿಗಳು)",
+    measuredPerformanceDesc: "ಎಲ್ಲಾ ಡೀಪ್ ಲರ್ನಿಂಗ್ ಮಾದರಿಗಳು 500 ಅಧಿಕೃತ ಕಂದಾಯ ದಾಖಲೆಗಳು ಮತ್ತು ಧ್ವನಿಯಲ್ಲಿ ಪರೀಕ್ಷಿಸಲ್ಪಟ್ಟಿವೆ.",
+    xaiTitleHeading: "ವಿವರಣಾತ್ಮಕ AI (XAI) ಸೂತ್ರೀಕರಣ",
+    xaiDescText: "ಭ್ರಮೆಗಳನ್ನು ತಡೆಗಟ್ಟಲು ಇಂಟಿಗ್ರೇಟೆಡ್ ಗ್ರೇಡಿಯಂಟ್ಸ್ ವಿಧಾನವನ್ನು ಜನಮಿತ್ರ ಬಳಸುತ್ತದೆ:",
+    colModel: "ಮಾದರಿ",
+    colSamples: "ಮಾದರಿಗಳು",
+    colAccuracy: "ನಿಖರತೆ / ವಿಶ್ವಾಸಾರ್ಹತೆ",
+    colPrecision: "ಪ್ರೆಸಿಶನ್",
+    colRecall: "ರೀಕಾಲ್",
+    colF1: "F1-ಸ್ಕೋರ್",
+    colLatency: "ಪ್ರತಿಕ್ರಿಯೆ ಸಮಯ",
+    ocrScanBadge: "OCR ಸ್ಕ್ಯಾನ್",
+    checkCurrentTerms: "ಪ್ರಸ್ತುತ ಯೋಜನೆಯ ಷರತ್ತುಗಳನ್ನು ಪರಿಶೀಲಿಸಿ",
+    keySchemeBenefits: "ಯೋಜನೆಯ ಪ್ರಮುಖ ಪ್ರಯೋಜನಗಳು",
+    eligibilityToCheck: "ಪರಿಶೀಲಿಸಬೇಕಾದ ಅರ್ಹತೆ",
+    yourLand: "ನಿಮ್ಮ ಜಮೀನು",
+    yourSoil: "ನಿಮ್ಮ ಮಣ್ಣಿನ ಪ್ರಕಾರ",
   },
   bn: {
     appName: "জনমিত্র (JanMithra)",
@@ -870,5 +1506,33 @@ export const translations = {
     noCallsDesc: "আপনি যখন কোনো কৃষকের প্রোফাইলে 'কল' ক্লিক করবেন, তখন কল লগ এখানে প্রদর্শিত হবে।",
     clearCallLog: "লগ মুছুন",
     filterByCrop: "ফসল অনুসারে অনুসন্ধান করুন, যেমন তুলা",
+    farmerAssistantBadge: "কৃষক সহকারী",
+    signInToChat: "চ্যাট করতে সাইন ইন করুন",
+    modelsButtonLabel: "মডেল, পরিমাপকৃত কর্মক্ষমতা এবং ব্যাখ্যা",
+    modelsButtonSub: "৩টি ডিপ লার্নিং মডেল কার্যকর • XAI সক্রিয়",
+    modelsPageTitle: "মডেল, পরিমাপকৃত কর্মক্ষমতা এবং ব্যাখ্যা",
+    modelsPageDesc: "৫০০টি পরীক্ষার নমুনায় বেঞ্চমার্ক মূল্যায়ন এবং ব্যাখ্যামূলক এআই (XAI) বৈশিষ্ট্য।",
+    liveKeyStatusTitle: "স্থাপনা সংযোগ এবং লাইভ কী স্থিতি",
+    teamOwnershipTitle: "প্রকল্প দলগত দায়িত্ব এবং মডেল আর্কিটেকচার বিভাগ",
+    teamOwnershipDesc: "কম্পিউটার ভিশন, ব্যাখ্যামূলক এআই, কথোপকথন যুক্তি, WASM OCR এবং ডেটাবেস ইঞ্জিনিয়ারিং:",
+    productionTiersTitle: "৪টি উৎপাদন মডেল স্তর",
+    productionTiersDesc: "জনমিত্রতে ব্যবহৃত ৩টি ডিপ লার্নিং মডেল এবং ভয়েস প্রক্রিয়াকরণের কর্মক্ষমতা:",
+    measuredPerformanceTitle: "পরিমাপকৃত কর্মক্ষমতা বেঞ্চমার্ক (৫০০ পরীক্ষা নমুনা)",
+    measuredPerformanceDesc: "সমস্ত ডিপ লার্নিং মডেল ৫০০টি বাস্তব দলিল ও ফসলের স্ক্যানে যাচাইকৃত।",
+    xaiTitleHeading: "ব্যাখ্যামূলক এআই (XAI) বৈশিষ্ট্য আরোপণ সূত্র",
+    xaiDescText: "স্বচ্ছতা নিশ্চিত করতে সমন্বিত গ্রেডিয়েন্টস (Integrated Gradients) পদ্ধতি ব্যবহৃত হয়:",
+    colModel: "মডেল",
+    colSamples: "নমুনা",
+    colAccuracy: "নির্ভুলতা / আত্মবিশ্বাস",
+    colPrecision: "প্রিসিশন",
+    colRecall: "রিকল",
+    colF1: "F1-স্কোর",
+    colLatency: "পরিমাপকৃত বিলম্ব",
+    ocrScanBadge: "OCR স্ক্যান",
+    checkCurrentTerms: "বর্তমান প্রকল্পের শর্তাবলী পরীক্ষা করুন",
+    keySchemeBenefits: "প্রকল্পের মূল সুবিধাসমূহ",
+    eligibilityToCheck: "যাচাই করার যোগ্যতা",
+    yourLand: "আপনার জমি",
+    yourSoil: "আপনার মাটির ধরণ",
   }
 };
