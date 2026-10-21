@@ -10,6 +10,7 @@ import {
   NEARBY_PEERS,
   MOCK_OCR_PRESETS,
 } from "@/lib/mockData";
+import { localVoiceBriefing } from "@/lib/speechText";
 import { speakText, stopSpeaking } from "@/lib/speech";
 import { classifyBase64Image } from "@/lib/visionClassifier";
 import {
@@ -20,6 +21,9 @@ import {
   formatFarmerProfileReply,
   generateTextReply,
 } from "@/lib/chatEngine";
+
+let narrationGeneration = 0;
+let briefingRequest: AbortController | null = null;
 
 // Re-exported so existing imports from the store keep working.
 export type { ChatMessage, ConversationSummary };
@@ -749,19 +753,26 @@ export const useFarmerStore = create<FarmerState>((set, get) => {
     get().sendChatMessage(chipText);
   },
 
-  speakMessage: (id, text) => {
+  speakMessage: async (id, text) => {
+    stopSpeaking();
     const lang = get().language;
     set({ isSpeaking: true, speakingMessageId: id });
-
-    speakText(
-      text,
-      lang,
-      () => set({ isSpeaking: false, speakingMessageId: null }),
-      () => set({ isSpeaking: false, speakingMessageId: null })
-    );
+    const generation = ++narrationGeneration;
+    briefingRequest?.abort();
+    briefingRequest = new AbortController();
+    let briefing = localVoiceBriefing(text);
+    try {
+      const response = await fetch("/api/voice/brief", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: text.slice(0, 24000), language: lang, customApiKey: localStorage.getItem("janmitra_custom_vision_key") || undefined }), signal: AbortSignal.any([briefingRequest.signal, AbortSignal.timeout(25000)]) });
+      if (response.ok) { const result = await response.json(); if (result.text) briefing = result.text; }
+    } catch { /* The readable answer remains available for browser speech. */ }
+    if (generation !== narrationGeneration || get().speakingMessageId !== id || !get().isSpeaking) return;
+    const finish = () => { if (generation === narrationGeneration && get().speakingMessageId === id) set({ isSpeaking: false, speakingMessageId: null }); };
+    if (!speakText(briefing, lang, finish, finish)) finish();
   },
 
   stopAudio: () => {
+    narrationGeneration++; briefingRequest?.abort(); briefingRequest = null;
     stopSpeaking();
     set({ isSpeaking: false, speakingMessageId: null });
   },

@@ -1,3 +1,4 @@
+import { cleanSpokenText } from "@/lib/speechText";
 import { SupportedLanguage } from "./i18n";
 
 export const LANGUAGE_BCP47_MAP: Record<SupportedLanguage, string> = {
@@ -11,24 +12,16 @@ export const LANGUAGE_BCP47_MAP: Record<SupportedLanguage, string> = {
 
 // Global audio element reference to track ongoing audio playback
 let currentAudioElement: HTMLAudioElement | null = null;
+let speechRequest: AbortController | null = null;
+let speechGeneration = 0;
+let audioObjectUrl: string | null = null;
 
 // Clean text for speech synthesis (strip markdown, emojis, asterisks, bullets, technical symbols)
 export function sanitizeTextForSpeech(text: string): string {
-  return text
-    .replace(/[🌾🏛️📜📋✅⚠️💡•▪🎯👉🔹]/g, "")
-    .replace(/[*_#`~\[\]]/g, "")
-    .replace(/\(.*?\)/g, "")
-    .replace(/(\n|\r)+/g, ". ")
-    .replace(/\s+/g, " ")
-    .trim();
+  return cleanSpokenText(text).replace(/[🌾🏛️📜📋✅⚠️💡▪🎯👉🔹]/g, "").replace(/\s+/g, " ").trim();
 }
 
-/**
- * Robust Native Spoken Voice Readout
- * 1. Primary: Native Regional Voice via /api/tts streaming endpoint (guarantees authentic
- *    native speaker accent in Telugu, Tamil, Hindi, Kannada, Bengali, and English across all devices).
- * 2. Secondary Fallback: Browser Web Speech API (with strict language-matching voices).
- */
+/** Play a prepared briefing through server speech, with a matching browser voice as fallback. */
 export function speakText(
   text: string,
   lang: SupportedLanguage = "en",
@@ -43,36 +36,36 @@ export function speakText(
   const cleanText = sanitizeTextForSpeech(text);
   if (!cleanText) return false;
 
-  // Primary: Play native regional spoken audio via /api/tts
-  try {
-    const audioUrl = `/api/tts?lang=${encodeURIComponent(lang)}&text=${encodeURIComponent(cleanText)}`;
-    const audio = new Audio(audioUrl);
-    currentAudioElement = audio;
-
-    audio.onended = () => {
-      currentAudioElement = null;
-      if (onEnd) onEnd();
-    };
-
-    audio.onerror = () => {
-      console.warn("Audio endpoint stream failed, attempting browser SpeechSynthesis fallback...");
-      currentAudioElement = null;
-      playWebSpeechSynthesisFallback(cleanText, lang, onEnd, onError);
-    };
-
-    const playPromise = audio.play();
-    if (playPromise !== undefined) {
-      playPromise.catch((e) => {
-        console.warn("Audio autoplay policy prevented direct play, falling back to Web Speech:", e);
+  const generation = speechGeneration;
+  const controller = new AbortController();
+  speechRequest = controller;
+  fetch("/api/tts", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text: cleanText.slice(0, 2400), lang, customApiKey: localStorage.getItem("janmitra_custom_vision_key") || undefined }),
+    signal: AbortSignal.any([controller.signal, AbortSignal.timeout(35000)]) })
+    .then(async response => {
+      if (!response.ok) throw new Error("Speech service unavailable");
+      const blob = await response.blob();
+      if (generation !== speechGeneration) return;
+      audioObjectUrl = URL.createObjectURL(blob);
+      const audio = new Audio(audioObjectUrl);
+      currentAudioElement = audio;
+      let failed = false;
+      const fallback = () => {
+        if (failed || generation !== speechGeneration) return;
+        failed = true;
+        audio.pause(); currentAudioElement = null;
+        if (audioObjectUrl) { URL.revokeObjectURL(audioObjectUrl); audioObjectUrl = null; }
         playWebSpeechSynthesisFallback(cleanText, lang, onEnd, onError);
-      });
-    }
-
-    return true;
-  } catch (err) {
-    console.warn("Failed to initialize Audio, falling back to SpeechSynthesis:", err);
-    return playWebSpeechSynthesisFallback(cleanText, lang, onEnd, onError);
-  }
+      };
+      audio.onended = () => {
+        currentAudioElement = null;
+        if (audioObjectUrl) { URL.revokeObjectURL(audioObjectUrl); audioObjectUrl = null; }
+        if (generation === speechGeneration) onEnd?.();
+      };
+      audio.onerror = fallback;
+      audio.play().catch(fallback);
+    }).catch(() => { if (generation === speechGeneration) playWebSpeechSynthesisFallback(cleanText, lang, onEnd, onError); });
+  return true;
 }
 
 /**
@@ -123,6 +116,9 @@ function playWebSpeechSynthesisFallback(
 }
 
 export function stopSpeaking() {
+  speechGeneration++;
+  speechRequest?.abort(); speechRequest = null;
+  if (audioObjectUrl) { URL.revokeObjectURL(audioObjectUrl); audioObjectUrl = null; }
   if (typeof window !== "undefined") {
     // 1. Stop audio element
     if (currentAudioElement) {

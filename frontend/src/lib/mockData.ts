@@ -36,6 +36,7 @@ export interface Scheme {
   tagColor: string;
   applicationMode: "online" | "offline" | "both" | "unknown";
   sourceUrl?: string;
+  jurisdiction?: string;
 }
 
 export interface PeerSuccessStory {

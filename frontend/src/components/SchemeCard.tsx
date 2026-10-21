@@ -18,7 +18,7 @@ export default function SchemeCard({ scheme }: SchemeCardProps) {
   const t = translations[language];
 
   return (
-    <article className="group flex h-full flex-col rounded-[18px] border border-jm-border bg-jm-surface p-5 sm:p-6 shadow-[0_1px_2px_rgb(0_0_0/0.04)] transition hover:border-jm-primary/40 hover:shadow-[0_4px_14px_rgb(0_0_0/0.06)]">
+    <article className="jm-card group flex h-full flex-col rounded-[18px] border border-jm-border bg-jm-surface p-5 sm:p-6 shadow-[0_1px_2px_rgb(0_0_0/0.04)] transition hover:border-jm-primary/40 hover:shadow-[0_4px_14px_rgb(0_0_0/0.06)]">
       {/* A catalog search result is not an eligibility decision. */}
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
         <div className="flex flex-wrap items-center gap-2 min-w-0">
@@ -43,7 +43,7 @@ export default function SchemeCard({ scheme }: SchemeCardProps) {
           <Gift className="h-4 w-4 text-jm-primary" />
         </span>
         <div className="min-w-0">
-          <p className="text-xs font-medium text-jm-text2">{t.subsidyAmount}</p>
+          <p className="text-xs font-medium text-jm-text2">{scheme.id.startsWith("catalog:") ? "Saved benefit summary · verify current terms" : t.subsidyAmount}</p>
           <p className="text-[15px] font-semibold leading-snug text-jm-text break-words line-clamp-3">{scheme.subsidyAmount || "Check current scheme terms"}</p>
         </div>
       </div>

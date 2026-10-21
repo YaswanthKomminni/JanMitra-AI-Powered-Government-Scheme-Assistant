@@ -428,6 +428,10 @@ export function getTrainedModel(): TrainedModelPackage | null {
         try {
           const raw = fs.readFileSync(p, "utf-8");
           cachedModel = JSON.parse(raw);
+          // Correct a factor-of-ten typo in the imported seed entry. NHA's PM-JAY
+          // overview specifies 5 lakh per eligible family/year: https://nha.gov.in/PM-JAY
+          const pmjay = cachedModel?.schemes.find(s => /Pradhan Mantri Jan Arogya|PM-JAY/i.test(s.name));
+          if (pmjay) pmjay.benefits = pmjay.benefits.replace(/INR 5,000,000/g, "INR 5,00,000");
           console.log(`[aiCopilotService] Successfully loaded trained NLP model from ${p} (${cachedModel?.schemes.length} schemes)`);
           return cachedModel;
         } catch (err) {

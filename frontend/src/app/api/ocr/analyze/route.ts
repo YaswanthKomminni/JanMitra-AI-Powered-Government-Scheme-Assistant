@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/auth";
 import { analyzeAndRecordDocument, MAX_ATTACHMENT_CHARS } from "@/lib/documentAnalysis";
 import { LANGUAGE_CODES } from "@/lib/userProfile";
 import type { SupportedLanguage } from "@/lib/i18n";
+import { explainDocument } from "@/lib/documentChat";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -45,6 +46,13 @@ export async function POST(request: Request) {
       customApiKey: customApiKey || request.headers.get("x-vision-api-key") || undefined,
       language: ((LANGUAGE_CODES as readonly string[]).includes(body?.language) ? body.language : "en") as SupportedLanguage,
     });
+    if (outcome.success) {
+      const reply = await explainDocument({ query: "Summarize this upload in simple language. Explain the main contents and the useful next steps. Distinguish what was actually read from missing details.",
+        language: ((LANGUAGE_CODES as readonly string[]).includes(body?.language) ? body.language : "en") as SupportedLanguage,
+        profile: auth.profile, documentContext: outcome.detection, customApiKey: customApiKey || request.headers.get("x-vision-api-key") || undefined });
+      outcome.detection.assistantAnalysis = reply.text;
+      outcome.detection.aiStatus = reply.aiStatus;
+    }
     return NextResponse.json(outcome);
   } catch (error: any) {
     console.error("OCR Analysis error:", error);

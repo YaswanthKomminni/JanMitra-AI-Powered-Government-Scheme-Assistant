@@ -246,7 +246,7 @@ export default function ChatAssistant({ variant = "full" }: { variant?: "full" |
     const awaitingAnswer =
       isUser && msg.status === "saved" && idx === lastIndex && !isAwaitingReply && !messagesLoading;
     return (
-      <div key={msg.id} className={`flex flex-col ${isUser ? "items-end" : "items-start"}`}>
+      <div key={msg.id} className={`jm-message flex flex-col ${isUser ? "items-end" : "items-start"}`}>
         <div className={`flex items-start gap-2.5 max-w-[88%] sm:max-w-[78%] ${isUser ? "flex-row-reverse" : "flex-row"}`}>
           {/* Avatar */}
           <div
@@ -380,7 +380,7 @@ export default function ChatAssistant({ variant = "full" }: { variant?: "full" |
                   ) : (
                     <>
                       <Volume2 className="w-3.5 h-3.5 text-emerald-700" />
-                      <span className="text-[10px]">Listen Voice</span>
+                      <span className="text-[10px]">Hear the key points</span>
                     </>
                   )}
                 </button>

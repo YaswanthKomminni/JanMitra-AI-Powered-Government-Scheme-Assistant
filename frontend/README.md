@@ -159,3 +159,13 @@ When direct official portal retrieval is insufficient, the Gemini key can invoke
 The legacy Render Gemini variable `API-Key` is supported, as is `API KEY`; prefer `GEMINI_API_KEY` for new deployments. Keys stay server-side unless a user explicitly saves their own key in the connection dialog. A failed provider answer is marked as limited local guidance in chat and preserved in history; a local template is not reported as a successful model response. The connection check independently tests vision, a source-validated document answer through the real chat engine, and official-source research, without using farmer data.
 
 Booklet summaries are distinct from application-paperwork questions. SMAM and Soil Health Card selections survive subsequent questions; named-scheme retrieval prioritizes the selected scheme rather than unrelated sections sharing generic application words. Crop-specific overviews combine source-wide coverage with relevant passages, and recommendations can research current official guidance while keeping historical brochure claims separate.
+
+### Explore, Documents and voice briefings
+
+Explore exposes the full saved scheme catalog (over 4,700 listings) with normalized categories, state filters and 24-card batches. Saved benefits are labeled separately from current official rules; opening a card can start a personalized guide in chat. Catalog entries are reference material, not proof of availability or eligibility.
+
+The Documents scanner now runs its extraction through the same grounded answer engine as chat and supports follow-up questions in the result panel. Only extracted source data and recent questions are sent back for follow-ups; image previews and client-provided verification/profile flags are excluded. Fixed mock NLP statistics, severity percentages and processing-time claims have been removed from the result display.
+
+Voice actions first create a short source-grounded briefing in the selected language. Gemini TTS provides conversational delivery when available (`GEMINI_TTS_MODEL`, optional `GEMINI_TTS_VOICE`); otherwise the regional speech service or browser voice reads the briefing. Audio uses authenticated POST requests, full-transcript cache keys, and cancellation guards. Decimal amounts, parenthesized conditions and uncertainty are preserved. Speech no longer silently stops after four chunks. Provider quota, available voices, device audio permissions and network connectivity affect live playback.
+
+Subtle page/card/message animations respect reduced-motion preferences. `npm run test:ai` includes catalog, Documents Q&A, source preservation, voice briefing, audio encoding and cancellation regressions in addition to existing OCR/chat checks.
