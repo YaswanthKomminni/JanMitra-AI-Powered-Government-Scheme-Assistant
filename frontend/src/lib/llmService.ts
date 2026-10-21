@@ -40,6 +40,7 @@ export interface LlmChatResponse {
   provider: "gemini" | "groq" | "openai" | "campusone_copilot";
   modelUsed?: string;
   usedDocument?: boolean;
+  aiStatus?: { state: "cloud" | "fallback"; provider?: string; model?: string };
   searchSuggestionsHtml?: string;
 }
 
@@ -142,7 +143,7 @@ async function callGeminiText(
         method: "POST",
         headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
         body: JSON.stringify(payload),
-        signal: AbortSignal.any([signal, AbortSignal.timeout(jsonMode ? 10000 : 7000)]),
+        signal: AbortSignal.any([signal, AbortSignal.timeout(jsonMode ? 16000 : 10000)]),
       });
 
       if (!res.ok) {
@@ -206,7 +207,7 @@ async function callGroqText(
           Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify(payload),
-        signal: AbortSignal.any([signal, AbortSignal.timeout(jsonMode ? 10000 : 7000)]),
+        signal: AbortSignal.any([signal, AbortSignal.timeout(jsonMode ? 16000 : 10000)]),
       });
 
       if (!res.ok) {
@@ -270,7 +271,7 @@ async function callOpenAiText(
           Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify(payload),
-        signal: AbortSignal.any([signal, AbortSignal.timeout(jsonMode ? 10000 : 7000)]),
+        signal: AbortSignal.any([signal, AbortSignal.timeout(jsonMode ? 16000 : 10000)]),
       });
 
       if (!res.ok) {
@@ -363,24 +364,30 @@ async function generateReply(
   const references = schemeReferences(resolveConversationQuery(query, memory), profile, memory);
   const source = documentContext?.docType !== "crop_disease" ? partialSource || documentSource(documentContext) : "";
   const uploadSchemes = source ? parseAndSummarizeDocumentContent(source).unlockedSchemes : [];
-  const wantsSchemeGuide = /apply|application|eligib|documents?|deadline|దరఖాస్తు|అర్హత|आवेदन|पात्रता/i.test(query);
+  const wantsSchemeGuide = /apply|application|eligib|(?:required|needed) documents?|what documents|which documents|documents? (?:are |is )?(?:required|needed)|checklist|deadline|దరఖాస్తు|అర్హత|आवेदन|पात्रता/i.test(query);
   const genericUploadQuestion = /^(?:please )?(?:analy[sz]e|summari[sz]e|inspect|tell me about (?:this|the) (?:image|document|file|pdf))/i.test(memory.topic?.query || "");
-  if (documentContext && uploadSchemes.length > 1 && genericUploadQuestion && wantsSchemeGuide
-    && !uploadSchemes.some(name => query.toLowerCase().includes(name.toLowerCase()))) {
+  const comparesSchemes = /summar|overview|compare|suggest|recommend|which schemes|schemes.*(?:for me|eligible|benefit)|what can i apply for|\b(?:all|each)\b/i.test(query);
+  if (documentContext && uploadSchemes.length > 1 && genericUploadQuestion && wantsSchemeGuide && !comparesSchemes
+    && !memory.topic?.scheme && !uploadSchemes.some(name => query.toLowerCase().includes(name.toLowerCase()))) {
     const ask: Record<SupportedLanguage, string> = { en: "This document covers several schemes, each with different requirements. Which scheme should I explain?", te: "ఈ పత్రంలో పలు పథకాలు ఉన్నాయి; ప్రతి పథకానికి వేర్వేరు నిబంధనలు ఉంటాయి. ఏ పథకం గురించి వివరించాలి?", hi: "इस दस्तावेज़ में कई योजनाएँ हैं और उनकी शर्तें अलग हैं। किस योजना को समझाऊँ?", ta: "இந்த ஆவணத்தில் பல திட்டங்களும் வெவ்வேறு விதிகளும் உள்ளன. எந்தத் திட்டத்தை விளக்க வேண்டும்?", kn: "ಈ ದಾಖಲೆಯಲ್ಲಿ ಹಲವು ಯೋಜನೆಗಳಿವೆ; ಷರತ್ತುಗಳು ಬೇರೆಬೇರೆ. ಯಾವ ಯೋಜನೆ ವಿವರಿಸಲಿ?", bn: "এই নথিতে একাধিক প্রকল্প আছে এবং শর্ত আলাদা। কোন প্রকল্পটি ব্যাখ্যা করব?" };
-    return { text: `${ask[language]}\n\n${uploadSchemes.slice(0, 6).map(name => `• ${name}`).join("\n")}`, chips: uploadSchemes.slice(0, 3), provider: "campusone_copilot", usedDocument: true };
+    return { text: `${ask[language]}\n\n${uploadSchemes.slice(0, 6).map(name => `• ${name}`).join("\n")}`, chips: uploadSchemes.slice(0, 3), provider: "campusone_copilot", modelUsed: "JanMithra conversation routing", usedDocument: true };
   }
   const parsedSource = source ? parseAndSummarizeDocumentContent(source) : undefined;
   const hasRequestedDetails = /documents?|checklist/i.test(query) ? !!parsedSource?.requiredDocuments?.length
     : /deadline|last date/i.test(query) ? !!parsedSource?.scheduleDates
     : /apply|application/i.test(query) ? /(?:apply|submit|registration)\b[^\n]{0,80}\b(?:at|through|online|office|portal)/i.test(source)
     : /eligib/i.test(query) ? /eligib|exclusion|conditions/i.test(source) : false;
-  const backgroundScheme = wantsSchemeGuide && uploadSchemes.length === 1 && (!hasRequestedDetails || /latest|current|today/i.test(query)) ? uploadSchemes[0] : undefined;
-  let officialPassages = (!documentContext || backgroundScheme) && providerKeys(customApiKey).length
+  const selectedUploadScheme = memory.topic?.scheme && schemeInLatestUpload ? memory.topic.scheme : uploadSchemes.length === 1 ? uploadSchemes[0] : undefined;
+  const backgroundScheme = wantsSchemeGuide && selectedUploadScheme && (!hasRequestedDetails || /latest|current|today/i.test(query)) ? selectedUploadScheme : undefined;
+  const documentRecommendations = !!source && /suggest|recommend|financial|benefit.*(?:me|my)|eligible/i.test(query)
+    && (/crop|cotton|chilli|mirchi|farm|scheme/i.test(query) || !!knownFarmerFacts(profile, memory).crop);
+  const researchDocument = !!backgroundScheme || documentRecommendations;
+  let officialPassages = (!documentContext || researchDocument) && providerKeys(customApiKey).length
     ? await retrieveOfficialGuidance(backgroundScheme ? `${backgroundScheme}: ${query}` : resolveConversationQuery(query, memory)) : [];
   const researchNeeded = /latest|current|today|new schemes|research|search|apply|application|eligib|documents?|deadline|last date|benefits?|schemes?|subsid|ప్రస్తుత|తాజా|अभी|नवीन/i.test(query);
-  if (!officialPassages.length && providerKeys(customApiKey).length && researchNeeded && (!documentContext || backgroundScheme)) {
+  if (!officialPassages.length && providerKeys(customApiKey).length && researchNeeded && (!documentContext || researchDocument)) {
     const publicTopic = backgroundScheme ? `${backgroundScheme}: application, eligibility, required documents and current notices`
+      : documentRecommendations ? `Government agriculture schemes for ${knownFarmerFacts(profile, memory).crop || "the farmer's crop"}; ${uploadSchemes.slice(0, 6).join(", ")}; current eligibility and financial assistance`
       : resolveConversationQuery(query, memory);
     const state = knownFarmerFacts(profile, memory).state;
     const withoutName = profile?.name && profile.name.length >= 3 ? publicTopic.split(profile.name).join("farmer") : publicTopic;
@@ -409,7 +416,8 @@ async function generateReply(
       item.department ? `Department: ${item.department}` : "", item.description ? `Description: ${item.description}` : "",
       item.benefits ? `Catalog benefits: ${item.benefits}` : "", item.documents ? `Catalog documents: ${item.documents}` : ""].filter(Boolean).join("\n"),
   })) : [];
-  const passages = source ? [...retrieveDocumentEvidence(resolveConversationQuery(query, memory), source, 12), ...officialPassages] : officialPassages.length ? officialPassages : catalogPassages;
+  const evidenceQuery = `${resolveConversationQuery(query, memory)}${documentRecommendations ? `; crop: ${knownFarmerFacts(profile, memory).crop || ""}; agricultural credit insurance financial assistance machinery` : ""}`;
+  const passages = source ? [...retrieveDocumentEvidence(evidenceQuery, source, 12), ...officialPassages] : officialPassages.length ? officialPassages : catalogPassages;
   const grounded = !!source || passages.length > 0;
   // Factual document answers see original source passages, not a previous model's summary as evidence.
   const promptContext = grounded ? undefined : documentContext;
@@ -426,12 +434,12 @@ async function generateReply(
   };
 
   // 1. Try Cloud LLM (Gemini, Groq, OpenAI) if key is provided or present in environment
-  const signal = AbortSignal.timeout(16000);
+  const signal = AbortSignal.timeout(20000);
 
   const configuredProviders = providerKeys(customApiKey);
   for (const apiInfo of configuredProviders) {
     if (signal.aborted) break;
-    const providerSignal = AbortSignal.any([signal, AbortSignal.timeout(Math.max(4000, Math.floor(16000 / configuredProviders.length)))]);
+    const providerSignal = AbortSignal.any([signal, AbortSignal.timeout(Math.max(4000, Math.floor(20000 / configuredProviders.length)))]);
     try {
       const call = apiInfo.provider === "gemini" ? callGeminiText : apiInfo.provider === "groq" ? callGroqText : callOpenAiText;
       let raw = await call(apiInfo.key, query, systemPrompt, providerSignal, history, grounded);
@@ -484,5 +492,16 @@ async function generateReply(
 export async function generateIntelligentChatReply(req: LlmChatRequest): Promise<LlmChatResponse> {
   const researchTrace: NonNullable<LlmChatRequest["researchTrace"]> = {};
   const result = await generateReply({ ...req, researchTrace });
-  return { ...result, ...(researchTrace.searchSuggestionsHtml ? { searchSuggestionsHtml: researchTrace.searchSuggestionsHtml } : {}) };
+  const aiStatus = result.provider !== "campusone_copilot"
+    ? { state: "cloud" as const, provider: result.provider, model: result.modelUsed }
+    : result.modelUsed !== "JanMithra conversation routing" ? { state: "fallback" as const } : undefined;
+  return { ...result, aiStatus, ...(researchTrace.searchSuggestionsHtml ? { searchSuggestionsHtml: researchTrace.searchSuggestionsHtml } : {}) };
+}
+
+/** Exercise the same evidence validation as document chat, without personal data or persistence. */
+export async function checkTextConnection(customApiKey?: string) {
+  const text = "Government Agriculture Office\nFarmer Help Desk\nApplications are submitted at the district agriculture office.";
+  const reply = await generateIntelligentChatReply({ query: "Summarize this document", language: "en", customApiKey,
+    forceDocumentContext: true, documentContext: { parsedDetails: parseAndSummarizeDocumentContent(text) } });
+  return { connected: reply.aiStatus?.state === "cloud", provider: reply.aiStatus?.provider, model: reply.aiStatus?.model };
 }

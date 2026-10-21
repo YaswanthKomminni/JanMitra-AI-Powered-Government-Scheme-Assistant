@@ -463,3 +463,157 @@ test('scanned PDF vision begins without waiting for local OCR to finish', { time
     assert.match(result.extractedTextSnippet, /Meena Devi/);
   } finally { ocr.analyzeDocumentComprehensive = original; delete process.env.GEMINI_API_KEY; global.fetch = realFetch; }
 });
+
+test('booklet summary is not mistaken for a required-documents question', async () => {
+  const { parseAndSummarizeDocumentContent } = require('../src/lib/nlpDocumentAnalyzer.ts');
+  const text = 'Government Farmer Schemes Booklet\nSMAM\nFarm machinery assistance.\nSoil Health Card\nLaboratory soil testing.';
+  const memory = buildConversationMemory([], 'Summarize this document', undefined, true);
+  memory.latestUploadAvailable = true;
+  const reply = await generateIntelligentChatReply({ query: 'Summarize this document', language: 'en', documentContext: { parsedDetails: parseAndSummarizeDocumentContent(text) }, conversationMemory: memory });
+  assert.equal(reply.usedDocument, true);
+  assert.match(reply.text, /Document summary/);
+  assert.doesNotMatch(reply.text, /Which scheme should I explain/);
+});
+
+test('selecting SMAM preserves its document and application follow-up', async () => {
+  const { parseAndSummarizeDocumentContent } = require('../src/lib/nlpDocumentAnalyzer.ts');
+  const { retrieveDocumentEvidence } = require('../src/lib/documentEvidence.ts');
+  const text = '[Page 31]\nSmart Schools Scheme\nApplication: School classroom equipment.\n[Page 47]\nSMAM\nApplication: Submit to the district agriculture office.\nRequired documents: Machinery quotation\n[Page 48]\nSoil Health Card\nLaboratory soil testing.';
+  let memory = buildConversationMemory([], 'Please analyze this attached government document: guide.pdf', undefined, true);
+  memory.latestUploadAvailable = true;
+  memory = finishConversationMemory(memory, 'Which scheme should I explain? SMAM or Soil Health Card?');
+  memory = buildConversationMemory([], 'SMAM', memory);
+  assert.equal(memory.topic.scheme, 'SMAM');
+  memory = buildConversationMemory([], 'how to apply for this scheme', memory);
+  const reply = await generateIntelligentChatReply({ query: 'how to apply for this scheme', language: 'en', documentContext: { parsedDetails: parseAndSummarizeDocumentContent(text) }, documentContextIsLatestTopic: true, conversationMemory: memory });
+  assert.equal(reply.usedDocument, true);
+  assert.doesNotMatch(reply.text, /Which scheme should I explain/);
+  const evidence = retrieveDocumentEvidence('Conversation topic: SMAM. Current question: How to apply?', text, 6);
+  assert.ok(evidence.length);
+  assert.ok(evidence.every(p => /SMAM/.test(p.text)));
+  assert.ok(evidence.some(p => /district agriculture office/.test(p.text)));
+});
+
+test('Gemini receives document evidence and crop facts instead of a canned booklet reply', async () => {
+  const { parseAndSummarizeDocumentContent } = require('../src/lib/nlpDocumentAnalyzer.ts');
+  process.env['API-Key'] = 'AQ.synthetic-document-test';
+  let generated = false;
+  global.fetch = async (url, options) => {
+    const payload = JSON.parse(options.body);
+    if (payload.tools) return Response.json({ candidates: [] });
+    generated = true;
+    const system = payload.systemInstruction.parts[0].text;
+    assert.match(system, /cotton/i);
+    assert.match(system, /5 acres/);
+    const passages = JSON.parse(system.split('SOURCE PASSAGES:\n')[1]);
+    const source = passages.find(p => p.text.includes('SMAM supports farm machinery'));
+    assert.ok(source);
+    return Response.json({ candidates: [{ content: { parts: [{ text: JSON.stringify({ claims: [{ text: 'SMAM supports farm machinery.', sourceId: source.id, quote: 'SMAM supports farm machinery.' }], suggestions: [], missingInformation: ['The brochure alone does not establish your eligibility or a current deadline.'], chips: ['Explain SMAM'] }) }] } }] });
+  };
+  try {
+    const text = 'Government Farmer Schemes Booklet\nSMAM supports farm machinery.\nSoil Health Card provides laboratory soil testing.';
+    let memory = buildConversationMemory([], 'I grow cotton on 5 acres in Telangana');
+    memory = buildConversationMemory([], 'Summarize this document and suggest schemes for my cotton crop', memory, true);
+    memory.latestUploadAvailable = true;
+    const reply = await generateIntelligentChatReply({ query: 'Summarize this document and suggest schemes for my cotton crop', language: 'en', documentContext: { parsedDetails: parseAndSummarizeDocumentContent(text) }, forceDocumentContext: true, conversationMemory: memory });
+    assert.equal(generated, true);
+    assert.equal(reply.provider, 'gemini');
+    assert.equal(reply.aiStatus.state, 'cloud');
+    assert.equal(reply.usedDocument, true);
+    assert.match(reply.text, /SMAM supports farm machinery/);
+    assert.doesNotMatch(reply.text, /Which scheme should I explain/);
+  } finally { delete process.env['API-Key']; global.fetch = realFetch; }
+});
+
+test('both reported Gemini environment names work without exposing their values', () => {
+  const { providerKeys } = require('../src/lib/aiProviders.ts');
+  for (const name of ['API-Key', 'API KEY']) {
+    process.env[name] = 'AQ.synthetic-alias-test';
+    try { assert.equal(providerKeys().some(p => p.provider === 'gemini'), true); }
+    finally { delete process.env[name]; }
+  }
+});
+
+test('an older Gemini setting cannot hide the separately configured API-Key', () => {
+  const { providerKeys } = require('../src/lib/aiProviders.ts');
+  process.env.GEMINI_API_KEY = 'old-synthetic-key';
+  process.env['API-Key'] = 'AQ.new-synthetic-key';
+  try {
+    const gemini = providerKeys().filter(p => p.provider === 'gemini');
+    assert.equal(gemini.length, 2);
+    assert.equal(gemini[1].key, 'AQ.new-synthetic-key');
+    process.env.GEMINI_API_KEY = '   ';
+    assert.equal(providerKeys()[0].key, 'AQ.new-synthetic-key');
+  } finally { delete process.env.GEMINI_API_KEY; delete process.env['API-Key']; }
+});
+
+test('failed cloud responses are distinguishable from successful AI answers', async () => {
+  process.env.GEMINI_API_KEY = 'synthetic-failure-test';
+  global.fetch = async () => new Response('{}', { status: 401 });
+  try {
+    const reply = await generateIntelligentChatReply({ query: 'My cotton leaves are curling. What should I check?', language: 'en' });
+    assert.equal(reply.aiStatus.state, 'fallback');
+    assert.notEqual(reply.provider, 'gemini');
+    assert.doesNotMatch(JSON.stringify(reply), /synthetic-failure-test/);
+  } finally { delete process.env.GEMINI_API_KEY; global.fetch = realFetch; }
+});
+
+test('eligibility recommendation wording does not ask the farmer to name a scheme first', () => {
+  const { farmerChatReply } = require('../src/lib/farmerChat.ts');
+  const answer = farmerChatReply('what are the schemes i am eligible for', 'en');
+  assert.match(answer.text, /PM-KISAN|PMFBY/);
+  assert.doesNotMatch(answer.text, /Which scheme do you mean/);
+});
+
+test('crop recommendations do not ask again for the crop already supplied', () => {
+  const { farmerChatReply } = require('../src/lib/farmerChat.ts');
+  const memory = buildConversationMemory([], 'I have cotton crop in 5 acres of land suggest me schemes');
+  const answer = farmerChatReply('I have cotton crop in 5 acres of land suggest me schemes', 'en', null, [], memory);
+  assert.match(answer.text, /cotton/);
+  assert.match(answer.text, /Which state and district/);
+  assert.doesNotMatch(answer.text, /Which crop|Tell me your state, crop/);
+});
+
+test('named-scheme comparisons retain evidence for both schemes', () => {
+  const { retrieveDocumentEvidence } = require('../src/lib/documentEvidence.ts');
+  const text = '[Page 1]\nSMAM supports agricultural machinery.\n[Page 2]\nSoil Health Card provides laboratory testing.';
+  const passages = retrieveDocumentEvidence('Compare SMAM and Soil Health Card', text, 6);
+  assert.ok(passages.some(p => /SMAM/.test(p.text)));
+  assert.ok(passages.some(p => /laboratory testing/.test(p.text)));
+});
+
+test('a booklet-wide eligibility overview reaches the model before single-scheme clarification', async () => {
+  const { parseAndSummarizeDocumentContent } = require('../src/lib/nlpDocumentAnalyzer.ts');
+  process.env.GEMINI_API_KEY = 'synthetic-comparison-test';
+  let called = false;
+  global.fetch = async (url, options) => {
+    const payload = JSON.parse(options.body);
+    if (payload.tools) return Response.json({ candidates: [] });
+    called = true;
+    const passages = JSON.parse(payload.systemInstruction.parts[0].text.split('SOURCE PASSAGES:\n')[1]);
+    return Response.json({ candidates: [{ content: { parts: [{ text: JSON.stringify({ claims: [], suggestions: [], missingInformation: ['Eligibility needs checking against the conditions of each scheme.'], chips: [] }) }] } }] });
+  };
+  try {
+    const text = 'Government Agriculture Booklet\nSMAM supports farm machinery.\nSoil Health Card supports laboratory testing.';
+    const reply = await generateIntelligentChatReply({ query: 'Summarize this document and explain which schemes I am eligible for', language: 'en', forceDocumentContext: true, documentContext: { parsedDetails: parseAndSummarizeDocumentContent(text) } });
+    assert.equal(called, true);
+    assert.equal(reply.aiStatus.state, 'cloud');
+    assert.doesNotMatch(reply.text, /Which scheme should I explain/);
+  } finally { delete process.env.GEMINI_API_KEY; global.fetch = realFetch; }
+});
+
+test('the connection diagnostic tests a source-validated document response', async () => {
+  const { checkTextConnection } = require('../src/lib/llmService.ts');
+  global.fetch = async (url, options) => {
+    const payload = JSON.parse(options.body);
+    const passages = JSON.parse(payload.systemInstruction.parts[0].text.split('SOURCE PASSAGES:\n')[1]);
+    const source = passages.find(p => p.text.includes('Applications are submitted at the district agriculture office.'));
+    return Response.json({ candidates: [{ content: { parts: [{ text: JSON.stringify({ claims: [{ text: 'Submit applications at the district agriculture office.', sourceId: source.id, quote: 'Applications are submitted at the district agriculture office.' }], suggestions: [], missingInformation: [], chips: [] }) }] } }] });
+  };
+  try {
+    const result = await checkTextConnection('AQ.synthetic-connection-test');
+    assert.equal(result.connected, true);
+    assert.equal(result.provider, 'gemini');
+    assert.doesNotMatch(JSON.stringify(result), /synthetic-connection-test|Applications are/);
+  } finally { global.fetch = realFetch; }
+});

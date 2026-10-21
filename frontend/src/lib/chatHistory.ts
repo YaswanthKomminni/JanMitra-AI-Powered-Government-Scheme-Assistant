@@ -51,6 +51,7 @@ export function mapMessageRow(row: any): ChatMessage {
     fileType: meta.fileType || undefined,
     clarificationChips: Array.isArray(meta.chips) ? meta.chips : undefined,
     docDetection: meta.docDetection || undefined,
+    aiStatus: meta.aiStatus?.state === "cloud" || meta.aiStatus?.state === "fallback" ? meta.aiStatus : undefined,
     searchSuggestionsHtml: typeof meta.searchSuggestionsHtml === "string" ? meta.searchSuggestionsHtml.slice(0, 30000) : undefined,
     status: row.sender === "user" ? "saved" : undefined,
   };

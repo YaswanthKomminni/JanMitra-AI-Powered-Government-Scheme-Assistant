@@ -10,6 +10,7 @@ function expand(query: string): string {
   const groups = [
     /owner|applicant|beneficiary|whose|యజమాని|మాలిక|मालिक/i.test(query) ? "owner applicant beneficiary farmer name" : "",
     /documents?|checklist|పత్రాలు|दस्तावेज/i.test(query) ? "required documents certificate proof checklist" : "",
+    /\bSMAM\b/i.test(query) ? "SMAM Sub Mission Agricultural Mechanization Mechanisation machinery equipment" : "",
     /eligible|eligibility|అర్హత|पात्र/i.test(query) ? "eligible eligibility conditions exclusion farmers" : "",
     /amount|subsid|benefit|how much|మొత్తం|రాయితీ|राशि/i.test(query) ? "amount assistance subsidy maximum benefit cost" : "",
     /apply|application|దరఖాస్తు|आवेदन/i.test(query) ? "apply application submit procedure portal office" : "",
@@ -59,13 +60,25 @@ export function retrieveDocumentEvidence(query: string, text: string, limit = 6)
     }
     return { id: `D${i + 1}`, text, score, page: Number(text.match(/\[Page (\d+)\]/)?.[1]) || undefined };
   });
+  const namedSchemes = query.match(/\b(?:SMAM|PM[- ]?KISAN|PMFBY|NMAET)\b|Soil Health Card/gi) || [];
+  if (namedSchemes.length && !/summar/i.test(query.split("Current question:").pop() || query)) {
+    const patterns = namedSchemes.map(name => name.toLowerCase().replace(/[- ]/g, ""));
+    const specific = ranked.filter(p => patterns.some(pattern => p.text.toLowerCase().replace(/[- ]/g, "").includes(pattern)));
+    if (specific.length) return specific.sort((a, b) => b.score - a.score).slice(0, limit);
+  }
   const currentQuestion = query.split("Current question:").pop() || query;
   const summary = /summar|analy|overview|inspect|tell me about|read this|what.*(?:about|related to)|purpose|సారాంశ|सारांश/i.test(currentQuestion)
     || /^explain (?:this|the|that|it|document|pdf)/i.test(currentQuestion.trim());
   if (summary || !terms.length) {
     // Spread summary context across the source, retaining the heading and final deadline/checklist.
-    const selected = Array.from(new Set(Array.from({ length: Math.min(limit, ranked.length) }, (_, i) =>
-      Math.round(i * (ranked.length - 1) / Math.max(1, Math.min(limit, ranked.length) - 1))))).map(i => ranked[i]);
+    const focusedOverview = /cotton|chilli|mirchi|financial|my crop|my farm|benefit.*me/i.test(currentQuestion);
+    const spreadLimit = focusedOverview ? Math.max(1, Math.floor(limit / 2)) : limit;
+    const selected = Array.from(new Set(Array.from({ length: Math.min(spreadLimit, ranked.length) }, (_, i) =>
+      Math.round(i * (ranked.length - 1) / Math.max(1, Math.min(spreadLimit, ranked.length) - 1))))).map(i => ranked[i]);
+    if (focusedOverview) {
+      const focused = ranked.filter(p => p.score > 0 && !selected.some(s => s.id === p.id)).sort((a, b) => b.score - a.score);
+      selected.push(...focused.slice(0, Math.max(0, limit - selected.length)));
+    }
     const headings = text.split(/\r?\n/).map(line => line.trim()).filter(line => line.length >= 8 && line.length < 160
       && /scheme|yojana|pradhan mantri|పథక|योजना/i.test(line)).slice(0, 150);
     if (headings.length > 4) selected.push({ id: "D-outline", text: headings.join("\n"), score: 0, page: undefined });

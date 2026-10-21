@@ -224,6 +224,7 @@ export async function POST(request: Request) {
                 });
                 return {
                   text: llmAnswer.text,
+                  aiStatus: llmAnswer.aiStatus,
                   searchSuggestionsHtml: llmAnswer.searchSuggestionsHtml,
                   chips: llmAnswer.chips,
                   docDetection: compactDetection(outcome.detection),
@@ -269,6 +270,7 @@ export async function POST(request: Request) {
 
           return {
             text: llmReply.text,
+            aiStatus: llmReply.aiStatus,
             searchSuggestionsHtml: llmReply.searchSuggestionsHtml,
             chips: llmReply.chips,
             docDetection: llmReply.usedDocument ? activeDocContext : undefined,
@@ -300,7 +302,7 @@ export async function POST(request: Request) {
         clientMessageId,
         text: reply.text,
         language,
-        metadata: { searchSuggestionsHtml: reply.searchSuggestionsHtml, chips: reply.chips || [], docDetection: reply.docDetection, replyTo: userRow.id,
+        metadata: { aiStatus: reply.aiStatus, searchSuggestionsHtml: reply.searchSuggestionsHtml, chips: reply.chips || [], docDetection: reply.docDetection, replyTo: userRow.id,
           conversationMemory: conversationMemory ? finishConversationMemory(conversationMemory, reply.text) : undefined },
       });
     } catch (err: any) {

@@ -16,6 +16,7 @@ export default function AiConnectionCheck() {
       else setMessage(data.checks.map((item: { provider: string; connected: boolean; model?: string; failures: string[] }) =>
         item.connected ? `${item.provider}: image connection working (${item.model}).`
           : `${item.provider}: ${item.failures.includes("auth") ? "key or permissions rejected" : item.failures.includes("quota") ? "usage limit reached" : item.failures.includes("timeout") ? "connection timed out" : "no usable model response"}.`).join("\n")
+          + `\nDocument questions: ${data.documentChat?.connected ? `working (${data.documentChat.provider}, ${data.documentChat.model})` : "no verified AI answer; the app is using limited local extraction"}.`
           + `\nOfficial-source research: ${data.officialResearchAvailable ? "working" : "not verified; check Gemini search access, quota or try again"}.`);
     } catch (error) { setMessage((error as Error).message); }
     finally { setBusy(false); }

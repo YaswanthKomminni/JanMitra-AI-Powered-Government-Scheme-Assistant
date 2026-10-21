@@ -245,9 +245,12 @@ export function answerDocumentQuestion(query: string, detection: any, lang: Supp
     return { text: `${entries.map((entry: { name: string; source: string }) => `**${entry.name}**\n${entry.source}`).join("\n\n")}\n\n${words.current}`, chips };
   }
   // Specific intents precede summary. Short questions are still questions.
-  if (/suggest|recommend|advice|next step|సలహా|సూచన|सुझाव|सलाह|பரிந்துரை|ಸಲಹೆ|পরামর্শ/i.test(q)) return { text: suggestedText, chips };
+  if (/suggest|recommend|advice|next step|సలహా|సూచన|सुझाव|सलाह|பரிந்துரை|ಸಲಹೆ|পরামর্শ/i.test(q)) {
+    const targeted = /cotton|chilli|mirchi|crop|financial|agricultur/i.test(q) && source.length > 12000;
+    return { text: targeted ? `${literalAnswer()}\n\n${words.current}` : suggestedText, chips };
+  }
   if (/what.*documents?.*(required|need|submit|bring|carry)|which.*documents?.*(required|need|submit|bring|carry)|required documents?|documents? (required|needed)|checklist|what to (bring|carry)|కావలసిన పత్ర|आवश्यक दस्तावेज|தேவையான ஆவண|ಅಗತ್ಯ ದಾಖಲೆ|প্রয়োজনীয় নথি/i.test(q)) {
-    const checklist = detection?.extractedData?.requiredDocuments || base.requiredDocuments;
+    const checklist = (!scoped && detection?.extractedData?.requiredDocuments) || base.requiredDocuments;
     return { text: Array.isArray(checklist) && checklist.length ? checklist.map((item: string) => `• ${item}`).join("\n") : l.missing, chips };
   }
   const intentFields: Array<[RegExp, RegExp]> = [
@@ -272,7 +275,7 @@ export function answerDocumentQuestion(query: string, detection: any, lang: Supp
     return { text: `**${l.summary}**\n${summary}`, chips };
   }
   if (/summar|analy|overview|explain|brief|tell me about|inspect|read this|attached|what.*(?:show|contain|say|about)|సారాంశ|सारांश|சுருக்க|ಸಾರಾಂಶ|সারসংক্ষেপ/i.test(q) || !q.trim()) {
-    return { text: `**${l.summary}**\n${summary}\n\n**${l.details}**\n${bullets(Object.entries(p))}\n\n${suggestedText}`, chips };
+    return { text: `**${l.summary}**\n${summary}\n\n**${l.details}**\n${bullets(Object.entries(p).slice(0, source.length > 12000 ? 5 : 20))}\n\n${suggestedText}`, chips };
   }
   if (/scheme|subsid|eligible|benefit|పథక|योजना|திட்ட|ಯೋಜನೆ|প্রকল্প/i.test(q)) return { text: `**${l.schemes}**\n${schemes.join("\n") || summary}\n\n${suggestedText}`, chips };
   // Unknown questions retrieve literal source lines rather than inventing an answer.

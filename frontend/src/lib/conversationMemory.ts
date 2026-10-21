@@ -17,7 +17,7 @@ function canonicalCrop(value?: string): string | undefined {
   return value && /^(?:mirchi?|chill?i(?:es)?|మిర్చి|मिर्च)$/i.test(value) ? "chilli" : value;
 }
 const states = /\b(Telangana|Andhra Pradesh|Tamil Nadu|Karnataka|Kerala|Maharashtra|Rajasthan|Assam|Madhya Pradesh|Uttar Pradesh|Punjab|Haryana|Odisha|West Bengal|Gujarat|Bihar|Jharkhand|Chhattisgarh|Uttarakhand|Himachal Pradesh|Goa)\b/gi;
-const schemePattern = /PM[ -]?KISAN|Kisan Samman Nidhi|PMFBY|crop insurance|PM[ -]?KUSUM|Kisan Credit Card|\bKCC\b|Mahalakshmi|Rythu Bharosa|Gruha Jyothi|Indiramma(?: Indlu)?|Cheyutha/gi;
+const schemePattern = /PM[ -]?KISAN|Kisan Samman Nidhi|PMFBY|crop insurance|PM[ -]?KUSUM|Kisan Credit Card|\bKCC\b|Mahalakshmi|Rythu Bharosa|Gruha Jyothi|Indiramma(?: Indlu)?|Cheyutha|\bSMAM\b|Sub[ -]?Mission (?:on |of )?Agricultural Mechani[sz]ation|Soil Health Card|\bNMAET\b/gi;
 const keys = ["crop", "cropAge", "land", "state", "district", "location", "soil", "irrigation", "symptoms", "lastRain"] as const;
 
 export type TextTurnClass = "greeting" | "off_topic" | "relevant" | "contextual" | "unknown";

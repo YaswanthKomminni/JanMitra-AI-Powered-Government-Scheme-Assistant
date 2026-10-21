@@ -74,17 +74,26 @@ function isRecommendationRequest(query: string): boolean {
   if (/\b(?:cardamom|chaff|tractor|drip|irrigation|solar|pump|equipment|seed|fertilizer|machinery|organic|horticulture)\b/i.test(query)) return false;
   if (/\b(?:related government schemes|government schemes|schemes|subsidies|benefits)\b/i.test(query)
     && (/\b(?:farmers?|agricultur\w*|crops?|land|acres?|acers?)\b/i.test(query) || /^(?:related )?government schemes[?.!]*$/i.test(query.trim()))) return true;
-  return /\b(?:schemes?|subsidies|benefits)\b.{0,45}\b(?:for me|fit me|help me|my farm|can i apply|am i eligible)\b|\bwhat can i apply for\b|\b(?:suggest|recommend|show|find|list)\b.{0,25}\b(?:schemes?|subsidies)\b(?:\s+for (?:me|my farm))?[?.!]*$|నా.*పథక|मेरे.*योजना|எனக்கு.*திட்ட|ನನಗೆ.*ಯೋಜನೆ|আমার.*প্রকল্প/i.test(query);
+  return /\b(?:schemes?|subsidies|benefits)\b.{0,45}\b(?:for me|fit me|help me|my farm|can i apply|am i eligible|i am eligible)\b|\bwhat can i apply for\b|\b(?:suggest|recommend|show|find|list)\b.{0,25}\b(?:schemes?|subsidies)\b(?:\s+for (?:me|my farm))?[?.!]*$|నా.*పథక|मेरे.*योजना|எனக்கு.*திட்ட|ನನಗೆ.*ಯೋಜನೆ|আমার.*প্রকল্প/i.test(query);
 }
 
 function broadSchemeGuidance(lang: SupportedLanguage, facts: ReturnType<typeof knownFarmerFacts>, query = "") {
   const l = recommendationCopy[lang];
   const supportQuestion: Record<SupportedLanguage, string> = { en: "Which support do you need first: income support, crop insurance, a loan, or equipment?", te: "ముందుగా ఏ సహాయం కావాలి: ఆదాయ సహాయం, పంట బీమా, రుణం లేదా పరికరాలా?", hi: "पहले किस सहायता की ज़रूरत है: आय सहायता, फसल बीमा, ऋण या उपकरण?", ta: "முதலில் எந்த உதவி தேவை: வருமான உதவி, பயிர் காப்பீடு, கடன் அல்லது கருவிகளா?", kn: "ಮೊದಲು ಯಾವ ನೆರವು ಬೇಕು: ಆದಾಯ ನೆರವು, ಬೆಳೆ ವಿಮೆ, ಸಾಲ ಅಥವಾ ಉಪಕರಣಗಳು?", bn: "প্রথমে কোন সহায়তা দরকার: আয় সহায়তা, ফসল বিমা, ঋণ না যন্ত্রপাতি?" };
   const known = [facts.state && `${l.state}: ${facts.state}`, facts.crop && `${l.crop}: ${facts.crop}`, facts.land && `${l.land}: ${facts.land}`].filter(Boolean);
+  const missingQuestion: Record<SupportedLanguage, [string, string]> = {
+    en: ["Which state and district is your farm in?", "Which crop are you growing?"],
+    te: ["మీ పొలం ఏ రాష్ట్రం, జిల్లాలో ఉంది?", "మీరు ఏ పంట పండిస్తున్నారు?"],
+    hi: ["आपका खेत किस राज्य और जिले में है?", "आप कौन सी फसल उगा रहे हैं?"],
+    ta: ["உங்கள் பண்ணை எந்த மாநிலம், மாவட்டத்தில் உள்ளது?", "நீங்கள் எந்தப் பயிர் வளர்க்கிறீர்கள்?"],
+    kn: ["ನಿಮ್ಮ ಹೊಲ ಯಾವ ರಾಜ್ಯ ಮತ್ತು ಜಿಲ್ಲೆಯಲ್ಲಿದೆ?", "ನೀವು ಯಾವ ಬೆಳೆ ಬೆಳೆಯುತ್ತಿದ್ದೀರಿ?"],
+    bn: ["আপনার খামার কোন রাজ্য ও জেলায়?", "আপনি কোন ফসল চাষ করছেন?"],
+  };
+  const nextQuestion = !facts.state ? missingQuestion[lang][0] : !facts.crop ? missingQuestion[lang][1] : supportQuestion[lang];
   const acreage = query.match(/\b(?:(?:more|less) than|over|above|under|below)?\s*\d+(?:\.\d+)?\s*(?:acres?|acers?|hectares?)\b/i)?.[0]?.trim();
   const landNote = lang === "en" && acreage ? `For the land criterion you asked about (${acreage}): land size alone does not establish eligibility. PM-KISAN covers eligible landholding farmer families irrespective of holding size, subject to its exclusions; check https://pmkisan.gov.in/. Other schemes have their own crop, location and land limits.` : "";
   return { text: [`**${l.intro}**`, known.join("; "), landNote, `• ${l.kisan}`, `• ${l.insurance}`, `• ${l.credit}`,
-    /pump|borewell|sprinkler|drip/i.test(facts.irrigation || "") ? `• ${l.solar}` : "", l.unknown, facts.state && facts.crop ? supportQuestion[lang] : l.ask].filter(Boolean).join("\n\n"),
+    /pump|borewell|sprinkler|drip/i.test(facts.irrigation || "") ? `• ${l.solar}` : "", l.unknown, nextQuestion].filter(Boolean).join("\n\n"),
     chips: scopeMessages[lang].chips };
 }
 

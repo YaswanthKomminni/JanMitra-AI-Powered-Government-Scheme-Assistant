@@ -23,6 +23,7 @@ export interface ChatMessage {
   clarificationChips?: string[];
   isClarification?: boolean;
   docDetection?: any;
+  aiStatus?: { state: "cloud" | "fallback"; provider?: string; model?: string };
   searchSuggestionsHtml?: string;
   /** Client-generated id used to de-duplicate retries (user messages). */
   clientMessageId?: string;
@@ -45,6 +46,7 @@ export interface ConversationSummary {
 }
 
 export interface EngineReply {
+  aiStatus?: { state: "cloud" | "fallback"; provider?: string; model?: string };
   searchSuggestionsHtml?: string;
   text: string;
   chips?: string[];
