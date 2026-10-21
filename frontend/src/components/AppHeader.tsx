@@ -25,6 +25,7 @@ export default function AppHeader() {
       case "/peers": return t.navPeers || fallback;
       case "/documents": return t.navDocuments || fallback;
       case "/history": return t.navHistory || fallback;
+      case "/models": return t.navModels || fallback;
       case "/settings": return t.navSettings || fallback;
       default: return fallback;
     }

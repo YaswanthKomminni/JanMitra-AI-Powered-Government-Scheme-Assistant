@@ -4,7 +4,7 @@ import React from "react";
 import { Gift, FileText, ChevronRight } from "lucide-react";
 import { Scheme } from "@/lib/mockData";
 import { useFarmerStore } from "@/store/useFarmerStore";
-import { translations } from "@/lib/i18n";
+import { translations, getLocalizedCategory } from "@/lib/i18n";
 
 interface SchemeCardProps {
   scheme: Scheme;
@@ -23,7 +23,7 @@ export default function SchemeCard({ scheme }: SchemeCardProps) {
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
         <div className="flex flex-wrap items-center gap-2 min-w-0">
           <span className={`${chip} bg-jm-muted border border-jm-border text-jm-text2 max-w-full truncate`}>
-            {scheme.categoryName}
+            {getLocalizedCategory(scheme.categoryName, language)}
           </span>
         </div>
         {scheme.code && (
@@ -43,7 +43,7 @@ export default function SchemeCard({ scheme }: SchemeCardProps) {
           <Gift className="h-4 w-4 text-jm-primary" />
         </span>
         <div className="min-w-0">
-          <p className="text-xs font-medium text-jm-text2">{scheme.id.startsWith("catalog:") ? "Saved benefit summary · verify current terms" : t.subsidyAmount}</p>
+          <p className="text-xs font-medium text-jm-text2">{scheme.id.startsWith("catalog:") ? (t.savedBenefitSummary || "Saved benefit summary · verify current terms") : t.subsidyAmount}</p>
           <p className="text-[15px] font-semibold leading-snug text-jm-text break-words line-clamp-3">{scheme.subsidyAmount || "Check current scheme terms"}</p>
         </div>
       </div>

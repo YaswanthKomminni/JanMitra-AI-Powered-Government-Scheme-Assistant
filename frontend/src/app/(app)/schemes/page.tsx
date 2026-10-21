@@ -5,7 +5,7 @@ import { Search, Landmark } from "lucide-react";
 import SchemeCard from "@/components/SchemeCard";
 import { useSchemes } from "@/hooks/useSchemes";
 import { useFarmerStore } from "@/store/useFarmerStore";
-import { translations } from "@/lib/i18n";
+import { translations, getLocalizedCategory } from "@/lib/i18n";
 import { PageContainer, PageTitle, EmptyState, LoadingState, ErrorState, secondaryBtn } from "@/components/PageKit";
 
 type Sort = "match" | "name";
@@ -55,41 +55,56 @@ export default function SchemesPage() {
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search by scheme name or keyword"
+            placeholder={t.searchSchemesPlaceholder || "Search by scheme name or keyword"}
             aria-label="Search schemes"
             className="h-10 w-full rounded-lg border border-jm-border bg-jm-surface pl-9 pr-3 text-sm text-jm-text placeholder:text-jm-text2 focus:border-jm-primary focus:outline-none"
           />
         </div>
         <select value={state} onChange={e => setState(e.target.value)} aria-label="Filter by state" className="h-10 rounded-lg border border-jm-border bg-jm-surface px-3 text-sm text-jm-text">
-          <option value="all">All states</option>{states.map(name => <option key={name} value={name}>{name}</option>)}
+          <option value="all">{t.allStates || "All states"}</option>{states.map(name => <option key={name} value={name}>{name}</option>)}
         </select>
         <select value={sort} onChange={(e) => setSort(e.target.value as Sort)} aria-label="Sort schemes" className="h-10 rounded-lg border border-jm-border bg-jm-surface px-3 text-sm text-jm-text">
-          <option value="match">Best match</option>
-          <option value="name">Name (A–Z)</option>
+          <option value="match">{t.bestMatch || "Best match"}</option>
+          <option value="name">{t.sortName || "Name (A–Z)"}</option>
         </select>
       </div>
 
       <div className="mb-6 flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Filter by category">
-        <button className={chip(category === "all")} onClick={() => setCategory("all")}>All</button>
+        <button className={chip(category === "all")} onClick={() => setCategory("all")}>
+          {t.categoryAll || "All"}
+        </button>
         {categories.map((c) => (
-          <button key={c.id} className={chip(category === c.id)} onClick={() => setCategory(c.id)}>{c.name}</button>
+          <button key={c.id} className={chip(category === c.id)} onClick={() => setCategory(c.id)}>
+            {getLocalizedCategory(c.name, language)}
+          </button>
         ))}
       </div>
 
       {loading ? <LoadingState label="Loading schemes…" /> : error ? <ErrorState message={error} onRetry={reload} /> : results.length === 0 ? (
         <EmptyState
           icon={Landmark}
-          title="No schemes match your search"
-          description="Try a different keyword or clear the filters."
-          action={<button className={secondaryBtn} onClick={() => { setQuery(""); setCategory("all"); setState("all"); }}>Clear filters</button>}
+          title={t.noSchemesFound || "No schemes match your search"}
+          description={t.noSchemesFoundDesc || "Try a different keyword or clear the filters."}
+          action={<button className={secondaryBtn} onClick={() => { setQuery(""); setCategory("all"); setState("all"); }}>{t.clearFilters || "Clear filters"}</button>}
         />
       ) : (
         <>
-          <p className="mb-3 text-sm text-jm-text2">{results.length} scheme{results.length === 1 ? "" : "s"}</p>
+          <p className="mb-3 text-sm text-jm-text2">
+            {typeof t.schemeCount === "function" ? t.schemeCount(results.length) : `${results.length} schemes`}
+          </p>
           <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,22rem),1fr))] gap-5">
             {results.slice(0, visible).map((s) => <SchemeCard key={s.id} scheme={s} />)}
           </div>
-          {visible < results.length && <div className="mt-6 text-center"><button className={secondaryBtn} onClick={() => setVisible(n => n + 24)}>Show 24 more schemes</button><p className="mt-2 text-xs text-jm-text2">Showing {Math.min(visible, results.length)} of {results.length}</p></div>}
+          {visible < results.length && (
+            <div className="mt-6 text-center">
+              <button className={secondaryBtn} onClick={() => setVisible(n => n + 24)}>
+                {t.showMoreSchemes || "Show 24 more schemes"}
+              </button>
+              <p className="mt-2 text-xs text-jm-text2">
+                {typeof t.showingCount === "function" ? t.showingCount(Math.min(visible, results.length), results.length) : `Showing ${Math.min(visible, results.length)} of ${results.length}`}
+              </p>
+            </div>
+          )}
         </>
       )}
     </PageContainer>
