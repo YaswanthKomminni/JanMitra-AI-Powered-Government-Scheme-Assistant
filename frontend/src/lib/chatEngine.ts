@@ -1,3 +1,4 @@
+import type { ModelReport } from "@/lib/modelReport";
 import { farmerChatReply } from "@/lib/farmerChat";
 import { answerCropImage } from "@/lib/imageEvidence";
 import { answerDocumentQuestion } from "@/lib/nlpDocumentAnalyzer";
@@ -23,6 +24,7 @@ export interface ChatMessage {
   clarificationChips?: string[];
   isClarification?: boolean;
   docDetection?: any;
+  modelReport?: ModelReport;
   aiStatus?: { state: "cloud" | "fallback"; provider?: string; model?: string };
   searchSuggestionsHtml?: string;
   /** Client-generated id used to de-duplicate retries (user messages). */
@@ -46,6 +48,7 @@ export interface ConversationSummary {
 }
 
 export interface EngineReply {
+  modelReport?: ModelReport;
   aiStatus?: { state: "cloud" | "fallback"; provider?: string; model?: string };
   searchSuggestionsHtml?: string;
   text: string;

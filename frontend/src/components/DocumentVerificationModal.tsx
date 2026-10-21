@@ -209,7 +209,7 @@ export default function DocumentVerificationModal() {
 
                 <div className="sm:col-span-2 space-y-2.5 text-xs text-stone-700 leading-relaxed">
                   <p className="font-extrabold text-stone-900 text-sm">
-                    {t.outOfScopeSubtitle || outOfScopeError.message}
+                    {outOfScopeError.message}
                   </p>
                   <p className="text-stone-600 bg-white/90 p-3 rounded-xl border border-amber-200">
                     {outOfScopeError.reason}

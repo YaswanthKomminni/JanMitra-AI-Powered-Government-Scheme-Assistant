@@ -16,6 +16,7 @@ export const MAIN_ROUTES: AppRoute[] = [
   { href: "/schemes", label: "Explore Schemes", title: "Explore Schemes", icon: Landmark, tab: "schemes" },
   { href: "/peers", label: "Nearby Farmers", title: "Nearby Farmers", icon: Users, tab: "peers" },
   { href: "/documents", label: "Documents", title: "Documents", icon: ScanLine },
+  { href: "/models", label: "Models & XAI", title: "Models & XAI", icon: ScanLine },
   { href: "/history", label: "Chat History", title: "Chat History", icon: History },
 ];
 

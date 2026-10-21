@@ -1,3 +1,6 @@
+import { captureModels } from "@/lib/modelTelemetry";
+import type { ModelReport } from "@/lib/modelReport";
+import { modelFetch } from "@/lib/modelTelemetry";
 import { analyzeDocumentComprehensive, type ExtractedBoundingBox } from "@/lib/ocrEngine";
 import { normalizeCropAnalysis, reconcileImageEvidence, type CropAnalysis } from "@/lib/imageEvidence";
 import { providerKeys, providerModels, geminiGenerationConfig, discoverProviderModels, type AiProvider } from "@/lib/aiProviders";
@@ -6,6 +9,7 @@ import sharp from "sharp";
 import type { ExtractionCoverage } from "@/lib/documentLimits";
 
 export interface VisionAnalysisResult {
+  modelReport?: ModelReport;
   isAgriRelated: boolean;
   scopeStatus: "in_scope" | "out_of_scope" | "uncertain";
   docType?: "crop_disease" | "soil_health_card" | "land_record" | "identity_card";
@@ -95,7 +99,7 @@ async function cloudVision(provider: AiProvider, key: string, views: Array<{ url
     if (signal.aborted) break;
     try {
       const gemini = provider === "gemini";
-      const response = await fetch(gemini
+      const response = await modelFetch(gemini
         ? `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`
         : `https://api.${provider === "groq" ? "groq.com/openai" : "openai.com"}/v1/chat/completions`, {
         method: "POST", signal: AbortSignal.any([signal, AbortSignal.timeout(12000)]),
@@ -129,7 +133,7 @@ async function cloudVision(provider: AiProvider, key: string, views: Array<{ url
   return null;
 }
 
-export async function analyzeImageIntelligently(opts: {
+async function analyzeImageWithProviders(opts: {
   fileBase64: string; fileName?: string; fileType?: string; classification?: any; customApiKey?: string; language?: SupportedLanguage;
 }): Promise<VisionAnalysisResult> {
   const mimeType = opts.fileBase64.match(/^data:([^;]+);base64,/)?.[1] || opts.fileType || "image/jpeg";
@@ -162,6 +166,11 @@ export async function analyzeImageIntelligently(opts: {
   }
   const result = reconcileImageEvidence(cloud, local as VisionAnalysisResult);
   return { ...result, extractionCoverage: result.extractionCoverage || local.extractionCoverage, visionStatus: result.visionStatus || cloud?.visionStatus || { state: "local", failures: failures?.filter((entry, index, all) => all.findIndex(other => other.provider === entry.provider && other.code === entry.code) === index) } };
+}
+
+export async function analyzeImageIntelligently(opts: Parameters<typeof analyzeImageWithProviders>[0]): Promise<VisionAnalysisResult> {
+  const captured = await captureModels(() => analyzeImageWithProviders(opts));
+  return { ...captured.result, modelReport: captured.modelReport };
 }
 
 /** An explicit connection test makes a real vision request, without OCR or farmer data. */

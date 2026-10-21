@@ -1,3 +1,7 @@
+import { explainRetrieval } from "@/lib/explainability";
+import { captureModels } from "@/lib/modelTelemetry";
+import type { ModelReport } from "@/lib/modelReport";
+import { modelFetch } from "@/lib/modelTelemetry";
 /**
  * JANMITRA MULTIMODAL LLM SERVICE
  *
@@ -38,6 +42,7 @@ export interface LlmChatResponse {
   text: string;
   chips: string[];
   provider: "gemini" | "groq" | "openai" | "campusone_copilot";
+  modelReport?: ModelReport;
   modelUsed?: string;
   usedDocument?: boolean;
   aiStatus?: { state: "cloud" | "fallback"; provider?: string; model?: string };
@@ -139,7 +144,7 @@ async function callGeminiText(
         generationConfig: geminiGenerationConfig(model, jsonMode ? 6000 : 3000, jsonMode),
       };
 
-      const res = await fetch(url, {
+      const res = await modelFetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
         body: JSON.stringify(payload),
@@ -200,7 +205,7 @@ async function callGroqText(
         ...(jsonMode ? { response_format: { type: "json_object" } } : {}),
       };
 
-      const res = await fetch(url, {
+      const res = await modelFetch(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -264,7 +269,7 @@ async function callOpenAiText(
         ...(jsonMode ? { response_format: { type: "json_object" } } : {}),
       };
 
-      const res = await fetch(url, {
+      const res = await modelFetch(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -394,12 +399,12 @@ async function generateReply(
     officialPassages = await researchOfficialSchemes(`${withoutName}${state ? `; State: ${state}` : ""}`, customApiKey, documentContext ? 10000 : 18000);
   }
   if (req.researchTrace) req.researchTrace.searchSuggestionsHtml = officialPassages.find(p => p.searchSuggestionsHtml)?.searchSuggestionsHtml;
-  const asksDeadline = memory.topic?.intent === "deadline" || /deadline|last date|closing date|when.*apply|గడువు|अंतिम तिथि|கடைசி நாள்|ಕೊನೆಯ ದಿನ|শেষ তারিখ/i.test(query);
+  const asksDeadline = memory.topic?.intent !== "guide" && memory.topic?.intent !== "overview" && (memory.topic?.intent === "deadline" || /deadline|last date|closing date|when.*apply|గడువు|अंतिम तिथि|கடைசி நாள்|ಕೊನೆಯ ದಿನ|শেষ তারিখ/i.test(query));
   if (!documentContext && asksDeadline && !officialPassages.length) {
     const reply = farmerChatReply(query, language, profile, history, memory);
     return { ...reply, provider: "campusone_copilot", modelUsed: "JanMithra application deadline clarification", usedDocument: false };
   }
-  if (!documentContext && !officialPassages.length && /latest|current|today|new schemes|తాజా|ప్రస్తుత|नवीन|अभी/i.test(query)) {
+  if (!documentContext && memory.topic?.intent !== "guide" && memory.topic?.intent !== "overview" && !officialPassages.length && /latest|current|today|new schemes|తాజా|ప్రస్తుత|नवीन|अभी/i.test(query)) {
     const unavailable: Record<SupportedLanguage, string> = {
       en: "I could not verify a current official notice for this question. I should not label saved scheme information as the latest rules. Check the issuing department or https://www.myscheme.gov.in/. Tell me the scheme and state, or share its official notice, and I can help explain its eligibility, documents and application process.",
       te: "ఈ ప్రశ్నకు తాజా అధికారిక ప్రకటనను నిర్ధారించలేకపోయాను. పాత పథకం సమాచారాన్ని తాజా నియమాలుగా చెప్పలేను. సంబంధిత శాఖ లేదా https://www.myscheme.gov.in/ చూడండి. పథకం, రాష్ట్రం లేదా అధికారిక ప్రకటన పంపితే అర్హత, పత్రాలు, దరఖాస్తు విధానం వివరిస్తాను.",
@@ -491,11 +496,20 @@ async function generateReply(
 
 export async function generateIntelligentChatReply(req: LlmChatRequest): Promise<LlmChatResponse> {
   const researchTrace: NonNullable<LlmChatRequest["researchTrace"]> = {};
-  const result = await generateReply({ ...req, researchTrace });
+  const captured = await captureModels(() => generateReply({ ...req, researchTrace }));
+  const result = captured.result;
+  captured.modelReport.explanation = { method: "Source attribution and factual validation", evidence: [result.usedDocument ? "The answer used readable data from this conversation’s upload." : "The answer used conversation context and available catalog/official evidence.", result.provider === "campusone_copilot" ? "No validated cloud answer succeeded; local guidance was used." : "A cloud answer passed the response validation path. Inspect its cited passages for factual support."] };
+  const sourceForExplanation = documentSource(req.documentContext);
+  if (result.usedDocument && sourceForExplanation) {
+    const xai = explainRetrieval(req.query, sourceForExplanation);
+    captured.modelReport.explanation = { method: xai.method, evidence: [xai.limitation,
+      ...xai.contributions.slice(0, 5).map(c => `Removing “${c.term}” changed the top retrieval score by ${c.scoreDrop}.`),
+      ...xai.passages.map(p => `${p.id}${p.page ? `, page ${p.page}` : ""}: ${p.text}`)] };
+  }
   const aiStatus = result.provider !== "campusone_copilot"
     ? { state: "cloud" as const, provider: result.provider, model: result.modelUsed }
     : result.modelUsed !== "JanMithra conversation routing" ? { state: "fallback" as const } : undefined;
-  return { ...result, aiStatus, ...(researchTrace.searchSuggestionsHtml ? { searchSuggestionsHtml: researchTrace.searchSuggestionsHtml } : {}) };
+  return { ...result, modelReport: captured.modelReport, aiStatus, ...(researchTrace.searchSuggestionsHtml ? { searchSuggestionsHtml: researchTrace.searchSuggestionsHtml } : {}) };
 }
 
 /** Exercise the same evidence validation as document chat, without personal data or persistence. */

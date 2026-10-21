@@ -1,3 +1,5 @@
+import { modelFetch } from "@/lib/modelTelemetry";
+import { recordModelRun } from "@/lib/modelTelemetry";
 import { providerKeys } from "@/lib/aiProviders";
 
 export function pcmToWav(pcm: Buffer, sampleRate = 24000): Buffer {
@@ -30,7 +32,7 @@ export async function synthesizeVoice(text: string, language: string, customApiK
     if (signal.aborted) break;
     try {
       const model = process.env.GEMINI_TTS_MODEL || "gemini-3.8-flash-tts";
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+      const res = await modelFetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
         method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": entry.key }, signal,
         body: JSON.stringify({ contents: [{ parts: [{ text, speech_metadata: { style: "Warm, calm and conversational. Explain patiently with natural pauses, like a helpful farm adviser. Speak only the supplied transcript." } }] }],
           generationConfig: { responseModalities: ["AUDIO"], speechConfig: { languageCode: `${language}-IN`, voiceConfig: { prebuiltVoiceConfig: { voiceName: process.env.GEMINI_TTS_VOICE || "Kore" } } } } }),
@@ -47,6 +49,7 @@ export async function synthesizeVoice(text: string, language: string, customApiK
       if (/^audio\/(?:wav|mpeg|mp3|ogg)/i.test(mime)) return { bytes, mime, provider: "gemini" };
     } catch { /* Continue with the independent speech fallback. */ }
   }
+  const fallbackStarted = Date.now();
   const chunks = speechChunks(text);
   const buffers = await Promise.all(chunks.map(async chunk => {
     const response = await fetch(`https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(chunk)}&tl=${language}&client=tw-ob`,
@@ -54,5 +57,6 @@ export async function synthesizeVoice(text: string, language: string, customApiK
     if (!response.ok) throw new Error("Speech service unavailable");
     return Buffer.from(await response.arrayBuffer());
   }));
+  recordModelRun({ model: "Regional speech service (model ID not supplied)", task: "Speech synthesis fallback", status: "completed", latencyMs: Date.now() - fallbackStarted });
   return { bytes: Buffer.concat(buffers), mime: "audio/mpeg", provider: "speech_fallback" };
 }

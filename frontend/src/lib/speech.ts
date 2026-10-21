@@ -44,6 +44,8 @@ export function speakText(
     signal: AbortSignal.any([controller.signal, AbortSignal.timeout(35000)]) })
     .then(async response => {
       if (!response.ok) throw new Error("Speech service unavailable");
+      const report = response.headers.get("X-Model-Report");
+      if (report && generation === speechGeneration) { try { window.dispatchEvent(new CustomEvent("janmitra:model-report", { detail: JSON.parse(decodeURIComponent(report)) })); } catch { /* Ignore malformed diagnostic metadata. */ } }
       const blob = await response.blob();
       if (generation !== speechGeneration) return;
       audioObjectUrl = URL.createObjectURL(blob);

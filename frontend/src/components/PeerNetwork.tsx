@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Users,
   MapPin,
@@ -28,12 +28,19 @@ export default function PeerNetwork() {
   const t = translations[language];
   const [selectedRadius, setSelectedRadius] = useState<number>(25);
 
-  const filteredPeers = NEARBY_PEERS.filter(
-    (peer) => peer.distanceKm <= selectedRadius
+  const [peers, setPeers] = useState<PeerSuccessStory[]>([]);
+  const [error, setError] = useState("");
+  const [cropFilter, setCropFilter] = useState("");
+  useEffect(() => { fetch("/api/peers").then(r => r.json()).then(data => setPeers(data.peers || [])).catch(() => setError("Could not load the farmer directory.")); }, []);
+  const filteredPeers = peers.filter(
+    (peer) => peer.distanceKm <= selectedRadius && (!cropFilter || peer.cropsGrown.toLowerCase().includes(cropFilter.toLowerCase()))
   );
 
   return (
     <section className="mt-12">
+      <p className="mb-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">Demo profiles and distances are clearly labeled. They are not real nearby farmers. Supplied farmer records are shown separately, and contacts require recorded consent.</p>
+      <input aria-label="Filter farmers by crop" value={cropFilter} onChange={e => setCropFilter(e.target.value)} placeholder="Filter by crop, e.g. cotton" className="mb-4 rounded-xl border border-jm-border p-3 text-sm" />
+      {error && <p role="alert">{error}</p>}
       {/* Section Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
@@ -42,7 +49,7 @@ export default function PeerNetwork() {
               <Users className="w-5 h-5" />
             </span>
             <span className="text-xs uppercase font-extrabold tracking-wider text-emerald-800">
-              PostGIS Spatial Matching (25km Radius)
+              Farmer directory and labeled examples
             </span>
           </div>
           <h2 className="text-2xl sm:text-3xl font-black text-stone-900 tracking-tight">
@@ -100,7 +107,7 @@ export default function PeerNetwork() {
 
                 {/* Spatial Distance Pill */}
                 <span className="px-2.5 py-1 rounded-full text-xs font-black bg-emerald-100 text-emerald-900 border border-emerald-300 shrink-0">
-                  {peer.distanceKm} km away
+                  {peer.isDemo ? "Example distance: " : ""}{peer.distanceKm} km
                 </span>
               </div>
 
@@ -126,7 +133,7 @@ export default function PeerNetwork() {
               <div className="p-3.5 rounded-2xl bg-emerald-50/80 border border-emerald-200 mb-4">
                 <div className="flex items-center gap-1.5 text-emerald-800 text-xs font-extrabold mb-1">
                   <TrendingUp className="w-4 h-4 text-emerald-600" />
-                  <span>Verified Outcome:</span>
+                  <span>{peer.isDemo ? "Illustrative scenario:" : "Reported outcome (not independently verified):"}</span>
                 </div>
                 <p className="text-xs text-stone-800 leading-relaxed font-medium">
                   {peer.outcomeSummary}

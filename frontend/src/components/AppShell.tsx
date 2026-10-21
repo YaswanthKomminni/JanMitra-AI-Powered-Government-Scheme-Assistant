@@ -7,6 +7,7 @@ import AppHeader from "@/components/AppHeader";
 import AuthModal from "@/components/AuthModal";
 import DocumentVerificationModal from "@/components/DocumentVerificationModal";
 import SchemeDetailModal from "@/components/SchemeDetailModal";
+import VoiceModelReport from "@/components/VoiceModelReport";
 import { useFarmerStore } from "@/store/useFarmerStore";
 import { pathForTab, routeForPath } from "@/lib/routes";
 
@@ -46,6 +47,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <div className="flex min-w-0 flex-1 flex-col">
         <AppHeader />
         <main className="min-w-0 flex-1">{children}</main>
+        <VoiceModelReport />
       </div>
       <AuthModal />
       <DocumentVerificationModal />

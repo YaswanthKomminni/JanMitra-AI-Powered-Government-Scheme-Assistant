@@ -1,3 +1,4 @@
+import { recordModelRun } from "@/lib/modelTelemetry";
 import { MAX_DOCUMENT_CHARACTERS, MAX_DOCUMENT_PAGES, type ExtractionCoverage } from "@/lib/documentLimits";
 import Tesseract from "tesseract.js";
 import sharp from "sharp";
@@ -28,13 +29,23 @@ export interface ExtractedDocumentResult {
   extractionCoverage?: ExtractionCoverage;
 }
 
+export async function performOcr(...args: Parameters<typeof performOcrInternal>): Promise<string> {
+  const started = Date.now();
+  let confidence: number | undefined;
+  const reportQuality = args[2];
+  args[2] = value => { confidence = value; reportQuality?.(value); };
+  const text = await performOcrInternal(...args);
+  recordModelRun({ model: args[0].startsWith("data:image/") ? "Tesseract LSTM OCR" : "Document text extractor", task: "Text extraction", status: text.trim() ? "completed" : "failed", latencyMs: Date.now() - started, score: confidence == null ? undefined : confidence / 100, detail: `${text.length} characters retained. Character count is coverage, not recognition accuracy.` });
+  return text;
+}
+
 function readableOcrLines(data: Tesseract.Page): ReadablePassage[] {
   return (data.blocks || []).flatMap(block => block.paragraphs.flatMap(paragraph => paragraph.lines))
     .filter(line => line.confidence >= 85 && line.text.trim().length >= 5 && line.words.every(word => word.confidence >= (/\d/.test(word.text) ? 90 : 70)))
     .slice(0, 120).map(line => ({ text: line.text.trim(), confidence: line.confidence }));
 }
 
-export async function performOcr(fileBase64: string, timeoutMs = 20000, reportQuality?: (confidence: number) => void,
+async function performOcrInternal(fileBase64: string, timeoutMs = 20000, reportQuality?: (confidence: number) => void,
   reportPassages?: (passages: ReadablePassage[]) => void, reportCoverage?: (coverage: ExtractionCoverage) => void): Promise<string> {
   const bytes = Buffer.from(fileBase64.replace(/^data:[^;]+;base64,/, ""), "base64");
   if (fileBase64.startsWith("data:text/plain")) {

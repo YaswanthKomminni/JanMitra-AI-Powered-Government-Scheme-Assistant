@@ -1,4 +1,5 @@
 "use client";
+import ModelReportPanel from "@/components/ModelReportPanel";
 
 import ChatText from "@/components/ChatText";
 import { visionStatusMessage } from "@/lib/visionStatus";
@@ -306,6 +307,7 @@ export default function ChatAssistant({ variant = "full" }: { variant?: "full" |
               </div>
             )}
             <ChatText text={msg.text} />
+            {!isUser && <ModelReportPanel report={{ runs: [...(msg.docDetection?.modelReport?.runs || []), ...(msg.modelReport?.runs || [])], explanation: msg.modelReport?.explanation }} />}
             {!isUser && msg.aiStatus?.state === "fallback" && <p className="mt-2 text-xs text-amber-800" role="status">{{
               en: "AI connection unavailable for this answer. Showing limited local guidance or readable source text; current scheme rules have not been verified.",
               te: "ఈ సమాధానానికి AI కనెక్షన్ అందుబాటులో లేదు. స్థానిక సూచనలు లేదా చదవగలిగిన పత్రం సమాచారం మాత్రమే; ప్రస్తుత పథకం నియమాలు నిర్ధారించలేదు.",

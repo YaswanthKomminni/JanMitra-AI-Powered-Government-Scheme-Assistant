@@ -1,3 +1,4 @@
+import { schemeQuestionIntent } from "@/lib/conversationMemory";
 import type { SupportedLanguage } from "@/lib/i18n";
 import { GUEST_FARMER, SCHEMES_DATABASE, type FarmerProfile } from "@/lib/mockData";
 import { semanticSearchSchemes, findNamedCatalogScheme, schemeJurisdiction } from "@/lib/aiCopilotService";
@@ -104,7 +105,7 @@ export function prepareFarmerConversation(query: string, memory: ConversationMem
   const named = findNamedCatalogScheme(query);
   if (named) {
     memory.topic = { kind: "scheme", query, scheme: named.name,
-      intent: /apply|application|register/i.test(query) ? "apply" : /documents?|checklist/i.test(query) ? "documents" : /eligib|conditions/i.test(query) ? "eligibility" : undefined };
+      intent: schemeQuestionIntent(query) };
   } else if (isRecommendationRequest(query)) {
     memory.topic = { kind: "scheme", query };
   }
@@ -151,11 +152,13 @@ export function farmerChatReply(query: string, lang: SupportedLanguage, profile?
   if (isRecommendationRequest(query) || memory.topic?.kind === "scheme" && !memory.topic.scheme && facts.crop && /^(?:my crop|mirchi|chilli|మిర్చి|मिर्च)/i.test(query)) return broadSchemeGuidance(lang, facts, query);
   const named = memory.topic?.kind !== "crop" && namedSchemes.find((item) => item.match.test(effective));
   if (named) {
-    const documents = memory.topic?.intent === "documents" || /documents?|paperwork|checklist|దరఖాస్తు పత్ర|दस्तावेज/i.test(query);
-    const apply = memory.topic?.intent === "apply" || /apply|application|register|enrol|దరఖాస్తు|आवेदन/i.test(query);
-    const eligible = memory.topic?.intent === "eligibility" || /eligib|qualify|for me|my profile|అర్హత|पात्र/i.test(query);
-    const status = memory.topic?.intent === "status" || /status|payment|installment|paid|track/i.test(query);
-    const deadline = memory.topic?.intent === "deadline" || /deadline|last date|closing date|when.*apply/i.test(query);
+    const multi = memory.topic?.intent === "guide";
+    const overviewRequest = memory.topic?.intent === "overview";
+    const documents = !multi && !overviewRequest && (memory.topic?.intent === "documents" || /documents?|paperwork|checklist|దరఖాస్తు పత్ర|दस्तावेज/i.test(query));
+    const apply = !multi && !overviewRequest && (memory.topic?.intent === "apply" || /apply|application|register|enrol|దరఖాస్తు|आवेदन/i.test(query));
+    const eligible = !multi && !overviewRequest && (memory.topic?.intent === "eligibility" || /eligib|qualify|for me|my profile|అర్హత|पात्र/i.test(query));
+    const status = !multi && !overviewRequest && (memory.topic?.intent === "status" || /status|payment|installment|paid|track/i.test(query));
+    const deadline = !multi && !overviewRequest && (memory.topic?.intent === "deadline" || /deadline|last date|closing date|when.*apply/i.test(query));
     const actionWords = schemeActions[lang];
     if (lang !== "en") {
       const l = recommendationCopy[lang];
@@ -165,6 +168,7 @@ export function farmerChatReply(query: string, lang: SupportedLanguage, profile?
       return { text: [`**${named.name}**`, known, action, `${actionWords.official}: ${named.url}`].filter(Boolean).join("\n\n"), chips: scopeMessages[lang].chips };
     }
     let guidance = named.text;
+    if (multi) guidance += `\n\nEligibility: ${actionWords.eligible}\n\nDocuments: ${actionWords.documents}\n\nApplication: ${/Credit/.test(named.name) ? "Approach your bank branch for its KCC application and assessment of your farming activity, land/tenancy records and credit needs. Keep the application acknowledgement and follow up with the branch." : actionWords.apply}\n\nDeadline: ${actionWords.deadline}`;
     if (deadline) guidance = `${named.name}: ${actionWords.deadline}`;
     else if (documents) guidance = `For ${named.name}, prepare identity and bank details, plus the relevant land, tenancy or farming-activity records requested by the implementing agency. ${/PM-KISAN/.test(named.name) ? "Check Aadhaar/e-KYC and that names match your land and bank records." : /insurance/.test(named.name) ? "Also check the seasonal notification for crop, sowing and insurance/enrollment records." : /Credit/.test(named.name) ? "Ask your bank for its current KCC checklist and application form." : "Ask the state implementing agency which component-specific records are required."} Confirm the exact current checklist before applying.`;
     else if (status) guidance = `To check ${named.name} status, use the official portal below or contact the implementing agency${/Credit/.test(named.name) ? " / your bank" : ""}. Use the beneficiary or application-status section where available. I cannot access your payment or application record. Do not share Aadhaar numbers, passwords or OTPs in this chat.`;
@@ -195,8 +199,8 @@ export function farmerChatReply(query: string, lang: SupportedLanguage, profile?
   const schemes = schemeReferences(effective, profile, memory);
   if (schemes.length) {
     const selected = schemes[0];
-    memory.topic = { ...memory.topic, kind: "scheme", query: memory.topic?.query || query, scheme: selected.name };
-    if (memory.topic?.intent === "deadline" || /deadline|last date|closing date|when.*apply/i.test(query)) {
+    memory.topic = { ...memory.topic, kind: "scheme", query: memory.topic?.query || query, scheme: selected.name, intent: schemeQuestionIntent(query) || memory.topic?.intent };
+    if (memory.topic?.intent === "deadline") {
       return { text: `${selected.name}\n\n${schemeActions[lang].deadline}\n\n${schemeActions[lang].official}: https://www.myscheme.gov.in/`, chips: scopeMessages[lang].chips };
     }
     if (lang !== "en") {
@@ -209,9 +213,10 @@ export function farmerChatReply(query: string, lang: SupportedLanguage, profile?
     const cropMatches = titleCrops.some(name => crop && (crop.toLowerCase().includes(name.toLowerCase()) || /rice|paddy/i.test(name) && /rice|paddy/i.test(crop)));
     const cropLimit = titleCrops.length && crop && !cropMatches
       ? `\n\nThis catalog entry specifically mentions ${Array.from(new Set(titleCrops)).join(", ")}. You told me your crop is ${crop}, so this is not a suitable crop match for that field. I can help find support for your crop instead.` : "";
-    if (memory.topic.intent === "apply" || /apply|application|register/i.test(query)) {
+    if (memory.topic.intent === "apply") {
       return { text: `${selected.name}\n\nTo apply: contact ${selected.department || "the implementing authority"} and request its current application form, eligibility conditions, submission channel and deadline. The saved catalog does not confirm that applications are currently open.\n\n${selected.documents ? `The saved catalog lists these documents; confirm the current checklist:\n${selected.documents}` : schemeActions[lang].documents}${cropLimit}\n\nOfficial scheme directory: https://www.myscheme.gov.in/\n\n${facts.state ? "Which application step do you need help with?" : "Which state is your farm in?"}`, chips: ["What are the eligibility conditions?", "What documents are required?", "Which schemes fit me?"] };
     }
+    if (memory.topic.intent === "guide" && lang === "en") return { text: `${selected.name}\n\n${selected.description}\n\nSaved benefits: ${selected.benefits || "Confirm benefit terms with the issuing authority."}\n\nEligibility: ${schemeActions.en.eligible}\n\nDocuments: ${selected.documents || schemeActions.en.documents}\n\nHow to apply: contact ${selected.department || "the implementing authority"} for its current application channel and submit the requested form and evidence. Keep your acknowledgement.\n\nDeadline: ${schemeActions.en.deadline}\n\nOfficial directory: https://www.myscheme.gov.in/`, chips: ["Explain eligibility", "What documents are required?", "How to apply?"] };
     return { text: `${selected.name}\n\nThe saved scheme catalog describes it as: ${selected.description}${paperwork}${cropLimit}\n\nConfirm current eligibility, benefits and dates with ${selected.department || "the implementing department"} or the official scheme listing at https://www.myscheme.gov.in/.${facts.state ? ` Your location is ${location || facts.state}. Which condition would you like to check?` : " Which state are you in?"}`, chips: [`How to apply for ${selected.name}?`, "What are the eligibility conditions?", "What documents are required?"] };
   }
   if (memory.topic?.kind === "scheme" || /\b(?:apply|application|eligib\w*|documents?|deadline|benefits?|subsid\w*|schemes?)\b/i.test(query)) {

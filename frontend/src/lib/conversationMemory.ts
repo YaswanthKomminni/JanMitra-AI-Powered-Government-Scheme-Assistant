@@ -11,6 +11,17 @@ export interface ConversationMemory {
   latestUploadAvailable?: boolean;
 }
 
+/** Resolve this turn's task instead of keeping the previous task indefinitely. */
+export function schemeQuestionIntent(q: string): string | undefined {
+  const deadline = /deadline|last date|closing date|when.*apply|గడువు|अंतिम तिथि/i.test(q);
+  const documents = /documents?|paperwork|checklist|పత్రాలు|दस्तावेज/i.test(q);
+  const eligibility = /eligib|qualify|conditions|అర్హత|पात्रता/i.test(q);
+  const apply = /how.*apply|application (?:process|steps)|^apply|register|enrol|దరఖాస్తు|आवेदन/i.test(q);
+  if (/guide me|full guide|complete guide|everything/i.test(q) || [deadline, documents, eligibility, apply].filter(Boolean).length > 1) return "guide";
+  if (!deadline && !documents && !eligibility && !apply && /what is|tell me about|explain|overview|describe/i.test(q)) return "overview";
+  return deadline ? "deadline" : documents ? "documents" : eligibility ? "eligibility" : /status|payment|installment|track/i.test(q) ? "status" : apply ? "apply" : undefined;
+}
+
 const cropPattern = /\b(cotton|paddy|rice|maize|corn|chill?i(?:es)?|mirchi|mirch|wheat|tomato|groundnut|sugarcane|millet|soybean|potato|onion)\b|మిర్చి|मिर्च/gi;
 
 function canonicalCrop(value?: string): string | undefined {
@@ -175,11 +186,7 @@ function updateUser(memory: ConversationMemory, query: string, attachment = fals
     memory.topic.crop = crop;
   }
   if (memory.topic?.kind === "scheme") {
-    const intent = /deadline|last date|closing date|when.*apply|గడువు|अंतिम तिथि|கடைசி நாள்|ಕೊನೆಯ ದಿನ|শেষ তারিখ/i.test(q) ? "deadline"
-      : /documents?|paperwork|checklist|పత్రాలు|दस्तावेज|ஆவணங்கள்|ದಾಖಲೆಗಳು|নথি/i.test(q) ? "documents"
-      : /eligib|qualify|for me|my profile|అర్హత|पात्रता|தகுதி|ಅರ್ಹತೆ|যোগ্যতা/i.test(q) ? "eligibility"
-      : /status|payment|installment|track|స్థితి|स्थिति|நிலை|ಸ್ಥಿತಿ|অবস্থা/i.test(q) ? "status"
-      : /apply|application|register|enrol|దరఖాస్తు|आवेदन|விண்ணப்ப|ಅರ್ಜಿ|আবেদন/i.test(q) ? "apply" : undefined;
+    const intent = schemeQuestionIntent(q);
     if (intent) memory.topic.intent = intent;
   }
   // Personal facts update the current context; they do not replace its original question.

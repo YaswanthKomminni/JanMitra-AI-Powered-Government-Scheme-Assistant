@@ -145,3 +145,99 @@ test('stopping speech while audio is loading prevents delayed playback', async (
     assert.equal(played, false);
   } finally { global.fetch = realFetch; global.window = savedWindow; global.localStorage = savedStorage; global.Audio = savedAudio; }
 });
+
+test('a full KCC guide includes an overview and several requested sections, not only a deadline', async () => {
+  const {generateIntelligentChatReply} = require('../src/lib/llmService.ts');
+  const reply = await generateIntelligentChatReply({query:'Guide me through Kisan Credit Card. Explain current eligibility, required documents, application steps and any verified deadline for my profile.',language:'en'});
+  assert.match(reply.text, /credit facility|bank credit|credit terms|credit for farming/i);
+  for (const section of ['Eligibility:', 'Documents:', 'Application:', 'Deadline:']) assert.ok(reply.text.includes(section));
+});
+
+test('asking what a scheme is resets a previous application intent', () => {
+  const {buildConversationMemory,finishConversationMemory} = require('../src/lib/conversationMemory.ts');
+  const {farmerChatReply} = require('../src/lib/farmerChat.ts');
+  let memory=buildConversationMemory([], 'How do I apply for Kisan Credit Card?');
+  memory=finishConversationMemory(memory,'Ask your bank for the current form.');
+  memory=buildConversationMemory([], 'what is that scheme tell me about that',memory);
+  assert.equal(memory.topic.intent,'overview');
+  const reply=farmerChatReply('what is that scheme tell me about that','en',null,[],memory);
+  assert.match(reply.text,/credit facility|credit terms|credit for farming/i);
+  assert.doesNotMatch(reply.text,/^To apply/i);
+});
+
+test('full guides reach a configured model when current official retrieval is disabled', async () => {
+  const {generateIntelligentChatReply}=require('../src/lib/llmService.ts');
+  const previous=process.env.JANMITRA_FETCH_OFFICIAL_SOURCES;
+  process.env.JANMITRA_FETCH_OFFICIAL_SOURCES='0';
+  global.fetch=async (_url,options)=>{
+    const payload=JSON.parse(options.body);
+    const passages=JSON.parse(payload.systemInstruction.parts[0].text.split('SOURCE PASSAGES:\n')[1]);
+    const source=passages[0], quote=source.text.split('\n').find(line=>line.startsWith('Description:'));
+    return Response.json({usageMetadata:{promptTokenCount:100,candidatesTokenCount:40},candidates:[{content:{parts:[{text:JSON.stringify({claims:[{text:quote,sourceId:source.id,quote}],suggestions:[],missingInformation:['Current eligibility and dates require official verification.'],chips:[]})}]}}]});
+  };
+  try {
+    const reply=await generateIntelligentChatReply({query:'Guide me through Kisan Credit Card. Explain eligibility, required documents, application steps and any verified deadline.',language:'en',customApiKey:'AQ.synthetic-guide'});
+    assert.equal(reply.provider,'gemini');
+    assert.ok(reply.modelReport.runs.some(r=>r.model==='gemini-3.8-flash'&&r.inputTokens===100));
+    assert.doesNotMatch(JSON.stringify(reply.modelReport),/synthetic-guide/);
+  } finally {global.fetch=realFetch;if(previous==null)delete process.env.JANMITRA_FETCH_OFFICIAL_SOURCES;else process.env.JANMITRA_FETCH_OFFICIAL_SOURCES=previous;}
+});
+
+test('model traces remain isolated across concurrent requests', async () => {
+  const {captureModels,modelFetch}=require('../src/lib/modelTelemetry.ts');
+  global.fetch=async()=>Response.json({usage:{prompt_tokens:3,completion_tokens:2}});
+  try {
+    const results=await Promise.all(['model-a','model-b'].map(model=>captureModels(()=>modelFetch('https://api.example.test/v1/chat',{method:'POST',body:JSON.stringify({model})}))));
+    assert.deepEqual(results.map(r=>r.modelReport.runs.map(x=>x.model)),[['model-a'],['model-b']]);
+  } finally {global.fetch=realFetch;}
+});
+
+test('expanded farmer examples are labeled and never publish invented contact details', () => {
+  const {peerDirectory}=require('../src/lib/peerDirectory.ts');
+  const peers=peerDirectory();
+  assert.equal(peers.length,32);
+  assert.ok(peers.every(p=>p.isDemo&&!p.contactAllowed&&!p.contactPhone));
+  const seed=require('../src/lib/mockData.ts').NEARBY_PEERS[0];
+  assert.equal(peerDirectory([{id:'migrated-seed',farmer_name:seed.farmerName,village:seed.village,contact_allowed:true,contact_phone:'do-not-publish'}]).length,32);
+  assert.ok(peerDirectory([{id:'registered-test',farmer_name:'Consented record',distance_km:2,contact_allowed:false,contact_phone:'must-not-leak'}]).every(p=>!p.contactPhone));
+});
+
+test('document XAI exposes measured retrieval ablations and source passages', () => {
+  const {explainRetrieval}=require('../src/lib/explainability.ts');
+  const result=explainRetrieval('cotton machinery documents','[Page 1]\nCotton machinery support\nRequired documents: Machinery quotation\n[Page 2]\nSchool meal programme.');
+  assert.ok(result.contributions.some(c=>c.term==='cotton'&&Number.isFinite(c.scoreDrop)));
+  assert.ok(result.passages.some(p=>/Machinery quotation/.test(p.text)));
+  assert.match(result.limitation,/not a causal/);
+});
+
+test('actual CLIP occlusion explanation reruns the model for all four quadrants', {skip:!process.env.TEST_XAI_IMAGE}, async () => {
+  const {captureModels}=require('../src/lib/modelTelemetry.ts');
+  const {explainImageOcclusion}=require('../src/lib/localImageModel.ts');
+  const {result,modelReport}=await captureModels(()=>explainImageOcclusion(fs.readFileSync(process.env.TEST_XAI_IMAGE)));
+  assert.equal(result.regions.length,4);
+  assert.ok(result.regions.every(r=>Number.isFinite(r.scoreDrop)));
+  assert.equal(modelReport.runs.filter(r=>r.model==='CLIP ViT-B/32 q8').length,5);
+  assert.match(result.limitation,/does not identify disease/);
+});
+
+test('an empty gateway response is an analysis error, never an irrelevant-image result', async () => {
+  const {useFarmerStore}=require('../src/store/useFarmerStore.ts');
+  global.fetch=async()=>new Response('',{status:502});
+  try {
+    const success=await useFarmerStore.getState().analyzeUploadedFile('data:image/png;base64,aGVsbG8=','test.png','image/png');
+    assert.equal(success,false);
+    const error=useFarmerStore.getState().outOfScopeError;
+    assert.equal(error.title,'Analysis Error');
+    assert.match(error.reason,/incomplete response/i);
+    assert.doesNotMatch(error.message,/not.*related|irrelevant image/i);
+  } finally {global.fetch=realFetch;}
+});
+
+test('SSY full-guide questions retain the scheme explanation as well as paperwork and process', async () => {
+  const {generateIntelligentChatReply}=require('../src/lib/llmService.ts');
+  const reply=await generateIntelligentChatReply({query:'Guide me through Sukanya Samriddhi Yojana (SSY). Explain current eligibility, required documents, application steps and any verified deadline for my profile.',language:'en'});
+  assert.match(reply.text,/Sukanya|girl child/i);
+  assert.match(reply.text,/Eligibility:/);
+  assert.match(reply.text,/How to apply:/);
+  assert.match(reply.text,/Documents:/);
+});

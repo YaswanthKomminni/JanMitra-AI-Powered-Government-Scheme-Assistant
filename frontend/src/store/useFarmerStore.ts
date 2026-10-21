@@ -764,7 +764,7 @@ export const useFarmerStore = create<FarmerState>((set, get) => {
     try {
       const response = await fetch("/api/voice/brief", { method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: text.slice(0, 24000), language: lang, customApiKey: localStorage.getItem("janmitra_custom_vision_key") || undefined }), signal: AbortSignal.any([briefingRequest.signal, AbortSignal.timeout(25000)]) });
-      if (response.ok) { const result = await response.json(); if (result.text) briefing = result.text; }
+      if (response.ok) { const result = await response.json(); if (result.text) briefing = result.text; if (result.modelReport && generation === narrationGeneration) window.dispatchEvent(new CustomEvent("janmitra:model-report", { detail: result.modelReport })); }
     } catch { /* The readable answer remains available for browser speech. */ }
     if (generation !== narrationGeneration || get().speakingMessageId !== id || !get().isSpeaking) return;
     const finish = () => { if (generation === narrationGeneration && get().speakingMessageId === id) set({ isSpeaking: false, speakingMessageId: null }); };
@@ -839,7 +839,8 @@ export const useFarmerStore = create<FarmerState>((set, get) => {
         handleSessionExpired({ type: "open_verification" });
         return false;
       }
-      const data = await res.json();
+      const data = await readJson(res);
+      if (!res.ok || typeof data.success !== "boolean") throw new Error(res.status >= 500 || !data.message ? "The analysis server returned an incomplete response. Please retry; this is not an unrelated-image decision." : data.message);
       if (data.isOutOfScope || !data.success) {
         set({
           verificationScanning: false,
