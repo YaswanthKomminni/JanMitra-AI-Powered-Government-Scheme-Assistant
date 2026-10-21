@@ -82,6 +82,9 @@ async function performOcrInternal(fileBase64: string, timeoutMs = 20000, reportQ
         for (const page of screenshots?.pages || []) {
           const remaining = timeoutMs - (Date.now() - started);
           if (remaining < 1000) break;
+          // Blank separator pages are common in booklets; avoid wasting the OCR budget on them.
+          const stats = await sharp(Buffer.from(page.data)).stats();
+          if (hasText && stats.channels.every(c => c.mean > 245 && c.stdev < 5)) continue;
           const reading = await performOcr(`data:image/png;base64,${Buffer.from(page.data).toString("base64")}`, remaining,
             hasText ? undefined : reportQuality, passages => { reliable.push(...passages); reportPassages?.(reliable); });
           if (reading.trim()) readings.set(page.pageNumber, reading.trim());

@@ -31,6 +31,7 @@ export interface LlmChatRequest {
   profile?: FarmerProfile | null;
   history?: Array<{ role: "user" | "assistant"; content: string }>;
   documentContext?: any;
+  savedProfileSource?: string;
   customApiKey?: string;
   documentContextIsLatestTopic?: boolean;
   forceDocumentContext?: boolean;
@@ -45,7 +46,7 @@ export interface LlmChatResponse {
   modelReport?: ModelReport;
   modelUsed?: string;
   usedDocument?: boolean;
-  aiStatus?: { state: "cloud" | "fallback"; provider?: string; model?: string };
+  aiStatus?: { state: "cloud" | "fallback"; provider?: string; model?: string; reason?: string };
   searchSuggestionsHtml?: string;
 }
 
@@ -148,7 +149,7 @@ async function callGeminiText(
         method: "POST",
         headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
         body: JSON.stringify(payload),
-        signal: AbortSignal.any([signal, AbortSignal.timeout(jsonMode ? 16000 : 10000)]),
+        signal: AbortSignal.any([signal, AbortSignal.timeout(jsonMode ? 24000 : 10000)]),
       });
 
       if (!res.ok) {
@@ -369,7 +370,7 @@ async function generateReply(
   const references = schemeReferences(resolveConversationQuery(query, memory), profile, memory);
   const source = documentContext?.docType !== "crop_disease" ? partialSource || documentSource(documentContext) : "";
   const uploadSchemes = source ? parseAndSummarizeDocumentContent(source).unlockedSchemes : [];
-  const wantsSchemeGuide = /apply|application|eligib|(?:required|needed) documents?|what documents|which documents|documents? (?:are |is )?(?:required|needed)|checklist|deadline|దరఖాస్తు|అర్హత|आवेदन|पात्रता/i.test(query);
+  const wantsSchemeGuide = /apply|application|procedure|proceed|eligib|(?:required|needed) documents?|what documents|which documents|documents? (?:are |is )?(?:required|needed)|checklist|deadline|దరఖాస్తు|అర్హత|आवेदन|पात्रता/i.test(query);
   const genericUploadQuestion = /^(?:please )?(?:analy[sz]e|summari[sz]e|inspect|tell me about (?:this|the) (?:image|document|file|pdf))/i.test(memory.topic?.query || "");
   const comparesSchemes = /summar|overview|compare|suggest|recommend|which schemes|schemes.*(?:for me|eligible|benefit)|what can i apply for|\b(?:all|each)\b/i.test(query);
   if (documentContext && uploadSchemes.length > 1 && genericUploadQuestion && wantsSchemeGuide && !comparesSchemes
@@ -389,7 +390,7 @@ async function generateReply(
   const researchDocument = !!backgroundScheme || documentRecommendations;
   let officialPassages = (!documentContext || researchDocument) && providerKeys(customApiKey).length
     ? await retrieveOfficialGuidance(backgroundScheme ? `${backgroundScheme}: ${query}` : resolveConversationQuery(query, memory)) : [];
-  const researchNeeded = /latest|current|today|new schemes|research|search|apply|application|eligib|documents?|deadline|last date|benefits?|schemes?|subsid|ప్రస్తుత|తాజా|अभी|नवीन/i.test(query);
+  const researchNeeded = /latest|current|today|new schemes|research|search|apply|application|procedure|proceed|eligib|documents?|deadline|last date|benefits?|schemes?|subsid|ప్రస్తుత|తాజా|अभी|नवीन/i.test(query);
   if (!officialPassages.length && providerKeys(customApiKey).length && researchNeeded && (!documentContext || researchDocument)) {
     const publicTopic = backgroundScheme ? `${backgroundScheme}: application, eligibility, required documents and current notices`
       : documentRecommendations ? `Government agriculture schemes for ${knownFarmerFacts(profile, memory).crop || "the farmer's crop"}; ${uploadSchemes.slice(0, 6).join(", ")}; current eligibility and financial assistance`
@@ -422,12 +423,14 @@ async function generateReply(
       item.benefits ? `Catalog benefits: ${item.benefits}` : "", item.documents ? `Catalog documents: ${item.documents}` : ""].filter(Boolean).join("\n"),
   })) : [];
   const evidenceQuery = `${resolveConversationQuery(query, memory)}${documentRecommendations ? `; crop: ${knownFarmerFacts(profile, memory).crop || ""}; agricultural credit insurance financial assistance machinery` : ""}`;
-  const passages = source ? [...retrieveDocumentEvidence(evidenceQuery, source, 12), ...officialPassages] : officialPassages.length ? officialPassages : catalogPassages;
+  const profilePassages = !source && req.savedProfileSource && !/latest|today|new schemes/i.test(query)
+    ? retrieveDocumentEvidence(evidenceQuery, req.savedProfileSource, 4).map(p => ({ ...p, id: `P${p.id}`, text: `User-saved profile document, NOT a current official rule or verified ownership:\n${p.text}` })) : [];
+  const passages = source ? [...retrieveDocumentEvidence(evidenceQuery, source, 12), ...officialPassages] : [...(officialPassages.length ? officialPassages : catalogPassages), ...profilePassages];
   const grounded = !!source || passages.length > 0;
   // Factual document answers see original source passages, not a previous model's summary as evidence.
   const promptContext = grounded ? undefined : documentContext;
   const systemPrompt = buildSystemPrompt(language, profile, promptContext, memory)
-    + `\nToday in India is ${new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" })}. Answer the exact request directly, using a short paragraph for explanations, ordered steps for application processes, and a checklist for paperwork. Do not dump source excerpts into the answer. Identify the scheme and state before assessing conditions. Search evidence is accessed now but may describe an old notice; its publication and application dates still matter. Never call old catalog data the latest policy. For a long document overview, describe its main sections and clearly distinguish representative excerpts from an exhaustive review. If the user asks for a specific row or scheme, focus only on that part. Ask at most one useful missing question, after giving the supported answer.`
+    + `\nToday in India is ${new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" })}. Answer the exact request directly, using ordered steps for application processes and a checklist for paperwork. Do not dump source excerpts into the answer. Identify the scheme and state before assessing conditions. Search evidence is accessed now but may describe an old notice; its publication and application dates still matter. Never call old catalog data the latest policy. For a document/image summary or explanation, provide a substantial, clearly organized explanation in the requested language: purpose and publication date, main sections, named schemes or subjects, important conditions and useful next actions. For long booklets aim for 600–1000 words when the evidence supports it; short uploads need less. Cover the whole range of supplied sections, not just the cover, and state any sampling or unreadable-page limits. Treat a compilation as a reference booklet, not a single application notice. Specific follow-up questions should focus on their requested section and use the original upload again, not just the previous summary. Ask at most one useful missing question after the supported answer.`
     + (partialSource ? "\nThis upload was only partly readable. The supplied passages are the readable portions, not the whole document. Summarize those portions specifically. Answer follow-ups from them; state exactly which requested facts are missing. Do not replace a useful partial summary with a generic unreadable-upload message. General scheme background must be clearly separated from what this document says." : "") + (grounded
     ? `\n\nThe following contract replaces the CHIPS format. Answer from the supplied evidence; apply profile facts only to explain which conditions still need checking. ${catalogPassages.length ? "C-prefixed passages are saved catalog entries, NOT current policy. Never state a deadline, open window, final eligibility, required document checklist or benefit as current merely from the catalog. Explain what remains unverified and point to the issuing department or official directory." : "For official passages, only a dated scheme application notice can establish a deadline for the farmer's state and season."} ${groundedAnswerContract}\nSOURCE PASSAGES:\n${JSON.stringify(passages.map(({id, text}) => ({id, text})))}` : "");
 
@@ -439,12 +442,13 @@ async function generateReply(
   };
 
   // 1. Try Cloud LLM (Gemini, Groq, OpenAI) if key is provided or present in environment
-  const signal = AbortSignal.timeout(20000);
+  const inferenceBudget = source.length > 12000 ? 28000 : 20000;
+  const signal = AbortSignal.timeout(inferenceBudget);
 
   const configuredProviders = providerKeys(customApiKey);
   for (const apiInfo of configuredProviders) {
     if (signal.aborted) break;
-    const providerSignal = AbortSignal.any([signal, AbortSignal.timeout(Math.max(4000, Math.floor(20000 / configuredProviders.length)))]);
+    const providerSignal = AbortSignal.any([signal, AbortSignal.timeout(Math.max(4000, Math.floor(inferenceBudget / configuredProviders.length)))]);
     try {
       const call = apiInfo.provider === "gemini" ? callGeminiText : apiInfo.provider === "groq" ? callGroqText : callOpenAiText;
       let raw = await call(apiInfo.key, query, systemPrompt, providerSignal, history, grounded);
@@ -498,6 +502,13 @@ export async function generateIntelligentChatReply(req: LlmChatRequest): Promise
   const researchTrace: NonNullable<LlmChatRequest["researchTrace"]> = {};
   const captured = await captureModels(() => generateReply({ ...req, researchTrace }));
   const result = captured.result;
+  const keysConfigured = providerKeys(req.customApiKey).length > 0;
+  const attempts = captured.modelReport.runs.filter(r => /reasoning|search/i.test(r.task));
+  const fallbackReason = !keysConfigured ? "No AI provider key is available to this deployment. Set GEMINI_API_KEY in the Render service environment, save and redeploy; then run Check AI connection."
+    : attempts.some(r => r.detail === "HTTP 401" || r.detail === "HTTP 403") ? "The provider rejected the key or its permissions. Check the server key and enabled API access."
+    : attempts.some(r => r.detail === "HTTP 429") ? "The provider usage limit was reached. Check quota and billing, then retry."
+    : attempts.some(r => r.status === "completed") ? "A provider replied, but its answer did not pass source validation. The readable source is retained below."
+    : attempts.length ? "The AI request could not finish. Check the model execution details and retry." : "No cloud model ran for this routed answer.";
   captured.modelReport.explanation = { method: "Source attribution and factual validation", evidence: [result.usedDocument ? "The answer used readable data from this conversation’s upload." : "The answer used conversation context and available catalog/official evidence.", result.provider === "campusone_copilot" ? "No validated cloud answer succeeded; local guidance was used." : "A cloud answer passed the response validation path. Inspect its cited passages for factual support."] };
   const sourceForExplanation = documentSource(req.documentContext);
   if (result.usedDocument && sourceForExplanation) {
@@ -506,9 +517,10 @@ export async function generateIntelligentChatReply(req: LlmChatRequest): Promise
       ...xai.contributions.slice(0, 5).map(c => `Removing “${c.term}” changed the top retrieval score by ${c.scoreDrop}.`),
       ...xai.passages.map(p => `${p.id}${p.page ? `, page ${p.page}` : ""}: ${p.text}`)] };
   }
+  if (result.provider === "campusone_copilot") captured.modelReport.explanation.evidence.unshift(fallbackReason);
   const aiStatus = result.provider !== "campusone_copilot"
     ? { state: "cloud" as const, provider: result.provider, model: result.modelUsed }
-    : result.modelUsed !== "JanMithra conversation routing" ? { state: "fallback" as const } : undefined;
+    : result.modelUsed !== "JanMithra conversation routing" ? { state: "fallback" as const, reason: fallbackReason } : undefined;
   return { ...result, modelReport: captured.modelReport, aiStatus, ...(researchTrace.searchSuggestionsHtml ? { searchSuggestionsHtml: researchTrace.searchSuggestionsHtml } : {}) };
 }
 

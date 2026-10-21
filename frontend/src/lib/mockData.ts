@@ -40,6 +40,7 @@ export interface Scheme {
 }
 
 export interface PeerSuccessStory {
+  distanceKnown?: boolean;
   isDemo?: boolean;
   id: string;
   farmerName: string;

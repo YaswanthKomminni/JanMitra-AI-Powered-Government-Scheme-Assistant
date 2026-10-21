@@ -29,7 +29,8 @@ export function extractAgriculturalEntries(text: string): Array<{ name: string; 
 export function parseAndSummarizeDocumentContent(ocrText: string, _fileName = "document.jpg", _classification?: any): ParsedDocumentDetails {
   const text = (ocrText || "").trim();
   const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-  const genre: DocumentGenre = /sale deed|deed of sale|\bvendor\b|\bvendee\b/i.test(text) ? "sale_deed"
+  const compilation = text.length > 12000 && /compilation|convergence.*schemes|central sector.*centrally sponsored/i.test(text);
+  const genre: DocumentGenre = compilation ? "general_document" : /sale deed|deed of sale|\bvendor\b|\bvendee\b/i.test(text) ? "sale_deed"
     : /admission|counsell?ing/i.test(text) ? "education_admission"
     : /recruitment|vacanc|extension assistant/i.test(text) ? "recruitment_notice"
     : /\bicar\b|\bdare\b|foreword|research publication/i.test(text) ? "research_publication"
@@ -218,6 +219,15 @@ export function answerDocumentQuestion(query: string, detection: any, lang: Supp
   const l = labels[lang] || labels.en;
   const words = answerWords[lang] || answerWords.en;
   const chips = words.chips;
+  if (source.length > 12000 && /summar|analy|overview|explain (?:this|the|that)|tell me about|inspect|attached|what.*(?:about|related to)|సారాంశ|सारांश|சுருக்க|ಸಾರಾಂಶ|সারসংক্ষেপ/i.test(q)
+    && !/how.*apply|eligib|required documents|deadline|last date/i.test(q)) {
+    const passages = retrieveDocumentEvidence("Summarize this document", source, 20);
+    const cover = source.slice(0, 2200).replace(/\[Page \d+\]|\[No readable text on this page\]/g, "").replace(/\s+/g, " ").trim();
+    const excerpts = passages.filter(p => p.id !== "D-outline" && p.text.replace(/\[Page \d+\]|\[No readable text on this page\]/g, "").trim().length > 60);
+    const step = Math.max(1, Math.ceil(excerpts.length / 18));
+    const selected = excerpts.filter((_, i) => i % step === 0).slice(0, 18);
+    return { text: `**${l.summary}**\n${cover.slice(0, 1000)}\n\n${lang === "en" ? "This is an extractive overview of the readable source, with representative sections across the document. It is not a complete AI interpretation. Publication dates in this copy do not establish current scheme rules or an open application window." : words.current}\n\n**${l.details}**\n${selected.map(p => `**${p.page ? `[Page ${p.page}]` : p.id}**\n${p.text.replace(/\[Page \d+\]|\[No readable text on this page\]/g, "").trim().slice(0, 650)}`).join("\n\n")}\n\n**${l.suggestions}**\n${lang === "en" ? "Choose a scheme name, page or topic from these sections and ask about its purpose, eligibility, documents or process. I will retrieve that part from the original text. Confirm current rules using the issuing authority; an older booklet is background evidence." : words.current}`, chips };
+  }
   const localSuggestions = lang === "en" ? suggestions : [
     ...(/schemes? and policies|scheme.*poster/i.test(source) ? [words.closeup] : []),
     ...(base.genre === "sale_deed" || base.genre === "land_record" ? [words.land] : []),
@@ -267,7 +277,7 @@ export function answerDocumentQuestion(query: string, detection: any, lang: Supp
     const selected = select(fields);
     return { text: selected.length ? bullets(selected) : /amount|fee|cost|when|date|deadline/i.test(q) ? literalAnswer() : l.missing, chips };
   }
-  if (/how.*apply|application.*process|దరఖాస్తు|आवेदन|விண்ணப்ப|ಅರ್ಜಿ|আবেদন/i.test(q)) {
+  if (/how.*apply|application.*process|procedure|how.*proceed|దరఖాస్తు|आवेदन|விண்ணப்ப|ಅರ್ಜಿ|আবেদন/i.test(q)) {
     const instructions = select(/apply|application|submission|portal|url|website|procedure|instructions/i);
     return { text: `${bullets(instructions)}\n\n${suggestedText}`, chips };
   }

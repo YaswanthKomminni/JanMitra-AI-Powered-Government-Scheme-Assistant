@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { requireUser, serviceUnavailable, isDbError } from "@/lib/auth";
 import { isUniqueViolation, dbQuery } from "@/lib/db";
+import { savedProfileContext } from "@/lib/profileStorage";
+import { documentSource } from "@/lib/documentEvidence";
+import { shouldUseDocument } from "@/lib/chatRouting";
 import { buildConversationMemory, finishConversationMemory, type ConversationMemory } from "@/lib/conversationMemory";
 import { generateIntelligentChatReply } from "@/lib/llmService";
 import type { SupportedLanguage } from "@/lib/i18n";
@@ -89,6 +92,8 @@ export async function POST(request: Request) {
 
   const text = typeof body?.text === "string" ? body.text.trim() : "";
   if (!text) return fail(400, "Please type a question.");
+  const savedDocumentId = body?.savedDocumentId;
+  if (savedDocumentId != null && (typeof savedDocumentId !== "string" || !/^[a-f0-9-]{36}$/i.test(savedDocumentId))) return fail(400, "Invalid saved document.");
   if (text.length > MAX_TEXT) return fail(400, `Your message is too long (max ${MAX_TEXT} characters).`);
 
   const language = ((LANGUAGE_CODES as readonly string[]).includes(body?.language) ? body.language : "en") as SupportedLanguage;
@@ -257,13 +262,22 @@ export async function POST(request: Request) {
             }
           }
 
-          // Unified Conversational LLM Engine (Gemini 2.0 / Groq Llama 3 / OpenAI with CampusOne Copilot Fallback):
+          let savedContext: any;
+          try { savedContext = await savedProfileContext(userId, storedText, savedDocumentId); } catch { /* The chat remains available if private storage is temporarily unavailable. */ }
+          if (savedDocumentId && !savedContext) return { text: "That saved document is unavailable in your account. Open Profile and choose one of your saved documents again.", chips: [] };
+          if (savedDocumentId) { activeDocContext = savedContext; conversationMemory.latestUploadAvailable = true; }
+          const profileDocumentQuestion = !activeDocContext && !!savedContext && /my (?:saved )?(?:doc|land|record|aadhaar)|profile documents/i.test(storedText);
+          if (profileDocumentQuestion) { activeDocContext = savedContext; conversationMemory.latestUploadAvailable = true; }
+
+          // Original sources are selected by authenticated ownership, never by a client-provided profile.
           const llmReply = await generateIntelligentChatReply({
             query: storedText,
             language,
             profile: auth.profile,
             documentContext: activeDocContext,
-            documentContextIsLatestTopic: latestTopicIsDocument,
+            documentContextIsLatestTopic: !!savedDocumentId || latestTopicIsDocument,
+            forceDocumentContext: profileDocumentQuestion || !!savedDocumentId && shouldUseDocument(storedText, savedContext, true),
+            savedProfileSource: savedContext ? documentSource(savedContext) : undefined,
             history,
             conversationMemory,
             customApiKey,

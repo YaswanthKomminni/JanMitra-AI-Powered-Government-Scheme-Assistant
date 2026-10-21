@@ -292,6 +292,7 @@ export const useFarmerStore = create<FarmerState>((set, get) => {
         body: JSON.stringify({
           conversationId: get().activeConversationId,
           clientMessageId: cmid,
+          savedDocumentId: typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("document") || undefined : undefined,
           text: msg.text,
           language: get().language,
           attachment,

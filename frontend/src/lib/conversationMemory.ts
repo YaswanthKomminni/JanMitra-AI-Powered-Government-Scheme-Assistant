@@ -16,7 +16,7 @@ export function schemeQuestionIntent(q: string): string | undefined {
   const deadline = /deadline|last date|closing date|when.*apply|గడువు|अंतिम तिथि/i.test(q);
   const documents = /documents?|paperwork|checklist|పత్రాలు|दस्तावेज/i.test(q);
   const eligibility = /eligib|qualify|conditions|అర్హత|पात्रता/i.test(q);
-  const apply = /how.*apply|application (?:process|steps)|^apply|register|enrol|దరఖాస్తు|आवेदन/i.test(q);
+  const apply = /how.*apply|application (?:process|steps)|procedure|how.*proceed|proceed further|^apply|register|enrol|దరఖాస్తు|आवेदन/i.test(q);
   if (/guide me|full guide|complete guide|everything/i.test(q) || [deadline, documents, eligibility, apply].filter(Boolean).length > 1) return "guide";
   if (!deadline && !documents && !eligibility && !apply && /what is|tell me about|explain|overview|describe/i.test(q)) return "overview";
   return deadline ? "deadline" : documents ? "documents" : eligibility ? "eligibility" : /status|payment|installment|track/i.test(q) ? "status" : apply ? "apply" : undefined;
@@ -91,7 +91,7 @@ export function isContextualFollowup(query: string): boolean {
   return isUploadReference(q) || /^(yes|yeah|ok|okay|sure|no|continue|go ahead|please|అవును|సరే|हाँ|ठीक है)[!.\s]*$/i.test(q)
     || /^(?:(?:what|which|when|where|who)\b.{0,50}\b(?:benefits?|schemes?|conditions?|deadline|documents?|mentioned|says?|contain|department)|benefits?\??$|deadline\??$|required documents?\??$)/i.test(q)
     || /\b(this|that|these|those|it|above|same|previous|earlier|second one|first one|third one|for me|my profile|my farm|my land)\b/i.test(q)
-    || /^(?:and\s+)?(?:how (?:do i |can i |to )?(?:apply|get|claim|check|register)|what documents|documents|eligibility|am i eligible|what about|tell me more|why\??$|how much|suggestions?|give me suggestions|next steps?|what (?:should|can) i (?:do|check)|అర్హత|ఎలా దరఖాస్తు|कैसे आवेदन|और बताओ)/i.test(q);
+    || /^(?:and\s+)?(?:how (?:do i |can i |to )?(?:apply|get|claim|check|register|proceed)|what(?:'s| is) (?:the )?(?:procedure|process|next step)|what documents|documents|eligibility|am i eligible|what about|tell me more|why\??$|how much|suggestions?|give me suggestions|next steps?|what (?:should|can) i (?:do|check)|అర్హత|ఎలా దరఖాస్తు|कैसे आवेदन|और बताओ)/i.test(q);
 }
 
 export function readConversationMemory(raw: unknown): ConversationMemory | undefined {

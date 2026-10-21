@@ -21,6 +21,41 @@ const { createVoiceBriefing } = require('../src/lib/voiceBriefing.ts');
 const { speechChunks, pcmToWav, synthesizeVoice } = require('../src/lib/voiceAudio.ts');
 const { sanitizeTextForSpeech, speakText, stopSpeaking } = require('../src/lib/speech.ts');
 
+test('long booklet summaries cover sections beyond the cover and keep original sources for specific follow-ups', async () => {
+  const pages = Array.from({length:90}, (_,i) => `[Page ${i+1}]\n${i===0 ? 'TELANGANA SAMANVAY: A compilation of Central sector and State schemes. October 2015.' : `Section ${i+1}: Government welfare information`}\n${`This section explains public support and procedures for its stated beneficiaries. `.repeat(12)}\n${i===70 ? 'Special application channel: submit at the district horticulture office.\nRequired documents: Land passbook\nBank passbook' : ''}`);
+  const source=pages.join('\n\n');
+  const context={extractedTextSnippet:source,docType:'land_record'};
+  const summary=await explainDocument({query:'Summarize this document in detail',language:'en',documentContext:context});
+  assert.ok(summary.text.length>7000); assert.match(summary.text,/Page 90|Page 8[0-9]/); assert.match(summary.text,/2015/);
+  assert.match(summary.text,/extractive overview/); assert.match(summary.aiStatus.reason,/No AI provider key/);
+  const answer=await explainDocument({query:'What is the special application channel?',language:'en',documentContext:context,history:[{role:'user',content:'Summarize this document'},{role:'assistant',content:summary.text}]});
+  assert.match(answer.text,/district horticulture office/);
+});
+
+test('procedure and proceeding follow-ups retain the selected scheme and switch to application intent', () => {
+  const {buildConversationMemory,schemeQuestionIntent,isContextualFollowup}=require('../src/lib/conversationMemory.ts');
+  const history=[{role:'user',content:'Tell me about Kisan Credit Card'},{role:'assistant',content:'Kisan Credit Card supports farming credit. Which step do you need?'}];
+  for(const query of ['What is the procedure for this?','How do I proceed further?']) {
+    assert.equal(schemeQuestionIntent(query),'apply'); assert.ok(isContextualFollowup(query));
+    const memory=buildConversationMemory(history,query); assert.match(memory.topic.scheme,/Kisan Credit Card/i);
+  }
+});
+
+test('a cloud document overview receives broadly distributed source sections and asks for a substantial explanation', async () => {
+  process.env.GEMINI_API_KEY='test-key'; let captured;
+  global.fetch=async (url,options)=> {
+    captured=JSON.parse(options.body);
+    return new Response(JSON.stringify({candidates:[{content:{parts:[{text:JSON.stringify({claims:[{text:'Government reference booklet',sourceId:'D1',quote:'Government reference booklet'}],suggestions:[],missingInformation:[],chips:[]})}]}}]}));
+  };
+  try {
+    const source=Array.from({length:90},(_,i)=>`[Page ${i+1}]\n${i===0?'Government reference booklet':`Section ${i+1}`}\n${'Government schemes offer assistance under their listed conditions. '.repeat(20)}`).join('\n');
+    const answer=await explainDocument({query:'Summarize this document',language:'en',documentContext:{extractedTextSnippet:source}});
+    assert.equal(answer.aiStatus.state,'cloud');
+    const prompt=captured.systemInstruction.parts[0].text;
+    assert.match(prompt,/600–1000/); assert.match(prompt,/Page 90/); assert.match(prompt,/Page 40|Page 41/);
+  } finally { delete process.env.GEMINI_API_KEY; global.fetch=realFetch; }
+});
+
 test('Explore exposes thousands of unique saved schemes without model vectors or fake matches', () => {
   const catalog = exploreSchemeCatalog();
   assert.ok(catalog.length > 4000);

@@ -52,3 +52,35 @@ Run `node scripts/evaluate-models.cjs` from frontend with the private image fixt
 
 ## Not executed
 The current implementation does not execute YOLOv8, BERT, HMM or CRF as claimed trained models. PDF/Word extraction and BM25 retrieval are non-neural utilities and are labeled accordingly.
+
+
+## Integration and deployment inventory
+
+The live Models & XAI page lists model IDs from the configured model overrides (or code defaults) and key presence without exposing any secret. A model listed as supported is not proof that it ran: use the per-answer execution report and Check AI connection.
+
+| Model / service | Role and location | Evaluation status |
+| --- | --- | --- |
+| Gemini configured Flash LLMs | Chat, document summaries and Q&A, vision, voice briefings; generateContent API | No project-specific labeled cloud accuracy benchmark; actual latency/tokens/failures recorded |
+| Gemini Google Search grounding | Official-source research, followed by fetching official evidence | No research-quality benchmark; dated source evidence is required for current deadlines |
+| Groq configured text and vision LLMs | Optional chat/document/vision fallback through OpenAI-compatible completions | No project-specific accuracy benchmark; actual model IDs recorded |
+| OpenAI configured multimodal LLMs | Optional chat/document/vision fallback through chat completions | No project-specific accuracy benchmark; actual model IDs recorded |
+| Xenova/clip-vit-base-patch32 | Local ONNX scene classification and quadrant occlusion XAI | Three-fixture scope audit described above; not crop diagnosis |
+| Tesseract English / Telugu LSTM | Local image and scanned-PDF OCR | One clean English notice described above; no Telugu/blur benchmark |
+| Gemini configured TTS | Chat speech generation when audio access is available | No MOS, intelligibility or pronunciation benchmark |
+| Regional speech service / Web Speech API | Chat speech fallback and browser microphone recognition | Model ID unavailable; no accuracy benchmark |
+| pdf-parse / word-extractor / text decoding | Original document extraction before LLM reasoning | Deterministic parsers; retained characters and page coverage, not model accuracy |
+| BM25 / leave-one-term-out sensitivity | Query-based source retrieval and ranking explanation | No labeled retrieval-quality benchmark; score is not correctness |
+| Literal extraction / conversation memory / source validator | Local fallback, dialogue state and exact evidence checks | Regression tests, not a neural model or chatbot accuracy score |
+| Legacy hash-vector classifier | Retained evaluation artifact, not the current chat router | In-sample result above; not held-out validation |
+
+Internal APIs: /api/chat (conversation), /api/ocr/analyze and /api/ocr/answer (upload and follow-ups), /api/ai/check and /api/ai/explain-image (diagnostics/XAI), /api/schemes (saved catalog), /api/peers (district members and demo directory), /api/profile and /api/profile/documents with owned-document endpoints (private personalization), /api/voice/brief and /api/tts (chat audio), /api/auth/* (sessions), /api/conversations/* (own history), /api/verify-doc (user confirmation, not government authentication), /api/db-status (connectivity).
+
+PostgreSQL stores accounts, sessions, conversations, private profile documents and contact consent. Unsplash supplies example avatars. Neither is an AI model. Model accuracy does not apply to these services.
+
+## Profile documents and long-document interpretation
+
+Profile editing supports name, Indian mobile number, optional email, village, district, state, language and optional farm details. Private saved documents retain the original and extracted text under the authenticated owner. Document selection is checked again on the server. Relevant original passages may be passed to configured providers for personal guidance; a document is never evidence of current eligibility or authenticated ownership. Deleting a profile document does not erase information previously shared in a saved chat.
+
+Long summaries receive passages distributed across the document plus its section outline; focused follow-ups retrieve the original text again. The offline path labels its output as extractive, not an LLM interpretation. Coverage limits and unreadable pages remain visible. A booklet published in 2015 cannot establish 2026 scheme rules.
+
+The farmer directory shows real registered members only to signed-in users in the same saved state/district and only after explicit contact sharing. District matching is not a measured distance. Demo cards have no callable phone numbers.

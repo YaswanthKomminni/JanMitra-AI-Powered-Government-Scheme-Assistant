@@ -28,9 +28,6 @@ export default function DocumentConversation({ detection, language }: { detectio
   const [turns, setTurns] = useState<Array<{ role: "user" | "assistant"; content: string }>>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const speak = useFarmerStore(s => s.speakMessage);
-  const speaking = useFarmerStore(s => s.speakingMessageId);
-  const stop = useFarmerStore(s => s.stopAudio);
   const close = useFarmerStore(s => s.setVerificationModalOpen);
   const send = useFarmerStore(s => s.sendChatMessage);
   const router = useRouter();
@@ -54,8 +51,7 @@ export default function DocumentConversation({ detection, language }: { detectio
     <h3 className="font-bold text-stone-900">Understand your upload</h3>
     {summaryBusy && <p role="status" className="text-xs">Preparing a source-based explanation…</p>}
     <div className="text-sm leading-relaxed text-stone-800"><ChatText text={summary || ""} /></div>
-    {aiState?.state === "fallback" && <p className="text-xs text-amber-900">AI connection unavailable. This is limited local extraction, not a complete AI assessment.</p>}
-    <button type="button" onClick={() => speaking === "document-briefing" ? stop() : speak("document-briefing", summary || "")} className="text-sm font-semibold text-emerald-800 underline">{speaking === "document-briefing" ? "Stop explanation" : "Hear the key points"}</button>
+    {aiState?.state === "fallback" && <p className="text-xs text-amber-900">{aiState.reason || "AI connection unavailable. This is local source extraction."}</p>}
     {detection.previewUrl?.startsWith("data:") && <button type="button" className="ml-4 text-sm font-semibold text-emerald-800 underline" onClick={() => {
       const context = turns.slice(-4).map(t => `${t.role}: ${t.content.slice(0, 500)}`).join("\n");
       close(false); router.push("/assistant");

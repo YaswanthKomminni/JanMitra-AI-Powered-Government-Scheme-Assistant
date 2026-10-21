@@ -11,6 +11,8 @@ export default function DocumentsPage() {
   const { schemes, loading, error, reload } = useSchemes();
   const [visible, setVisible] = useState(30);
   const [query, setQuery] = useState("");
+  const [selectedDoc, setSelectedDoc] = useState<string | null>(null);
+  const selectScheme = useFarmerStore(s => s.setSelectedScheme);
 
   // Documents most often required across the available schemes (from scheme data).
   const docs = useMemo(() => {
@@ -33,9 +35,12 @@ export default function DocumentsPage() {
       ) : (
         <ul className="divide-y divide-jm-border rounded-2xl border border-jm-border bg-jm-surface">
           {docs.filter(d => d.name.toLowerCase().includes(query.toLowerCase())).slice(0, visible).map((d) => (
-            <li key={d.name} className="flex items-center justify-between gap-3 px-4 py-3">
+            <li key={d.name} className="px-4 py-3">
+              <button onClick={() => setSelectedDoc(selectedDoc === d.name ? null : d.name)} aria-expanded={selectedDoc === d.name} className="flex w-full items-center justify-between gap-3 text-left">
               <span className="flex min-w-0 items-center gap-3 text-sm text-jm-text"><FileText className="h-4 w-4 shrink-0 text-jm-primary" /><span className="truncate">{d.name}</span></span>
               <span className="shrink-0 text-xs text-jm-text2">Needed by {d.n} scheme{d.n === 1 ? "" : "s"}</span>
+              </button>
+              {selectedDoc === d.name && <div className="mt-3 space-y-2 border-t border-jm-border pt-3"><p className="text-xs text-jm-text2">These saved scheme checklists mention this document. This does not establish your eligibility.</p>{schemes.filter(s => s.documentsRequired?.includes(d.name)).map(s => <button key={s.id} onClick={() => selectScheme(s)} className="block w-full rounded-lg bg-jm-muted p-3 text-left text-sm hover:underline"><strong>{s.name}</strong><span className="block text-xs text-jm-text2">{s.department}</span></button>)}</div>}
             </li>
           ))}
         </ul>

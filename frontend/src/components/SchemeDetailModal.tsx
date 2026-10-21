@@ -21,7 +21,6 @@ export default function SchemeDetailModal() {
 
   const router = useRouter();
   const sendMessage = useFarmerStore(s => s.sendChatMessage);
-  const speak = useFarmerStore(s => s.speakMessage);
   const t = translations[language];
 
   if (!selectedScheme) return null;
@@ -149,7 +148,6 @@ export default function SchemeDetailModal() {
             const name = selectedScheme.name; setSelectedScheme(null); router.push("/assistant");
             void sendMessage(`Guide me through ${name}. Explain the current eligibility, required documents, application steps and any verified deadline for my profile.`);
           }}>Guide me through this scheme</button>
-          <button className="text-sm font-semibold text-emerald-800 underline" onClick={() => speak(`scheme:${selectedScheme.id}`, `${selectedScheme.name}\n${selectedScheme.benefits}\n${selectedScheme.eligibilitySummary}\nConfirm current conditions with the issuing department before applying.`)}>Hear an explanation</button>
         </div>
         {/* Footer Actions */}
         <div className="p-4 bg-stone-50 border-t border-stone-200 flex items-center justify-end gap-3">

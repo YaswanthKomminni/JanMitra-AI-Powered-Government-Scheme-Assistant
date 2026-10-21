@@ -76,6 +76,8 @@ export default function ChatAssistant({ variant = "full" }: { variant?: "full" |
   } = useFarmerStore();
 
   const [inputVal, setInputVal] = useState("");
+  const [savedDocumentSelected, setSavedDocumentSelected] = useState(false);
+  useEffect(() => { setSavedDocumentSelected(!!new URLSearchParams(window.location.search).get("document")); }, []);
   const [draftRestored, setDraftRestored] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<{
@@ -308,7 +310,7 @@ export default function ChatAssistant({ variant = "full" }: { variant?: "full" |
             )}
             <ChatText text={msg.text} />
             {!isUser && <ModelReportPanel report={{ runs: [...(msg.docDetection?.modelReport?.runs || []), ...(msg.modelReport?.runs || [])], explanation: msg.modelReport?.explanation }} />}
-            {!isUser && msg.aiStatus?.state === "fallback" && <p className="mt-2 text-xs text-amber-800" role="status">{{
+            {!isUser && msg.aiStatus?.state === "fallback" && <p className="mt-2 text-xs text-amber-800" role="status">{msg.aiStatus.reason || {
               en: "AI connection unavailable for this answer. Showing limited local guidance or readable source text; current scheme rules have not been verified.",
               te: "ఈ సమాధానానికి AI కనెక్షన్ అందుబాటులో లేదు. స్థానిక సూచనలు లేదా చదవగలిగిన పత్రం సమాచారం మాత్రమే; ప్రస్తుత పథకం నియమాలు నిర్ధారించలేదు.",
               hi: "इस उत्तर के लिए AI कनेक्शन उपलब्ध नहीं है। केवल सीमित स्थानीय मार्गदर्शन या पठनीय स्रोत दिया गया है; वर्तमान नियम सत्यापित नहीं हैं।",
@@ -497,6 +499,7 @@ export default function ChatAssistant({ variant = "full" }: { variant?: "full" |
       </div>
 
       {/* Messages Scroll Area */}
+      {savedDocumentSelected && <div className="border-b border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-950">Your selected private profile document is available in this chat. Ask for a detailed summary or a specific fact. <button className="ml-2 underline" onClick={() => { const url = new URL(window.location.href); url.searchParams.delete("document"); window.history.replaceState(null,"",url); setSavedDocumentSelected(false); }}>Clear selection</button></div>}
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-stone-50/50" aria-live="polite">
         {!isAuthenticated ? (
           /* Guest: explain why signing in is needed */

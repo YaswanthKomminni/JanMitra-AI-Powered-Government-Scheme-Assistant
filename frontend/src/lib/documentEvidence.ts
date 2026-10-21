@@ -13,7 +13,7 @@ function expand(query: string): string {
     /\bSMAM\b/i.test(query) ? "SMAM Sub Mission Agricultural Mechanization Mechanisation machinery equipment" : "",
     /eligible|eligibility|అర్హత|पात्र/i.test(query) ? "eligible eligibility conditions exclusion farmers" : "",
     /amount|subsid|benefit|how much|మొత్తం|రాయితీ|राशि/i.test(query) ? "amount assistance subsidy maximum benefit cost" : "",
-    /apply|application|దరఖాస్తు|आवेदन/i.test(query) ? "apply application submit procedure portal office" : "",
+    /apply|application|procedure|proceed|దరఖాస్తు|आवेदन/i.test(query) ? "apply application submit procedure portal office" : "",
     /when|deadline|date|తేదీ|तिथि/i.test(query) ? "date deadline last schedule" : "",
   ];
   return `${query} ${groups.join(" ")}`;
@@ -72,7 +72,7 @@ export function retrieveDocumentEvidence(query: string, text: string, limit = 6)
   if (summary || !terms.length) {
     // Spread summary context across the source, retaining the heading and final deadline/checklist.
     const focusedOverview = /cotton|chilli|mirchi|financial|my crop|my farm|benefit.*me/i.test(currentQuestion);
-    const spreadLimit = focusedOverview ? Math.max(1, Math.floor(limit / 2)) : limit;
+    const spreadLimit = focusedOverview ? Math.max(1, Math.floor(limit / 2)) : limit >= 12 ? Math.max(limit, Math.min(100, ranked.length)) : limit;
     const selected = Array.from(new Set(Array.from({ length: Math.min(spreadLimit, ranked.length) }, (_, i) =>
       Math.round(i * (ranked.length - 1) / Math.max(1, Math.min(spreadLimit, ranked.length) - 1))))).map(i => ranked[i]);
     if (focusedOverview) {
@@ -124,7 +124,7 @@ export function validateGroundedAnswer(raw: string, passages: EvidencePassage[])
     if (!Array.isArray(parsed.claims) || !Array.isArray(parsed.suggestions) || !Array.isArray(parsed.missingInformation)) return null;
     const byId = new Map(passages.map(p => [p.id, p.text]));
     const output: string[] = [];
-    for (const item of parsed.claims.slice(0, 12)) {
+    for (const item of parsed.claims.slice(0, 32)) {
       const source = byId.get(item.sourceId);
       if (typeof item.text !== "string" || typeof item.quote !== "string" || item.quote.trim().length < 5 || !source
         || !normalize(source).includes(normalize(item.quote)) || !claimSupported(item.text, item.quote)) return null;
