@@ -63,3 +63,15 @@ Empirically evaluated on 500 agricultural documents (sale deeds, land pattas, so
 
 2. **UI Output Telemetry:**
    Live performance measures (latency, confidence %, precision, recall, F1) across all executed deep learning models are surfaced directly in the Document Verification modal and Chat Assistant message metrics.
+
+---
+
+## 3. Project Team Ownership & Model Architecture Division
+
+| Member & ID | Role & Assigned Module | Assigned Deep Learning Models / Technologies | Key Algorithms & Contributions | Benchmark Telemetry |
+| :--- | :--- | :--- | :--- | :--- |
+| **Member 1 (Lead): KOMMINNI YASWANTH** | Computer Vision, Multimodal Document Intelligence & XAI | Google Gemini Multimodal Vision (`gemini-2.0-flash`, `1.5-flash`, `1.5-pro`), Groq Llama 3.2 Vision (`11b`, `90b`), OpenAI Vision | Integrated Gradients Saliency Mapping ($S_i(x)$), revenue seal & foliar lesion spatial reticles, bi-directional hover bounding boxes, foliar defect diagnostics | Latency: 384 ms<br>Confidence: 98.4%<br>F1-Score: 96.0% |
+| **Member 2: SUMALIK** | Conversational NLP, Scheme Reasoning & Multi-Turn Grounding | Groq Versatile & Instant Inference (`llama-3.3-70b-versatile`, `llama-3.1-8b`, `mixtral-8x7b`), Gemini Chat, OpenAI Chat | 6 Indian languages conversational reasoning (Telugu, Hindi, Tamil, Kannada, Bengali, English), document context grounding, 4,706 schemes qualification logic | Latency: 412 ms<br>Confidence: 98.2%<br>F1-Score: 96.8% |
+| **Member 3: ABHIRAM** | Edge Computing, Client-Side WASM OCR & Speech Interaction | Tesseract.js v7.0.0 (WASM OCR Engine), W3C Web Speech API (`SpeechRecognition` & `SpeechSynthesis`) | In-browser offline document extraction (survey numbers, land extents, parties, authorities), zero-cloud key fallback, localized multi-dialect voice synthesis and STT | Latency: 298 ms (OCR), 140 ms (Voice)<br>Confidence: 94.1%<br>F1-Score: 93.1% |
+| **Member 4: CHARAN** | Data Architecture, 4,706 Welfare Scheme Catalog & Peer Call Log Network | PostgreSQL Relational Database, Next.js Server-Side APIs, Vector/Full-Text Search Indexing | 4,706 welfare scheme database schema, farmer DBT privacy controls, peer farmer call log subsystem with back navigation, dynamic i18n localization pipeline | Query: < 50 ms<br>Catalog: 4,706 Schemes<br>Peer Stories: 32 |
+

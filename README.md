@@ -244,10 +244,13 @@ To exercise the AI-failure path manually: `JANMITRA_SIMULATE_AI_FAILURE=1 npm ru
 
 ---
 
-## 👥 Authors & Team
-- **Komminni Yaswanth** (CB.SC.U4CSE24024)
-- **P J Abhiram** (CB.SC.U4CSE24039)
-- **S. Sai Sumalik** (CB.SC.U4CSE24647)
-- **Vutla Charan** (CB.SC.U4CSE24258)
+## 👥 Authors & Team (Project Architecture Ownership)
 
-Faculty Guide: **Dr. T Senthil Kumar** (Department of Computer Science and Engineering)
+| Member Designation | Student Name & Roll No. | Assigned Architecture Module | Assigned Deep Learning Models / Technologies | Key Algorithms & Contributions |
+| :--- | :--- | :--- | :--- | :--- |
+| **Member 1 (Lead)** | **Komminni Yaswanth**<br>`(CB.SC.U4CSE24024)` | **Computer Vision, Multimodal Document Intelligence & XAI** | Google Gemini Multimodal Vision (`gemini-2.0-flash`, `1.5-pro`), Groq Llama 3.2 Vision (`11b`, `90b`), OpenAI Vision | Integrated Gradients Saliency Mapping ($S_i(x)$), revenue seal & foliar lesion spatial reticles, bi-directional hover bounding boxes, foliar defect diagnostics |
+| **Member 2** | **S. Sai Sumalik**<br>`(CB.SC.U4CSE24647)` | **Conversational NLP, Scheme Reasoning & Multi-Turn Grounding** | Groq Versatile & Instant Inference (`llama-3.3-70b-versatile`, `llama-3.1-8b`, `mixtral-8x7b`), Gemini Chat, OpenAI Chat | 6 Indian languages conversational reasoning (Telugu, Hindi, Tamil, Kannada, Bengali, English), document context grounding, 4,706 schemes qualification logic |
+| **Member 3** | **P J Abhiram**<br>`(CB.SC.U4CSE24039)` | **Edge Computing, Client-Side WASM OCR & Speech Interaction** | Tesseract.js v7.0.0 (WASM OCR Engine), W3C Web Speech API (`SpeechRecognition` & `SpeechSynthesis`) | In-browser offline document extraction (survey numbers, land extents, parties, authorities), zero-cloud key fallback, localized multi-dialect voice synthesis and STT |
+| **Member 4** | **Vutla Charan**<br>`(CB.SC.U4CSE24258)` | **Data Architecture, 4,706 Welfare Scheme Catalog & Peer Call Log Network** | PostgreSQL Relational Database, Next.js Server-Side APIs, Vector/Full-Text Search Indexing | 4,706 welfare scheme database schema, farmer DBT privacy controls, peer farmer call log subsystem with back navigation, dynamic i18n localization pipeline |
+
+**Faculty Guide:** Dr. T Senthil Kumar (Department of Computer Science and Engineering)
