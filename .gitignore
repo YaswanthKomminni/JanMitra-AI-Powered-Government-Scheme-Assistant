@@ -36,8 +36,6 @@ pnpm-debug.log*
 .DS_Store
 Thumbs.db
 *.traineddata
-frontend/models/
-frontend/.ai-test-fixtures/
 
 # Nested duplicate folder (stale ZIP-extracted copy, not part of the codebase)
 JanMitra-AI-Powered-Government-Scheme-Assistant-main/

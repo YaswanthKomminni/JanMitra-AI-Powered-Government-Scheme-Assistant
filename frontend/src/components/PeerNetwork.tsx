@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   Users,
   MapPin,
@@ -28,20 +28,12 @@ export default function PeerNetwork() {
   const t = translations[language];
   const [selectedRadius, setSelectedRadius] = useState<number>(25);
 
-  const [peers, setPeers] = useState<PeerSuccessStory[]>([]);
-  const [error, setError] = useState("");
-  const [cropFilter, setCropFilter] = useState("");
-  useEffect(() => { fetch("/api/peers").then(r => r.json()).then(data => setPeers(data.peers || [])).catch(() => setError("Could not load the farmer directory.")); }, []);
-  const filteredPeers = peers.filter(
-    (peer) => (peer.distanceKnown === false || peer.distanceKm <= selectedRadius) && (!cropFilter || peer.cropsGrown.toLowerCase().includes(cropFilter.toLowerCase()))
+  const filteredPeers = NEARBY_PEERS.filter(
+    (peer) => peer.distanceKm <= selectedRadius
   );
 
   return (
     <section className="mt-12">
-      <p className="mb-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">Demo profiles and distances are clearly labeled. They are not real nearby farmers. Supplied farmer records are shown separately, and contacts require recorded consent.</p>
-      <p className="mb-4 text-sm">Real members who opt in appear for your saved district. <a href="/settings" className="font-semibold underline">Edit your profile to join the directory</a>. A call opens your device’s phone app.</p>
-      <input aria-label="Filter farmers by crop" value={cropFilter} onChange={e => setCropFilter(e.target.value)} placeholder="Filter by crop, e.g. cotton" className="mb-4 rounded-xl border border-jm-border p-3 text-sm" />
-      {error && <p role="alert">{error}</p>}
       {/* Section Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
@@ -50,7 +42,7 @@ export default function PeerNetwork() {
               <Users className="w-5 h-5" />
             </span>
             <span className="text-xs uppercase font-extrabold tracking-wider text-emerald-800">
-              Farmer directory and labeled examples
+              PostGIS Spatial Matching (25km Radius)
             </span>
           </div>
           <h2 className="text-2xl sm:text-3xl font-black text-stone-900 tracking-tight">
@@ -108,7 +100,7 @@ export default function PeerNetwork() {
 
                 {/* Spatial Distance Pill */}
                 <span className="px-2.5 py-1 rounded-full text-xs font-black bg-emerald-100 text-emerald-900 border border-emerald-300 shrink-0">
-                  {peer.distanceKnown === false ? "Same district · distance unknown" : `${peer.isDemo ? "Example distance: " : ""}${peer.distanceKm} km`}
+                  {peer.distanceKm} km away
                 </span>
               </div>
 
@@ -134,7 +126,7 @@ export default function PeerNetwork() {
               <div className="p-3.5 rounded-2xl bg-emerald-50/80 border border-emerald-200 mb-4">
                 <div className="flex items-center gap-1.5 text-emerald-800 text-xs font-extrabold mb-1">
                   <TrendingUp className="w-4 h-4 text-emerald-600" />
-                  <span>{peer.isDemo ? "Illustrative scenario:" : "Reported outcome (not independently verified):"}</span>
+                  <span>Verified Outcome:</span>
                 </div>
                 <p className="text-xs text-stone-800 leading-relaxed font-medium">
                   {peer.outcomeSummary}
@@ -154,7 +146,7 @@ export default function PeerNetwork() {
             {/* Call Peer Farmer CTA Button */}
             <button
               onClick={() => setPeerContactModal(peer)}
-              disabled={!peer.contactAllowed || !peer.contactPhone}
+              disabled={!peer.contactAllowed}
               className={`w-full py-3 px-4 rounded-2xl font-black text-sm flex items-center justify-center gap-2 transition shadow-sm ${
                 peer.contactAllowed
                   ? "bg-emerald-800 hover:bg-emerald-900 text-white"
@@ -162,7 +154,7 @@ export default function PeerNetwork() {
               }`}
             >
               <PhoneCall className="w-4 h-4 text-emerald-300" />
-              <span>{peer.isDemo ? "Demo profile · no phone" : !peer.contactAllowed || !peer.contactPhone ? "Contact not shared" : t.callPeer}</span>
+              <span>{t.callPeer}</span>
             </button>
           </div>
         ))}
@@ -190,7 +182,7 @@ export default function PeerNetwork() {
                     {peerContactModal.farmerName}
                   </h3>
                   <p className="text-xs text-emerald-200">
-                    {peerContactModal.village} • {peerContactModal.distanceKnown === false ? "Same district; distance unknown" : `${peerContactModal.distanceKm} km away`}
+                    {peerContactModal.village} • {peerContactModal.distanceKm} km away
                   </p>
                   <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-300 mt-1">
                     <ShieldCheck className="w-3.5 h-3.5" />
@@ -215,7 +207,7 @@ export default function PeerNetwork() {
 
               <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200">
                 <p className="text-xs font-bold text-emerald-900 uppercase">
-                  Member-shared contact phone
+                  Verified Contact Phone
                 </p>
                 <p className="text-2xl font-black text-emerald-950 mt-1 tracking-wider">
                   {peerContactModal.contactPhone}

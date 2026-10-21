@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "prebuild": "node scripts/prepare-vision.mjs",
     "dev": "next dev -p 3000",
     "build": "next build",
     "start": "next start",
@@ -13,27 +12,19 @@
     "db:setup": "node scripts/db-migrate.mjs --setup",
     "user:set-password": "node scripts/set-password.mjs",
     "test:api": "node --test --test-concurrency=1 tests/api.test.mjs",
-    "evaluate:models": "node scripts/evaluate-models.cjs",
-    "test:ai": "node --test tests/ai.test.cjs tests/documentConfirmation.test.cjs tests/language.test.cjs tests/textRouting.test.cjs tests/schemes.test.cjs tests/partialUploads.test.cjs tests/experience.test.cjs tests/profile.test.cjs",
     "db:transfer-mysql": "node scripts/migrate-mysql-data.mjs"
   },
   "dependencies": {
-    "@huggingface/transformers": "^4.3.1",
-    "@tesseract.js-data/eng": "^1.0.0",
-    "@tesseract.js-data/tel": "^1.0.0",
     "bcryptjs": "^3.0.2",
     "clsx": "^2.1.1",
     "lucide-react": "^0.453.0",
     "next": "^14.2.15",
-    "pdf-parse": "^2.4.5",
     "pg": "^8.23.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "server-only": "^0.0.1",
-    "sharp": "^0.35.5",
     "tailwind-merge": "^2.5.4",
     "tesseract.js": "^7.0.0",
-    "word-extractor": "^1.0.4",
     "zustand": "^4.5.5"
   },
   "devDependencies": {
@@ -44,7 +35,6 @@
     "autoprefixer": "^10.4.20",
     "eslint": "^8.57.1",
     "eslint-config-next": "^14.2.35",
-    "jszip": "^3.10.2",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.14",
     "typescript": "^5.6.3"

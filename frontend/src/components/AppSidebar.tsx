@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Plus, PanelLeftClose, PanelLeftOpen, X, Sprout } from "lucide-react";
 import { useFarmerStore } from "@/store/useFarmerStore";
 import { MAIN_ROUTES, SETTINGS_ROUTE, isActivePath, type AppRoute } from "@/lib/routes";
+import { translations } from "@/lib/i18n";
 import UserMenu from "@/components/UserMenu";
 
 export const TOGGLE_SIDEBAR_EVENT = "janmitra:toggle-sidebar";
@@ -14,10 +15,25 @@ const COLLAPSE_KEY = "janmitra:sidebar-collapsed";
 export default function AppSidebar() {
   const router = useRouter();
   const pathname = usePathname();
-  const { startNewConversation, openConversation, conversations, activeConversationId, isAuthenticated, isAwaitingReply } = useFarmerStore();
+  const { startNewConversation, openConversation, conversations, activeConversationId, isAuthenticated, isAwaitingReply, language } = useFarmerStore();
 
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  const t = translations[language] || translations.en;
+
+  const getRouteLabel = (href: string, fallback: string): string => {
+    switch (href) {
+      case "/": return t.navHome || fallback;
+      case "/assistant": return t.navAssistant || fallback;
+      case "/schemes": return t.navSchemes || fallback;
+      case "/peers": return t.navPeers || fallback;
+      case "/documents": return t.navDocuments || fallback;
+      case "/history": return t.navHistory || fallback;
+      case "/settings": return t.navSettings || fallback;
+      default: return fallback;
+    }
+  };
 
   useEffect(() => {
     try { setCollapsed(localStorage.getItem(COLLAPSE_KEY) === "1"); } catch { /* ignore */ }
@@ -60,12 +76,13 @@ export default function AppSidebar() {
   const NavLink = ({ route }: { route: AppRoute }) => {
     const active = isActivePath(pathname, route.href);
     const Icon = route.icon;
+    const label = getRouteLabel(route.href, route.label);
     return (
-      <Link href={route.href} className={navClass(active)} aria-current={active ? "page" : undefined} aria-label={route.label}>
+      <Link href={route.href} className={navClass(active)} aria-current={active ? "page" : undefined} aria-label={label}>
         {active && <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r bg-jm-primary" />}
         <Icon className={`h-[18px] w-[18px] shrink-0 ${active ? "text-jm-primary" : ""}`} />
-        {showLabels && <span className="truncate">{route.label}</span>}
-        {!showLabels && <Tip label={route.label} />}
+        {showLabels && <span className="truncate">{label}</span>}
+        {!showLabels && <Tip label={label} />}
       </Link>
     );
   };
@@ -103,10 +120,10 @@ export default function AppSidebar() {
           onClick={() => { startNewConversation(); router.push("/assistant"); }}
           disabled={isAwaitingReply}
           className="group/nav relative flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-jm-primary text-[14px] font-semibold text-jm-onprimary transition-colors hover:bg-jm-hover disabled:cursor-not-allowed disabled:opacity-60"
-          aria-label="New chat"
+          aria-label={t.newChat || "New Chat"}
         >
           <Plus className="h-4 w-4" />
-          {showLabels ? <span>New Chat</span> : <Tip label="New Chat" />}
+          {showLabels ? <span>{t.newChat || "New Chat"}</span> : <Tip label={t.newChat || "New Chat"} />}
         </button>
       </div>
 
@@ -117,7 +134,7 @@ export default function AppSidebar() {
       <div className="mt-4 min-h-0 flex-1 overflow-y-auto px-3">
         {showLabels && isAuthenticated && recent.length > 0 && (
           <>
-            <p className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-jm-text2">Recent</p>
+            <p className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-jm-text2">{t.recent || "Recent"}</p>
             <ul className="space-y-0.5">
               {recent.map((c) => {
                 const active = pathname === "/assistant" && c.id === activeConversationId;

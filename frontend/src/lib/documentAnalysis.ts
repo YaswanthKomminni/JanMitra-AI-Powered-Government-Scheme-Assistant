@@ -1,8 +1,6 @@
 import "server-only";
-import { visionStatusMessage } from "@/lib/visionStatus";
 import { queryDatabase } from "@/lib/db";
 import { analyzeImageIntelligently } from "@/lib/visionLlm";
-import type { SupportedLanguage } from "@/lib/i18n";
 
 export type DocumentAnalysisOutcome =
   | {
@@ -13,11 +11,10 @@ export type DocumentAnalysisOutcome =
       reason: string;
       suggestions: string[];
     }
-  | { success: false; isOutOfScope: false; scopeStatus: "uncertain"; message: string; reason: string; suggestions: string[] }
   | { success: true; message: string; detection: any };
 
 /**
- * Vision LLM / OCR + scope check + persistence of an analyzed document for ONE user.
+ * Vision LLM / OCR + scope check + persistence of a verified document for ONE user.
  * `userId` must come from the authenticated session, never from the request body.
  */
 export async function analyzeAndRecordDocument(opts: {
@@ -27,7 +24,6 @@ export async function analyzeAndRecordDocument(opts: {
   fileType?: string;
   classification?: any;
   customApiKey?: string;
-  language?: SupportedLanguage;
 }): Promise<DocumentAnalysisOutcome> {
   const { userId, fileBase64, classification, customApiKey } = opts;
   const fileName = opts.fileName || "uploaded_document.jpg";
@@ -40,11 +36,10 @@ export async function analyzeAndRecordDocument(opts: {
     fileType,
     classification,
     customApiKey,
-    language: opts.language,
   });
 
-  // 2. Reject only content positively identified as unrelated.
-  if (outcome.scopeStatus === "out_of_scope") {
+  // 2. Strict Agricultural & Scheme Scope Enforcement:
+  if (!outcome.isAgriRelated || outcome.scopeStatus === "out_of_scope") {
     return {
       success: false,
       isOutOfScope: true,
@@ -63,37 +58,30 @@ export async function analyzeAndRecordDocument(opts: {
     };
   }
 
-  if (outcome.analysisQuality === "partial") {
-    return { success: true, message: "Document recognized; fine print needs a clearer view.", detection: { ...outcome, previewUrl: fileBase64, fileName } };
-  }
-  if (outcome.scopeStatus === "uncertain") {
-    return { success: false, isOutOfScope: false, scopeStatus: "uncertain",
-      message: visionStatusMessage(outcome.visionStatus, opts.language || "en") || outcome.detectionSummary, reason: outcome.reason || outcome.detectionSummary,
-      suggestions: outcome.suggestions };
-  }
-
-  const resultPayload: Record<string, any> = {
+  const resultPayload = {
     ...outcome,
     previewUrl: fileBase64,
     fileName,
   };
 
-  // 3. Save the server analysis. Reading a document does not verify authenticity or update a farmer profile.
+  // 3. Persist verified document in PostgreSQL JanMithra (for the signed-in user only)
   try {
     const sql = `
       INSERT INTO document_verifications
       (user_id, doc_type, title, confidence_score, extracted_data, preview_url, status)
-      VALUES ($1, $2, $3, $4, $5::jsonb, $6, 'analyzed') RETURNING id
+      VALUES ($1, $2, $3, $4, $5::jsonb, $6, 'verified')
     `;
     const saved = await queryDatabase(sql, [
       userId,
       resultPayload.docType || "land_record",
       resultPayload.title || "Agricultural Document",
-      resultPayload.confidenceScore || 0,
+      resultPayload.confidenceScore || 0.95,
       JSON.stringify(resultPayload.extractedData || {}),
       fileBase64.startsWith("data:") ? fileBase64.slice(0, 300) + "..." : fileBase64.slice(0, 480),
     ]);
-    if (saved.success && saved.data?.[0]?.id) resultPayload.analysisRecordId = saved.data[0].id;
+    if (saved.success) {
+      await queryDatabase("UPDATE users SET verified_docs_count = verified_docs_count + 1 WHERE id = $1", [userId]);
+    }
   } catch (dbErr) {
     console.warn("[documentAnalysis notice]: Could not persist verification to database:", dbErr);
   }

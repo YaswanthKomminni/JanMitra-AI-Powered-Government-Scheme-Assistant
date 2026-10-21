@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { analyzeAndRecordDocument, MAX_ATTACHMENT_CHARS } from "@/lib/documentAnalysis";
-import { LANGUAGE_CODES } from "@/lib/userProfile";
-import type { SupportedLanguage } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -43,13 +41,12 @@ export async function POST(request: Request) {
       fileType: String(fileType).slice(0, 100),
       classification,
       customApiKey: customApiKey || request.headers.get("x-vision-api-key") || undefined,
-      language: ((LANGUAGE_CODES as readonly string[]).includes(body?.language) ? body.language : "en") as SupportedLanguage,
     });
     return NextResponse.json(outcome);
   } catch (error: any) {
     console.error("OCR Analysis error:", error);
     return NextResponse.json(
-      { success: false, scopeStatus: "uncertain", message: "The reading request did not finish. Please retry; this is not an unrelated-image decision." },
+      { success: false, message: error.message || "Failed to analyze document." },
       { status: 500 }
     );
   }

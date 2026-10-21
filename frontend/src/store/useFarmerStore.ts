@@ -10,7 +10,6 @@ import {
   NEARBY_PEERS,
   MOCK_OCR_PRESETS,
 } from "@/lib/mockData";
-import { localVoiceBriefing } from "@/lib/speechText";
 import { speakText, stopSpeaking } from "@/lib/speech";
 import { classifyBase64Image } from "@/lib/visionClassifier";
 import {
@@ -21,9 +20,6 @@ import {
   formatFarmerProfileReply,
   generateTextReply,
 } from "@/lib/chatEngine";
-
-let narrationGeneration = 0;
-let briefingRequest: AbortController | null = null;
 
 // Re-exported so existing imports from the store keep working.
 export type { ChatMessage, ConversationSummary };
@@ -292,7 +288,6 @@ export const useFarmerStore = create<FarmerState>((set, get) => {
         body: JSON.stringify({
           conversationId: get().activeConversationId,
           clientMessageId: cmid,
-          savedDocumentId: typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("document") || undefined : undefined,
           text: msg.text,
           language: get().language,
           attachment,
@@ -395,10 +390,101 @@ export const useFarmerStore = create<FarmerState>((set, get) => {
   clearOutOfScopeError: () => set({ outOfScopeError: null }),
 
   setLanguage: (lang) => {
-    // Saved answers are part of the conversation, not templates to regenerate on a locale change.
-    set((state) => ({ language: lang, chatMessages: state.chatMessages.map((msg) =>
-      msg.id === "msg_init" || msg.id === "msg_01" ? getInitialChatMessage(lang, state.currentFarmer.name) : msg
-    ) }));
+    set({ language: lang });
+
+    // Automatically update existing chat messages into the newly selected language
+    const currentMessages = get().chatMessages;
+    const farmer = get().currentFarmer;
+    const t = translations[lang] as any;
+
+    const updatedMessages = currentMessages.map((msg) => {
+      // 1. Initial greeting
+      if (msg.id === "msg_init" || msg.id === "msg_01") {
+        return getInitialChatMessage(lang, farmer.name);
+      }
+
+      // 2. Verified document AI response
+      if (
+        msg.sender === "ai" &&
+        (msg.docDetection ||
+          msg.text.includes("🏛️") ||
+          msg.text.includes("Sale Deed") ||
+          msg.text.includes("ధరణి") ||
+          msg.text.includes("धरणी") ||
+          msg.text.includes("తరணி") ||
+          msg.text.includes("ధృవీకరించబడిన") ||
+          msg.text.includes("పత్ర వివరాలు") ||
+          msg.text.includes("దస్తావేజు") ||
+          msg.text.includes("దస్త్రం") ||
+          msg.text.includes("విక్రయ") ||
+          msg.text.includes("விற்பனை") ||
+          msg.text.includes("ಮಾರಾಟ") ||
+          msg.text.includes("বিক্রয়") ||
+          msg.text.includes("Analyzed Successfully") ||
+          msg.text.includes("విజయవంతంగా విశ్లేషించబడింది") ||
+          msg.text.includes("வெற்றிகரமாக பகுப்பாய்வு"))
+      ) {
+        const det = msg.docDetection || get().verificationResult;
+        if (!det) return msg;
+        const localized = formatDocumentAnalysisReply(det, lang);
+        return {
+          ...msg,
+          text: localized.text,
+          clarificationChips: localized.chips,
+          docDetection: det,
+        };
+      }
+
+      // 3. User default inspect image message
+      if (
+        msg.sender === "user" &&
+        msg.image &&
+        (msg.text.includes("inspect this attached") ||
+          msg.text.includes("పరిశీలించండి") ||
+          msg.text.includes("విశ్లేషించండి") ||
+          msg.text.includes("विश्लेषण") ||
+          msg.text.includes("ஆய்வு") ||
+          msg.text.includes("ಪರಿಶೀಲಿಸಿ") ||
+          msg.text.includes("পরীক্ষা"))
+      ) {
+        return {
+          ...msg,
+          text: t.inspectDocPrompt || "Please inspect this attached crop/document photo using AI Vision",
+        };
+      }
+
+      // 4. User default inspect file message
+      if (
+        msg.sender === "user" &&
+        msg.fileName &&
+        !msg.image &&
+        (msg.text.includes("analyze this attached") ||
+          msg.text.includes("పరిశీలించండి") ||
+          msg.text.includes("విశ్లేషించండి") ||
+          msg.text.includes("विश्लेषण") ||
+          msg.text.includes("ஆய்வு") ||
+          msg.text.includes("ಪರಿಶೀಲಿಸಿ") ||
+          msg.text.includes("পরীক্ষা"))
+      ) {
+        return {
+          ...msg,
+          text: `${t.inspectDocFilePrompt || "Please analyze this attached government document"}: ${msg.fileName}`,
+        };
+      }
+
+      // 5. Conversational AI responses in chat history
+      if (msg.sender === "ai" && !msg.docDetection && msg.isClarification) {
+        const textReply = generateTextReply(msg.text, lang, get().currentFarmer);
+        return {
+          ...msg,
+          text: textReply.text,
+          clarificationChips: textReply.chips,
+        };
+      }
+      return msg;
+    });
+
+    set({ chatMessages: updatedMessages });
   },
 
   setCurrentFarmer: (farmer) => {
@@ -754,26 +840,19 @@ export const useFarmerStore = create<FarmerState>((set, get) => {
     get().sendChatMessage(chipText);
   },
 
-  speakMessage: async (id, text) => {
-    stopSpeaking();
+  speakMessage: (id, text) => {
     const lang = get().language;
     set({ isSpeaking: true, speakingMessageId: id });
-    const generation = ++narrationGeneration;
-    briefingRequest?.abort();
-    briefingRequest = new AbortController();
-    let briefing = localVoiceBriefing(text);
-    try {
-      const response = await fetch("/api/voice/brief", { method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: text.slice(0, 24000), language: lang, customApiKey: localStorage.getItem("janmitra_custom_vision_key") || undefined }), signal: AbortSignal.any([briefingRequest.signal, AbortSignal.timeout(25000)]) });
-      if (response.ok) { const result = await response.json(); if (result.text) briefing = result.text; if (result.modelReport && generation === narrationGeneration) window.dispatchEvent(new CustomEvent("janmitra:model-report", { detail: result.modelReport })); }
-    } catch { /* The readable answer remains available for browser speech. */ }
-    if (generation !== narrationGeneration || get().speakingMessageId !== id || !get().isSpeaking) return;
-    const finish = () => { if (generation === narrationGeneration && get().speakingMessageId === id) set({ isSpeaking: false, speakingMessageId: null }); };
-    if (!speakText(briefing, lang, finish, finish)) finish();
+
+    speakText(
+      text,
+      lang,
+      () => set({ isSpeaking: false, speakingMessageId: null }),
+      () => set({ isSpeaking: false, speakingMessageId: null })
+    );
   },
 
   stopAudio: () => {
-    narrationGeneration++; briefingRequest?.abort(); briefingRequest = null;
     stopSpeaking();
     set({ isSpeaking: false, speakingMessageId: null });
   },
@@ -831,7 +910,6 @@ export const useFarmerStore = create<FarmerState>((set, get) => {
           docCategory: category,
           classification,
           customApiKey,
-          language: get().language,
         }),
       });
 
@@ -840,14 +918,13 @@ export const useFarmerStore = create<FarmerState>((set, get) => {
         handleSessionExpired({ type: "open_verification" });
         return false;
       }
-      const data = await readJson(res);
-      if (!res.ok || typeof data.success !== "boolean") throw new Error(res.status >= 500 || !data.message ? "The analysis server returned an incomplete response. Please retry; this is not an unrelated-image decision." : data.message);
+      const data = await res.json();
       if (data.isOutOfScope || !data.success) {
         set({
           verificationScanning: false,
           verificationResult: null,
           outOfScopeError: {
-            title: data.isOutOfScope ? "Irrelevant image" : "Could not read this upload",
+            title: "Image Out of Scope",
             message: data.message || "Image does not appear to be related to agriculture or government schemes.",
             reason: data.reason || "The uploaded photo does not contain identifiable farm crops, soil, or official farmer documents.",
             previewUrl: fileBase64,
@@ -891,21 +968,45 @@ export const useFarmerStore = create<FarmerState>((set, get) => {
     return false;
   },
 
-  confirmExtractedData: async () => {
-    const result = get().verificationResult as any;
-    if (!result || result.analysisQuality === "partial") return;
+  confirmExtractedData: () => {
+    const result = get().verificationResult;
+    if (!result) return;
+
+    // Send to backend PostgreSQL JanMithra
     try {
-      if (!result.analysisRecordId) throw new Error("This analysis could not be saved. Please scan again before confirming.");
-      const response = await fetch("/api/verify-doc", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ analysisRecordId: result.analysisRecordId }),
-      });
-      const data = await response.json();
-      if (!response.ok || !data.success) throw new Error(data.message || "Could not save your review.");
-      await get().initAuth({ silent: true });
-      set({ verificationModalOpen: false });
-    } catch (error) {
-      set({ verificationResult: { ...result, saveError: error instanceof Error ? error.message : "Could not save your review. Please retry." } as any });
+      fetch("/api/verify-doc", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          docType: result.docType,
+          title: result.title,
+          confidenceScore: result.confidenceScore,
+          extractedData: result.extractedData,
+          previewUrl: result.previewUrl,
+        }),
+      }).catch((err) => console.warn("Background verify-doc sync notice:", err));
+    } catch (e) {
+      // ignore
+    }
+
+    // If land record, update farmer land size
+    if (result.extractedData.landAreaAcres) {
+      set((state) => ({
+        currentFarmer: {
+          ...state.currentFarmer,
+          landSizeAcres: result.extractedData.landAreaAcres || state.currentFarmer.landSizeAcres,
+          verifiedDocsCount: state.currentFarmer.verifiedDocsCount + 1,
+        },
+        verificationModalOpen: false,
+      }));
+    } else {
+      set((state) => ({
+        currentFarmer: {
+          ...state.currentFarmer,
+          verifiedDocsCount: state.currentFarmer.verifiedDocsCount + 1,
+        },
+        verificationModalOpen: false,
+      }));
     }
   },
 

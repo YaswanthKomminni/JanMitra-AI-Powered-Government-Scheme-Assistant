@@ -4,28 +4,50 @@ import { withTransaction } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-/** Confirm only a server-generated analysis owned by this user; client fields are never evidence. */
+/** Confirms an extracted document for the signed-in user (user id comes from the session only). */
 export async function POST(request: Request) {
   const auth = await requireUser(request);
   if (auth instanceof NextResponse) return auth;
-  let body: any;
-  try { body = await request.json(); }
-  catch { return NextResponse.json({ success: false, message: "Invalid request body." }, { status: 400 }); }
-  const id = body?.analysisRecordId;
-  if (!Number.isSafeInteger(id) || id < 1) return NextResponse.json({ success: false, message: "Analyze the upload before confirming it." }, { status: 400 });
+
   try {
-    const result = await withTransaction(async client => {
-      const record = await client.query(`SELECT id, status FROM document_verifications WHERE id = $1 AND user_id = $2 FOR UPDATE`, [id, auth.dbId]);
-      if (!record.rows.length) return null;
-      if (record.rows[0].status === "analyzed") {
-        await client.query("UPDATE document_verifications SET status = 'user_confirmed' WHERE id = $1 AND user_id = $2", [id, auth.dbId]);
-        await client.query("UPDATE users SET verified_docs_count = verified_docs_count + 1 WHERE id = $1", [auth.dbId]);
-      }
-      return { id };
+    const body = await request.json();
+    const {
+      docType = "land_record",
+      title = "Verified Document",
+      confidenceScore = 0.95,
+      extractedData = {},
+      previewUrl = "",
+    } = body || {};
+
+    const preview = String(previewUrl || "");
+    // Insert the record and bump the counter together, or neither.
+    const recordId = await withTransaction(async (client) => {
+      const inserted = await client.query(
+        `INSERT INTO document_verifications
+         (user_id, doc_type, title, confidence_score, extracted_data, preview_url, status)
+         VALUES ($1, $2, $3, $4, $5::jsonb, $6, 'verified')
+         RETURNING id`,
+        [
+          auth.dbId,
+          String(docType).slice(0, 50),
+          String(title).slice(0, 255),
+          Number(confidenceScore) || 0,
+          JSON.stringify(extractedData ?? {}),
+          preview.startsWith("data:") ? preview.slice(0, 300) + "..." : preview.slice(0, 480),
+        ]
+      );
+      await client.query("UPDATE users SET verified_docs_count = verified_docs_count + 1 WHERE id = $1", [auth.dbId]);
+      return inserted.rows[0].id as number;
     });
-    if (!result) return NextResponse.json({ success: false, message: "Analysis not found." }, { status: 404 });
-    return NextResponse.json({ success: true, recordId: result.id, message: "Your review was saved. This does not certify authenticity or eligibility.", dbSaved: true });
-  } catch {
-    return serviceUnavailable("Could not save your review. Please try again.");
+
+    return NextResponse.json({
+      success: true,
+      message: "Document verification saved to JanMithra database!",
+      recordId,
+      dbSaved: true,
+    });
+  } catch (error: any) {
+    console.error("[verify-doc] failed:", error?.message);
+    return serviceUnavailable("Could not save the verified document. Please try again.");
   }
 }

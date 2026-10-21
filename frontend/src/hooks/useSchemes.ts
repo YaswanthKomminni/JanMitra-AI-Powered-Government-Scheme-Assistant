@@ -5,7 +5,7 @@ import type { Scheme } from "@/lib/mockData";
 
 let cache: Scheme[] | null = null;
 
-/** Loads the public saved scheme catalog without exposing model vectors. */
+/** Loads schemes from the existing /api/schemes endpoint (Postgres, with its built-in fallback). */
 export function useSchemes() {
   const [schemes, setSchemes] = useState<Scheme[]>(cache ?? []);
   const [loading, setLoading] = useState(!cache);
@@ -17,7 +17,7 @@ export function useSchemes() {
     try {
       const res = await fetch("/api/schemes");
       const data = await res.json();
-      if (!res.ok || !Array.isArray(data.schemes)) throw new Error("Unexpected response");
+      if (!Array.isArray(data.schemes)) throw new Error("Unexpected response");
       cache = data.schemes as Scheme[];
       setSchemes(cache);
     } catch {

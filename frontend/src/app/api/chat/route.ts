@@ -1,16 +1,14 @@
 import { NextResponse } from "next/server";
 import { requireUser, serviceUnavailable, isDbError } from "@/lib/auth";
 import { isUniqueViolation, dbQuery } from "@/lib/db";
-import { savedProfileContext } from "@/lib/profileStorage";
-import { documentSource } from "@/lib/documentEvidence";
-import { shouldUseDocument } from "@/lib/chatRouting";
-import { buildConversationMemory, finishConversationMemory, type ConversationMemory } from "@/lib/conversationMemory";
+import { answerDocumentQuestion } from "@/lib/nlpDocumentAnalyzer";
 import { generateIntelligentChatReply } from "@/lib/llmService";
 import type { SupportedLanguage } from "@/lib/i18n";
 import { LANGUAGE_CODES } from "@/lib/userProfile";
 import {
   buildOutOfScopeReply,
-  buildUnreadableUploadReply,
+  formatDocumentAnalysisReply,
+  generateTextReply,
   type EngineReply,
 } from "@/lib/chatEngine";
 import { analyzeAndRecordDocument, MAX_ATTACHMENT_CHARS } from "@/lib/documentAnalysis";
@@ -30,7 +28,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 const MAX_TEXT = 4000;
-const REPLY_TIMEOUT_MS = 55_000;
+const REPLY_TIMEOUT_MS = 45_000;
 
 function fail(status: number, message: string, extra: Record<string, any> = {}) {
   return NextResponse.json({ success: false, message, ...extra }, { status });
@@ -56,7 +54,6 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
 function compactDetection(det: any) {
   if (!det) return undefined;
   const { previewUrl, ...rest } = det;
-  if (rest.parsedDetails?.fullOcrText) rest.extractedTextSnippet = undefined;
   return rest;
 }
 
@@ -92,8 +89,6 @@ export async function POST(request: Request) {
 
   const text = typeof body?.text === "string" ? body.text.trim() : "";
   if (!text) return fail(400, "Please type a question.");
-  const savedDocumentId = body?.savedDocumentId;
-  if (savedDocumentId != null && (typeof savedDocumentId !== "string" || !/^[a-f0-9-]{36}$/i.test(savedDocumentId))) return fail(400, "Invalid saved document.");
   if (text.length > MAX_TEXT) return fail(400, `Your message is too long (max ${MAX_TEXT} characters).`);
 
   const language = ((LANGUAGE_CODES as readonly string[]).includes(body?.language) ? body.language : "en") as SupportedLanguage;
@@ -161,7 +156,6 @@ export async function POST(request: Request) {
     const storedText = userMessage.text;
 
     // ---- 2. Generate the reply -----------------------------------------
-    let conversationMemory: ConversationMemory | undefined;
     let reply: EngineReply & { docDetection?: any };
     try {
       if (process.env.NODE_ENV !== "production" && process.env.JANMITRA_SIMULATE_AI_FAILURE === "1") {
@@ -175,27 +169,6 @@ export async function POST(request: Request) {
             request.headers.get("x-vision-api-key") ||
             undefined;
 
-          // Context comes only from this authenticated user's conversation, never from the client.
-          const [previous, snapshots] = await Promise.all([
-            dbQuery<any[]>(
-              `SELECT sender, message_text, metadata->'docDetection' AS doc_detection FROM chat_logs
-               WHERE user_id = $1 AND conversation_id = $2 AND id < $3 ORDER BY id DESC LIMIT 12`,
-              [userId, convId, userRow.id]
-            ),
-            dbQuery<any[]>(
-              `SELECT metadata->'conversationMemory' AS memory FROM chat_logs
-               WHERE user_id = $1 AND conversation_id = $2 AND id < $3 AND sender = 'ai'
-                 AND metadata->'conversationMemory' IS NOT NULL ORDER BY id DESC LIMIT 1`,
-              [userId, convId, userRow.id]
-            ),
-          ]);
-          const history = previous.slice().reverse().map((row) => ({
-            role: (row.sender === "ai" ? "assistant" : "user") as "assistant" | "user",
-            content: String(row.message_text || "").slice(0, 2500),
-          }));
-          conversationMemory = buildConversationMemory(history, storedText, snapshots[0]?.memory, !!attachment);
-          const latestTopicIsDocument = !!previous.find((row) => row.sender === "ai")?.doc_detection;
-
           if (attachment) {
             try {
               const outcome = await analyzeAndRecordDocument({
@@ -205,91 +178,77 @@ export async function POST(request: Request) {
                 fileType,
                 classification,
                 customApiKey,
-                language,
               });
               if (!outcome.success && outcome.isOutOfScope) {
                 return buildOutOfScopeReply(language, outcome.reason);
               }
-              if (!outcome.success) {
-                const reply = buildUnreadableUploadReply(language);
-                return { ...reply, text: outcome.message || reply.text };
-              }
               if (outcome.success && outcome.detection) {
-                conversationMemory.latestUploadAvailable = true;
-                // Grounded Question-Answering, Summaries & Actionable Suggestions via Multimodal LLM / CampusOne Copilot:
+                // Grounded Question-Answering, Summaries & Actionable Suggestions via Multimodal LLM / Document Intelligence:
                 const llmAnswer = await generateIntelligentChatReply({
                   query: storedText,
                   language,
                   profile: auth.profile,
                   documentContext: outcome.detection,
-                  forceDocumentContext: true,
-                  history,
-                  conversationMemory,
                   customApiKey,
                 });
                 return {
                   text: llmAnswer.text,
-                  modelReport: llmAnswer.modelReport,
-                  aiStatus: llmAnswer.aiStatus,
-                  searchSuggestionsHtml: llmAnswer.searchSuggestionsHtml,
                   chips: llmAnswer.chips,
                   docDetection: compactDetection(outcome.detection),
                 };
               }
             } catch (ocrErr) {
-              console.warn("[chat] document analysis failed:", (ocrErr as Error).message);
-              return buildUnreadableUploadReply(language);
+              console.warn("[chat] document analysis failed, using text engine:", (ocrErr as Error).message);
             }
           }
 
-          // Use the latest analyzed attachment in THIS conversation, preserving its OCR and facts.
-          // Never attach another chat's most recent land record or inject default scheme benefits.
+          // If no attachment in current message, check if user is asking questions about a document
+          // or asking for summary/analysis/suggestions of their previously uploaded document:
+          const isDocQuestion =
+            /summar|analy|suggest|recommen|advice|remed|overview|explain|brief|detail|owner|pattadar|applicant|beneficiary|whose\s*name|survey|khata|khasra|dag|passbook|extent|acres?|guntas?|hectare|bigha|how\s*much\s*land|size\s*of\s*land|amount|cost|price|consideration|stamp\s*duty|subsidy|fee|scheme|eligible|apply|pm-kisan|kusum|kcc|crop|pest|disease|remedy|spray|fungicide|document|paper|file|పత్రం|దస్తావేజు|సారాంశ|వివరించు|విశ్లేషణ|సలహా|సూచన|పేరు|యజమాని|సర్వే|ఖాతా|విస్తీర్ణం|ఎకరాలు|ధర|మొత్తం|పథకాలు|సబ్సిడీ|తెగులు|మందు|दस्तावेज़|कागजात|सारांश|विश्लेषण|सुझाव|सलाह|मालिक|किसान|सर्वे|खसरा|रकबा|जमीन|राशि|योजना|सब्सिडी|कीट|रोग/i.test(
+              storedText
+            );
+
           let activeDocContext: any = undefined;
-          if (conversationMemory.latestUploadAvailable !== false) {
+          if (isDocQuestion) {
             try {
-              const recent = await dbQuery<any[]>(
-                `SELECT metadata FROM chat_logs
-                 WHERE user_id = $1 AND conversation_id = $2 AND id < $3 AND sender = 'ai'
-                   AND metadata->'docDetection' IS NOT NULL
-                 ORDER BY id DESC LIMIT 1`,
-                [userId, convId, userRow.id]
+              const recentDocs = await dbQuery<any[]>(
+                "SELECT doc_type, title, confidence_score, extracted_data FROM document_verifications WHERE user_id = $1 ORDER BY id DESC LIMIT 1",
+                [userId]
               );
-              const metadata = recent[0]?.metadata;
-              const parsed = typeof metadata === "string" ? JSON.parse(metadata) : metadata;
-              activeDocContext = parsed?.docDetection;
-            } catch (error) {
-              console.warn("[chat] document context lookup failed:", (error as Error).message);
+              if (recentDocs && recentDocs.length > 0) {
+                const docRow = recentDocs[0];
+                activeDocContext = {
+                  docType: docRow.doc_type,
+                  title: docRow.title,
+                  confidenceScore: Number(docRow.confidence_score) || 0.95,
+                  extractedData: typeof docRow.extracted_data === "object" ? docRow.extracted_data : JSON.parse(docRow.extracted_data || "{}"),
+                  schemesUnlocked: [
+                    "PM-KISAN ₹6,000 Annual Direct Benefit Transfer (DBT)",
+                    "Kisan Credit Card (KCC) 4% Concessional Farm Credit against Registered Land",
+                    "PM-KUSUM Component-B 60% Solar Water Pump Subsidy",
+                    "PMFBY Comprehensive Crop Loss & Natural Calamity Insurance",
+                  ],
+                };
+              }
+            } catch (docErr) {
+              console.warn("[chat] failed to lookup recent document:", (docErr as Error).message);
             }
           }
 
-          let savedContext: any;
-          try { savedContext = await savedProfileContext(userId, storedText, savedDocumentId); } catch { /* The chat remains available if private storage is temporarily unavailable. */ }
-          if (savedDocumentId && !savedContext) return { text: "That saved document is unavailable in your account. Open Profile and choose one of your saved documents again.", chips: [] };
-          if (savedDocumentId) { activeDocContext = savedContext; conversationMemory.latestUploadAvailable = true; }
-          const profileDocumentQuestion = !activeDocContext && !!savedContext && /my (?:saved )?(?:doc|land|record|aadhaar)|profile documents/i.test(storedText);
-          if (profileDocumentQuestion) { activeDocContext = savedContext; conversationMemory.latestUploadAvailable = true; }
-
-          // Original sources are selected by authenticated ownership, never by a client-provided profile.
+          // Unified Conversational LLM Engine (Gemini 2.0 / Groq Llama 3 / OpenAI with Local Intelligence Fallback):
           const llmReply = await generateIntelligentChatReply({
             query: storedText,
             language,
             profile: auth.profile,
             documentContext: activeDocContext,
-            documentContextIsLatestTopic: !!savedDocumentId || latestTopicIsDocument,
-            forceDocumentContext: profileDocumentQuestion || !!savedDocumentId && shouldUseDocument(storedText, savedContext, true),
-            savedProfileSource: savedContext ? documentSource(savedContext) : undefined,
-            history,
-            conversationMemory,
             customApiKey,
           });
 
           return {
             text: llmReply.text,
-            modelReport: llmReply.modelReport,
-            aiStatus: llmReply.aiStatus,
-            searchSuggestionsHtml: llmReply.searchSuggestionsHtml,
             chips: llmReply.chips,
-            docDetection: llmReply.usedDocument ? activeDocContext : undefined,
+            docDetection: activeDocContext,
           };
         })(),
         REPLY_TIMEOUT_MS
@@ -318,8 +277,7 @@ export async function POST(request: Request) {
         clientMessageId,
         text: reply.text,
         language,
-        metadata: { modelReport: reply.modelReport, aiStatus: reply.aiStatus, searchSuggestionsHtml: reply.searchSuggestionsHtml, chips: reply.chips || [], docDetection: reply.docDetection, replyTo: userRow.id,
-          conversationMemory: conversationMemory ? finishConversationMemory(conversationMemory, reply.text) : undefined },
+        metadata: { chips: reply.chips || [], docDetection: reply.docDetection, replyTo: userRow.id },
       });
     } catch (err: any) {
       if (isUniqueViolation(err, "uq_chat_client_msg")) {

@@ -6,20 +6,23 @@ import { useRouter } from "next/navigation";
 import { MessageSquare, Landmark, ScanLine, History, Users, ArrowRight, Sparkles } from "lucide-react";
 import { useFarmerStore } from "@/store/useFarmerStore";
 import { useSchemes } from "@/hooks/useSchemes";
+import { translations } from "@/lib/i18n";
 import { PageContainer, EmptyState, LoadingState, ErrorState, primaryBtn, secondaryBtn } from "@/components/PageKit";
 import { relativeTime } from "@/components/ConversationSidebar";
 
-const QUICK_ACTIONS = [
-  { href: "/assistant", icon: MessageSquare, title: "Ask AI Assistant", desc: "Ask about schemes in your language, by text or voice." },
-  { href: "/schemes", icon: Landmark, title: "Explore Schemes", desc: "Browse and filter government schemes." },
-  { href: "/documents", icon: ScanLine, title: "Check Documents", desc: "See what you need and scan a document." },
-  { href: "/peers", icon: Users, title: "Nearby Farmers", desc: "See what worked for farmers near you." },
-];
-
 export default function HomePage() {
   const router = useRouter();
-  const { isAuthenticated, authStatus, currentFarmer, conversations, conversationsLoading, openConversation, setSelectedScheme, authNotice } = useFarmerStore();
+  const { isAuthenticated, authStatus, currentFarmer, conversations, conversationsLoading, openConversation, setSelectedScheme, authNotice, language } = useFarmerStore();
   const { schemes, loading, error, reload } = useSchemes();
+
+  const t = translations[language] || translations.en;
+
+  const quickActions = [
+    { href: "/assistant", icon: MessageSquare, title: t.navAssistant || "Ask AI Assistant", desc: t.chatSubtitle || "Ask about schemes in your language, by text or voice." },
+    { href: "/schemes", icon: Landmark, title: t.navSchemes || "Explore Schemes", desc: t.recommendedSchemesSubtitle || "Browse and filter government schemes." },
+    { href: "/documents", icon: ScanLine, title: t.navDocuments || "Check Documents", desc: t.documentsSubtitle || "See what you need and scan a document." },
+    { href: "/peers", icon: Users, title: t.navPeers || "Nearby Farmers", desc: t.peersSubtitle || "See what worked for farmers near you." },
+  ];
 
   const firstName = isAuthenticated ? (currentFarmer.name || "").split(" ")[0] : "";
   const top = [...schemes].sort((a, b) => b.matchScore - a.matchScore).slice(0, 3);
@@ -35,19 +38,19 @@ export default function HomePage() {
 
       <section className="rounded-2xl border border-jm-border bg-jm-surface p-6 sm:p-8">
         <h1 className="text-2xl font-semibold text-jm-text sm:text-[28px]">
-          {firstName ? `Welcome back, ${firstName}` : "Welcome to JanMitra"}
+          {firstName ? `${t.welcome || "Namaste"}, ${firstName}` : (t.appName || "JanMitra")}
         </h1>
         <p className="mt-2 max-w-2xl text-[15px] text-jm-text2">
-          JanMitra helps you discover government schemes you may qualify for, understand the benefits and required documents, and get answers in your own language.
+          {t.appTagline || "JanMitra helps you discover government schemes you may qualify for, understand the benefits and required documents, and get answers in your own language."}
         </p>
         <div className="mt-5 flex flex-wrap gap-3">
-          <Link href="/assistant" className={primaryBtn}><Sparkles className="h-4 w-4" /> Ask JanMitra AI</Link>
-          <Link href="/schemes" className={secondaryBtn}>Explore Schemes</Link>
+          <Link href="/assistant" className={primaryBtn}><Sparkles className="h-4 w-4" /> {t.navAssistant || "Ask JanMitra AI"}</Link>
+          <Link href="/schemes" className={secondaryBtn}>{t.navSchemes || "Explore Schemes"}</Link>
         </div>
       </section>
 
       <section className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Quick actions">
-        {QUICK_ACTIONS.map(({ href, icon: Icon, title, desc }) => (
+        {quickActions.map(({ href, icon: Icon, title, desc }) => (
           <Link key={href} href={href} className="group flex h-full flex-col rounded-2xl border border-jm-border bg-jm-surface p-5 transition-colors hover:border-jm-primary/50">
             <span className="grid h-10 w-10 place-items-center rounded-xl bg-jm-soft text-jm-primary"><Icon className="h-5 w-5" /></span>
             <h3 className="mt-3 text-[15px] font-semibold text-jm-text">{title}</h3>

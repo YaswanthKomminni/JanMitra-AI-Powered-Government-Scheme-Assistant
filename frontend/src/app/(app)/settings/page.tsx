@@ -2,7 +2,6 @@
 
 import React from "react";
 import ThemeSelectorCards from "@/components/ThemeSelectorCards";
-import ProfileEditor from "@/components/ProfileEditor";
 import { useFarmerStore } from "@/store/useFarmerStore";
 
 function Row({ label, value }: { label: string; value?: string | number | null }) {
@@ -44,13 +43,7 @@ export default function SettingsPage() {
                   <Row label="Village" value={f.village} />
                   <Row label="State" value={(f as any).state} />
                   <Row label="District" value={(f as any).district} />
-                  <Row label="Crops" value={f.primaryCrops.join(", ")} />
-                  <Row label="Land (acres)" value={f.landSizeAcres} />
-                  <Row label="Soil" value={f.soilTypeName} />
-                  <Row label="Irrigation" value={f.irrigationTypeName} />
-                  <Row label="Preferred language" value={f.preferredLanguage} />
                 </dl>
-                <ProfileEditor />
               </>
             ) : (
               <div className="flex items-center justify-between gap-3 flex-wrap">

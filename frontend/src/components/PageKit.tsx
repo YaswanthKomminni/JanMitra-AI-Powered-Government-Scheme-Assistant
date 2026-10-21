@@ -5,7 +5,7 @@ import { AlertCircle, Loader2 } from "lucide-react";
 
 export function PageContainer({ children, wide = false }: { children: React.ReactNode; wide?: boolean }) {
   return (
-    <div className={`jm-page w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 ${wide ? "max-w-[1400px]" : "max-w-[1100px]"}`}>
+    <div className={`w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 ${wide ? "max-w-[1400px]" : "max-w-[1100px]"}`}>
       {children}
     </div>
   );
