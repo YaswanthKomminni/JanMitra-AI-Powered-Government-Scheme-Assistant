@@ -205,13 +205,16 @@ const answerWords: Record<SupportedLanguage, {
 export function answerDocumentQuestion(query: string, detection: any, lang: SupportedLanguage): { text: string; chips: string[] } {
   const partial = detection?.analysisQuality === "partial";
   const source = partial ? partialDocumentSource(detection) : detection?.parsedDetails?.fullOcrText || detection?.extractedTextSnippet || "";
-  const base = (!partial && detection?.parsedDetails) || parseAndSummarizeDocumentContent(source);
+  const currentQuestion = query.split("Current question:").pop() || query;
+  const scoped = source.length > 12000 && /documents?|checklist|apply|application|eligib|deadline|last date|amount|benefit|owner|applicant|survey|buyer|seller/i.test(currentQuestion);
+  const relevant = scoped ? retrieveDocumentEvidence(query, source, 6).map(passage => passage.text).join("\n\n") : "";
+  const base = relevant ? parseAndSummarizeDocumentContent(relevant) : (!partial && detection?.parsedDetails) || parseAndSummarizeDocumentContent(source);
   // Preserve structured cloud facts and its actual summary; never reparse JSON as OCR prose.
-  const p: Record<string, any> = { ...base.extractedParameters, ...(!partial ? detection?.extractedData || {} : {}) };
+  const p: Record<string, any> = { ...base.extractedParameters, ...(!partial && !scoped ? detection?.extractedData || {} : {}) };
   const summary = partial && source ? base.summary : detection?.detectionSummary || base.summary;
   const suggestions: string[] = !partial && detection?.suggestions?.length ? detection.suggestions : base.actionableSuggestions;
   const schemes: string[] = !partial && detection?.schemesUnlocked || base.unlockedSchemes;
-  const q = query.toLowerCase();
+  const q = currentQuestion.toLowerCase();
   const l = labels[lang] || labels.en;
   const words = answerWords[lang] || answerWords.en;
   const chips = words.chips;

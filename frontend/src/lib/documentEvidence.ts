@@ -1,5 +1,6 @@
+import { MAX_DOCUMENT_CHARACTERS } from "@/lib/documentLimits";
 /** Literal source retrieval and validation. Retrieval scores are not confidence or eligibility. */
-export interface EvidencePassage { id: string; text: string; score: number; url?: string }
+export interface EvidencePassage { id: string; text: string; score: number; url?: string; page?: number; searchSuggestionsHtml?: string }
 const stop = new Set("the a an is are of to for in on and or i me my this that what which how please tell about document uploaded current question conversation topic".split(" "));
 const normalize = (s: string) => s.normalize("NFKC").toLowerCase().replace(/\s+/g, " ").trim();
 function tokens(s: string): string[] {
@@ -19,21 +20,26 @@ function expand(query: string): string {
 
 /** Keep line/table boundaries and a small overlap; cover long notices rather than only their heading. */
 export function chunkDocument(text: string): string[] {
-  const lines = text.replace(/\r/g, "").split("\n").map(s => s.trim()).filter(Boolean);
+  const lines = text.slice(0, MAX_DOCUMENT_CHARACTERS).replace(/\r/g, "").split("\n").map(s => s.trim()).filter(Boolean);
   const chunks: string[] = [];
   let chunk = "";
+  let page = "";
+  let heading = "";
   for (const line of lines) {
+    if (/^\[Page \d+\]$/.test(line)) { if (chunk) chunks.push(chunk); page = line; chunk = [page, heading].filter(Boolean).join("\n"); continue; }
+    if (line.length < 160 && /scheme|yojana|pradhan mantri|PM[- ]?(?:KISAN|KUSUM|FBY)/i.test(line)
+      && !/^(?:required|eligibility|benefit|application|documents)/i.test(line)) heading = line;
     for (let offset = 0; offset < line.length; offset += 900) {
       const part = line.slice(offset, offset + 900);
       if (chunk.length + part.length > 1100) {
         chunks.push(chunk);
-        chunk = chunk.split("\n").slice(-1)[0].slice(-180);
+        chunk = [page, heading, chunk.split("\n").slice(-1)[0].slice(-180)].filter(Boolean).join("\n");
       }
       chunk += (chunk ? "\n" : "") + part;
     }
   }
   if (chunk) chunks.push(chunk);
-  return Array.from(new Set(chunks)).slice(0, 120);
+  return Array.from(new Set(chunks));
 }
 
 /** BM25 length-normalized lexical retrieval, with script-preserving tokenization. */
@@ -51,19 +57,25 @@ export function retrieveDocumentEvidence(query: string, text: string, limit = 6)
       const df = frequencies.get(t) || 0;
       score += Math.log(1 + (docs.length - df + 0.5) / (df + 0.5)) * tf * 2.2 / (tf + 1.2 * (0.25 + 0.75 * doc.length / avg));
     }
-    return { id: `D${i + 1}`, text, score };
+    return { id: `D${i + 1}`, text, score, page: Number(text.match(/\[Page (\d+)\]/)?.[1]) || undefined };
   });
-  const summary = /summar|overview|explain|inspect|tell me about|read this|సారాంశ|सारांश/i.test(query);
+  const currentQuestion = query.split("Current question:").pop() || query;
+  const summary = /summar|analy|overview|inspect|tell me about|read this|what.*(?:about|related to)|purpose|సారాంశ|सारांश/i.test(currentQuestion)
+    || /^explain (?:this|the|that|it|document|pdf)/i.test(currentQuestion.trim());
   if (summary || !terms.length) {
     // Spread summary context across the source, retaining the heading and final deadline/checklist.
-    return Array.from(new Set(Array.from({ length: Math.min(limit, ranked.length) }, (_, i) =>
+    const selected = Array.from(new Set(Array.from({ length: Math.min(limit, ranked.length) }, (_, i) =>
       Math.round(i * (ranked.length - 1) / Math.max(1, Math.min(limit, ranked.length) - 1))))).map(i => ranked[i]);
+    const headings = text.split(/\r?\n/).map(line => line.trim()).filter(line => line.length >= 8 && line.length < 160
+      && /scheme|yojana|pradhan mantri|పథక|योजना/i.test(line)).slice(0, 150);
+    if (headings.length > 4) selected.push({ id: "D-outline", text: headings.join("\n"), score: 0, page: undefined });
+    return selected;
   }
   return ranked.sort((a, b) => b.score - a.score).filter(p => p.score > 0).slice(0, limit);
 }
 
 export function documentSource(detection: any): string {
-  return String(detection?.parsedDetails?.fullOcrText || detection?.extractedTextSnippet || "").slice(0, 40000);
+  return String(detection?.parsedDetails?.fullOcrText || detection?.extractedTextSnippet || "").slice(0, MAX_DOCUMENT_CHARACTERS);
 }
 
 /** Critical numeric claims must occur in cited evidence, not merely elsewhere in the document. */
@@ -115,7 +127,7 @@ export function validateGroundedAnswer(raw: string, passages: EvidencePassage[])
     if (!output.length || (!parsed.claims.length && !parsed.missingInformation.length)) return null;
     // Show supporting excerpts; the user can inspect the evidence without trusting a model score.
     const cited = new Set<string>([...parsed.claims.map((c: any) => c.sourceId), ...parsed.suggestions.flatMap((s: any) => s.sourceIds)]);
-    const sources = passages.filter(p => cited.has(p.id)).map(p => `${p.url ? `[${p.id}: Official source](${p.url})` : `[${p.id}]`} ${p.text.slice(0, 1100)}`);
+    const sources = passages.filter(p => cited.has(p.id)).map(p => `${p.url ? `[${p.id}: Official source](${p.url})` : `[${p.id}]`} ${p.page ? `Page ${p.page}: ` : ""}${p.text.slice(0, 700)}`);
     return { text: `${output.join("\n\n")}${sources.length ? `\n\n---\n${sources.join("\n\n")}` : ""}`,
       chips: Array.isArray(parsed.chips) ? parsed.chips.filter((c: unknown) => typeof c === "string").slice(0, 3) : [] };
   } catch { return null; }

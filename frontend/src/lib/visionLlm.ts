@@ -3,6 +3,7 @@ import { normalizeCropAnalysis, reconcileImageEvidence, type CropAnalysis } from
 import { providerKeys, providerModels, geminiGenerationConfig, discoverProviderModels, type AiProvider } from "@/lib/aiProviders";
 import type { SupportedLanguage } from "@/lib/i18n";
 import sharp from "sharp";
+import type { ExtractionCoverage } from "@/lib/documentLimits";
 
 export interface VisionAnalysisResult {
   isAgriRelated: boolean;
@@ -20,7 +21,8 @@ export interface VisionAnalysisResult {
   parsedDetails?: any;
   cropAnalysis?: CropAnalysis;
   readingConflicts?: string[];
-  visionStatus?: { state: "cloud" | "local"; provider?: AiProvider; model?: string; failures?: Array<{ provider: AiProvider; code: "auth" | "quota" | "model" | "timeout" | "invalid_response" | "unavailable" }> };
+  extractionCoverage?: ExtractionCoverage;
+  visionStatus?: { state: "cloud" | "local" | "extracted"; provider?: AiProvider; model?: string; failures?: Array<{ provider: AiProvider; code: "auth" | "quota" | "model" | "timeout" | "invalid_response" | "unavailable" }> };
   analysisQuality?: "partial" | "complete";
 }
 
@@ -134,6 +136,14 @@ export async function analyzeImageIntelligently(opts: {
   const dataUrl = opts.fileBase64.startsWith("data:") ? opts.fileBase64 : `data:${mimeType};base64,${opts.fileBase64}`;
   // OCR checks model scope decisions against real document text, independently of pixel hints.
   const localPromise = analyzeDocumentComprehensive(dataUrl, opts.fileName, mimeType);
+  if (!mimeType.startsWith("image/")) {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const extracted = await Promise.race([localPromise, new Promise<undefined>(resolve => { timer = setTimeout(() => resolve(undefined), 1500); })]);
+    if (timer) clearTimeout(timer);
+    if (extracted?.scopeStatus === "in_scope" && extracted.extractionCoverage && extracted.extractionCoverage.method !== "pdf_scan") {
+      return { ...extracted, suggestions: extracted.suggestions || [], visionStatus: { state: "extracted" } };
+    }
+  }
   const signal = AbortSignal.timeout(24000);
   const keys = providerKeys(opts.customApiKey);
   const views = keys.length ? await imageReadingViews(dataUrl, mimeType) : [{ url: dataUrl, mimeType }];
@@ -147,8 +157,11 @@ export async function analyzeImageIntelligently(opts: {
     if (cloud?.scopeStatus === "out_of_scope") break;
   }
   const local = await localPromise;
+  if (local.scopeStatus === "in_scope" && local.extractionCoverage && local.extractionCoverage.method !== "pdf_scan") {
+    return { ...local, suggestions: local.suggestions || [], visionStatus: { state: "extracted" } };
+  }
   const result = reconcileImageEvidence(cloud, local as VisionAnalysisResult);
-  return { ...result, visionStatus: result.visionStatus || cloud?.visionStatus || { state: "local", failures: failures?.filter((entry, index, all) => all.findIndex(other => other.provider === entry.provider && other.code === entry.code) === index) } };
+  return { ...result, extractionCoverage: result.extractionCoverage || local.extractionCoverage, visionStatus: result.visionStatus || cloud?.visionStatus || { state: "local", failures: failures?.filter((entry, index, all) => all.findIndex(other => other.provider === entry.provider && other.code === entry.code) === index) } };
 }
 
 /** An explicit connection test makes a real vision request, without OCR or farmer data. */

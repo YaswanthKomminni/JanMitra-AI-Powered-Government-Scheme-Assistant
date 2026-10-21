@@ -302,3 +302,164 @@ test('a restricted default model can recover to an account-available Gemini visi
     assert.equal(result.checks[0].model, 'gemini-2.5-flash');
   } finally { delete process.env.GEMINI_API_KEY; global.fetch = realFetch; }
 });
+
+function testPdf(pages) {
+  const objects = ['<< /Type /Catalog /Pages 2 0 R >>', `<< /Type /Pages /Kids [${pages.map((_, i) => `${4 + i * 2} 0 R`).join(' ')}] /Count ${pages.length} >>`, '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>'];
+  for (const [i, text] of pages.entries()) {
+    const stream = `BT /F1 10 Tf 40 740 Td ${(text.match(/.{1,80}/g) || []).map((line, index) => `${index ? "0 -14 Td " : ""}(${line}) Tj`).join("\n")} ET`;
+    objects.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents ${5 + i * 2} 0 R >>`, `<< /Length ${Buffer.byteLength(stream)} >>\nstream\n${stream}\nendstream`);
+  }
+  let pdf = '%PDF-1.4\n'; const offsets = [0];
+  objects.forEach((object, i) => { offsets.push(Buffer.byteLength(pdf)); pdf += `${i + 1} 0 obj\n${object}\nendobj\n`; });
+  const xref = Buffer.byteLength(pdf);
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n${offsets.slice(1).map(n => `${String(n).padStart(10, '0')} 00000 n \n`).join('')}trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
+  return 'data:application/pdf;base64,' + Buffer.from(pdf).toString('base64');
+}
+
+test('all ninety searchable PDF pages survive extraction and can answer a late-page question', async () => {
+  const { analyzeImageIntelligently } = require('../src/lib/visionLlm.ts');
+  const { documentSource, retrieveDocumentEvidence } = require('../src/lib/documentEvidence.ts');
+  const pages = Array.from({ length: 90 }, (_, i) => `Government Agriculture Scheme Reference Page ${i + 1}. ` + (i === 84 ? 'Lotus Irrigation Scheme. Application office: District Lotus Centre.' : 'Agriculture support information and published guidelines. '.repeat(28)));
+  const result = await analyzeImageIntelligently({ fileBase64: testPdf(pages), fileName: 'ninety-pages.pdf' });
+  assert.equal(result.visionStatus.state, 'extracted');
+  assert.equal(result.extractionCoverage.pagesRead, 90);
+  assert.equal(result.extractionCoverage.totalPages, 90);
+  assert.equal(result.extractionCoverage.truncated, false);
+  const source = documentSource(result);
+  assert.ok(source.length > 40000);
+  assert.match(source, /\[Page 90\]/);
+  assert.match(retrieveDocumentEvidence('Where is the application office for Lotus Irrigation Scheme?', source).map(p => p.text).join('\n'), /District Lotus Centre/);
+});
+
+test('Word docx files provide actual paragraph and table text, not image OCR placeholders', async () => {
+  const zip = new (require('jszip'))();
+  zip.file('[Content_Types].xml', '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>');
+  zip.file('_rels/.rels', '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>');
+  zip.file('word/document.xml', '<?xml version="1.0"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>Government Farmer Scheme</w:t></w:r></w:p><w:p><w:r><w:t>Required documents:</w:t></w:r></w:p><w:tbl><w:tr><w:tc><w:p><w:r><w:t>Income certificate</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>Bank passbook</w:t></w:r></w:p></w:tc></w:tr></w:tbl></w:body></w:document>');
+  const bytes = await zip.generateAsync({ type: 'nodebuffer' });
+  const { analyzeImageIntelligently } = require('../src/lib/visionLlm.ts');
+  const result = await analyzeImageIntelligently({ fileBase64: 'data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,' + bytes.toString('base64'), fileName: 'scheme.docx' });
+  assert.equal(result.visionStatus.state, 'extracted');
+  assert.equal(result.extractionCoverage.method, 'docx');
+  assert.match(answerDocumentQuestion('What documents are required?', result, 'en').text, /Income certificate/);
+  assert.match(answerDocumentQuestion('What documents are required?', result, 'en').text, /Bank passbook/);
+});
+
+test('research fetches verified official sources and ignores invented search-model claims', async () => {
+  const { researchOfficialSchemes, isOfficialSchemeUrl } = require('../src/lib/schemeResearch.ts');
+  assert.equal(isOfficialSchemeUrl('https://dept.gov.in.evil.test/notices'), false);
+  assert.equal(isOfficialSchemeUrl('http://127.0.0.1/private'), false);
+  assert.equal(isOfficialSchemeUrl('https://dept.gov.in/notice'), true);
+  process.env.GEMINI_API_KEY = 'synthetic-research-test';
+  const fetched = [];
+  global.fetch = async (url, options) => {
+    fetched.push(url);
+    if (url.includes('googleapis')) {
+      assert.ok(JSON.parse(options.body).tools[0].google_search);
+      return Response.json({ candidates: [{ content: { parts: [{ text: 'Invented benefit 999999 must never become evidence.' }] }, groundingMetadata: { groundingChunks: [{ web: { uri: 'https://dept.gov.in/farmer-tools' } }, { web: { uri: 'https://dept.gov.in.evil.test/phishing' } }] } }] });
+    }
+    assert.equal(url, 'https://dept.gov.in/farmer-tools');
+    return new Response('<h1>Farmer Tools Scheme</h1><p>Required documents: Income certificate and bank passbook.</p><p>Apply at the district agriculture office using the published application form.</p>', { headers: { 'content-type': 'text/html' } });
+  };
+  try {
+    const passages = await researchOfficialSchemes('Farmer Tools Scheme required documents');
+    assert.ok(passages.length);
+    assert.match(passages[0].text, /bank passbook/);
+    assert.doesNotMatch(JSON.stringify(passages), /999999|phishing/);
+    assert.ok(passages.every(p => p.url === 'https://dept.gov.in/farmer-tools' && p.id.startsWith('R')));
+  } finally { delete process.env.GEMINI_API_KEY; global.fetch = realFetch; }
+});
+
+test('chat researches unknown scheme paperwork and answers with official citations', async () => {
+  process.env.GEMINI_API_KEY = 'synthetic-research-test';
+  global.fetch = async (url, options) => {
+    if (!url.includes('googleapis')) return new Response('<h1>New Farmer Tools Scheme</h1><p>Required documents: Income certificate and bank passbook.</p><p>Applications are submitted to the district agriculture office.</p>', { headers: { 'content-type': 'text/html' } });
+    const payload = JSON.parse(options.body);
+    if (payload.tools) return Response.json({ candidates: [{ groundingMetadata: { groundingChunks: [{ web: { uri: 'https://dept.gov.in/new-farmer-tools' } }] } }] });
+    assert.match(payload.systemInstruction.parts[0].text, /R1/);
+    return Response.json({ candidates: [{ content: { parts: [{ text: JSON.stringify({ claims: [{ text: 'Prepare an income certificate and bank passbook.', sourceId: 'R1', quote: 'Required documents: Income certificate and bank passbook.' }], suggestions: [], missingInformation: [], chips: ['How do I apply?'] }) }] } }] });
+  };
+  try {
+    const reply = await generateIntelligentChatReply({ query: 'What documents are required for New Farmer Tools Scheme?', language: 'en' });
+    assert.equal(reply.provider, 'gemini');
+    assert.match(reply.text, /bank passbook/);
+    assert.match(reply.text, /https:\/\/dept.gov.in\/new-farmer-tools/);
+  } finally { delete process.env.GEMINI_API_KEY; global.fetch = realFetch; }
+});
+
+test('retrieval reaches beyond old chunk limits and keeps scheme headings with a late checklist', () => {
+  const { retrieveDocumentEvidence, chunkDocument } = require('../src/lib/documentEvidence.ts');
+  const text = Array.from({ length: 160 }, (_, i) => `[Page ${i + 1}]\n${i === 155 ? 'Lotus Farmer Tools Scheme' : 'Other Agriculture Scheme ' + i}\n${'Ordinary published farming guidance. '.repeat(32)}\nRequired documents:\n${i === 155 ? 'Lotus residence certificate\nLotus bank passbook' : 'Other district income certificate'}`).join('\n');
+  assert.ok(chunkDocument(text).length > 120);
+  const evidence = retrieveDocumentEvidence('What documents are required for Lotus Farmer Tools Scheme?', text, 6);
+  assert.match(evidence.map(p => p.text).join('\n'), /Lotus residence certificate/);
+  assert.ok(evidence.some(p => p.page === 156));
+});
+
+test('failed live research cannot turn saved data into a latest-scheme announcement', async () => {
+  process.env.GEMINI_API_KEY = 'synthetic-research-failure';
+  global.fetch = async () => new Response('', { status: 401 });
+  try {
+    const answer = await generateIntelligentChatReply({ query: 'What are the latest government schemes for farmers?', language: 'en' });
+    assert.match(answer.text, /could not verify a current official notice/);
+    assert.doesNotMatch(answer.text, /new scheme launched|applications are open/i);
+  } finally { delete process.env.GEMINI_API_KEY; global.fetch = realFetch; }
+});
+
+test('a grounded response that fails validation gets one repair attempt rather than an immediate generic reply', async () => {
+  process.env.GROQ_API_KEY = 'gsk_synthetic-repair';
+  let calls = 0;
+  global.fetch = async () => {
+    calls++;
+    return Response.json({ choices: [{ message: { content: calls === 1 ? 'Unstructured answer without evidence' : JSON.stringify({ claims: [{ text: 'The poster mentions Rythu Bharosa.', sourceId: 'D1', quote: 'Rythu Bharosa' }], suggestions: [], missingInformation: [], chips: [] }) } }] });
+  };
+  try {
+    const reply = await generateIntelligentChatReply({ query: 'Which schemes are mentioned?', language: 'en', documentContext: poster, forceDocumentContext: true });
+    assert.equal(calls, 2);
+    assert.equal(reply.provider, 'groq');
+    assert.match(reply.text, /Rythu Bharosa/);
+  } finally { delete process.env.GROQ_API_KEY; global.fetch = realFetch; }
+});
+
+test('a named scheme question immediately after a document stays with its uploaded facts', async () => {
+  const { parseAndSummarizeDocumentContent } = require('../src/lib/nlpDocumentAnalyzer.ts');
+  const text = 'Government Farmer Scheme\nPM-KISAN\nRequired documents:\nLocal applicant residence certificate\nBank passbook';
+  const detection = { parsedDetails: parseAndSummarizeDocumentContent(text), analysisQuality: 'complete' };
+  let memory = buildConversationMemory([], 'Summarize this document', undefined, true);
+  memory.latestUploadAvailable = true;
+  memory = buildConversationMemory([], 'What documents are required for PM-KISAN?', memory);
+  const reply = await generateIntelligentChatReply({ query: 'What documents are required for PM-KISAN?', language: 'en', documentContext: detection, documentContextIsLatestTopic: true, conversationMemory: memory });
+  assert.equal(reply.usedDocument, true);
+  assert.match(reply.text, /Local applicant residence certificate/);
+});
+
+test('a multi-scheme booklet asks which scheme before mixing its document checklists', async () => {
+  const text = 'Government Schemes Guide\nPM-KISAN\nRequired documents: Bank passbook\nPMFBY\nRequired documents: Insurance application';
+  const { parseAndSummarizeDocumentContent } = require('../src/lib/nlpDocumentAnalyzer.ts');
+  let memory = buildConversationMemory([], 'Please analyze this attached government document: guide.pdf', undefined, true);
+  memory.latestUploadAvailable = true;
+  memory = buildConversationMemory([], 'What documents are required?', memory);
+  const reply = await generateIntelligentChatReply({ query: 'What documents are required?', language: 'en', documentContext: { parsedDetails: parseAndSummarizeDocumentContent(text) }, conversationMemory: memory });
+  assert.equal(reply.usedDocument, true);
+  assert.match(reply.text, /Which scheme should I explain/);
+  assert.match(reply.text, /PM-KISAN/);
+  assert.match(reply.text, /PMFBY/);
+});
+
+test('scanned PDF vision begins without waiting for local OCR to finish', { timeout: 6000 }, async () => {
+  const ocr = require('../src/lib/ocrEngine.ts');
+  const original = ocr.analyzeDocumentComprehensive;
+  let finishLocal;
+  ocr.analyzeDocumentComprehensive = () => new Promise(resolve => { finishLocal = resolve; });
+  process.env.GEMINI_API_KEY = 'synthetic-parallel-pdf';
+  global.fetch = async () => {
+    finishLocal({ scopeStatus: 'uncertain', isAgriRelated: false, confidenceScore: 0, suggestions: [], extractedTextSnippet: '' });
+    return Response.json({ candidates: [{ content: { parts: [{ text: JSON.stringify({ scopeStatus: 'in_scope', confidenceScore: .9, detectionSummary: 'A government farmer notice.', extractedTextSnippet: 'Government Farmer Scheme\nApplicant: Meena Devi', suggestions: [] }) }] } }] });
+  };
+  try {
+    const { analyzeImageIntelligently } = require('../src/lib/visionLlm.ts');
+    const result = await analyzeImageIntelligently({ fileBase64: 'data:application/pdf;base64,c3ludGhldGlj', fileName: 'scan.pdf' });
+    assert.equal(result.visionStatus.state, 'cloud');
+    assert.match(result.extractedTextSnippet, /Meena Devi/);
+  } finally { ocr.analyzeDocumentComprehensive = original; delete process.env.GEMINI_API_KEY; global.fetch = realFetch; }
+});

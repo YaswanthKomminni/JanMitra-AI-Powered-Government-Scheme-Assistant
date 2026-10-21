@@ -1,3 +1,4 @@
+import { MAX_DOCUMENT_CHARACTERS, MAX_DOCUMENT_PAGES, type ExtractionCoverage } from "@/lib/documentLimits";
 import Tesseract from "tesseract.js";
 import sharp from "sharp";
 import fs from "node:fs/promises";
@@ -24,6 +25,7 @@ export interface ExtractedDocumentResult {
   suggestions?: string[]; parsedDetails?: any;
   analysisQuality?: "partial" | "complete";
   readablePassages?: ReadablePassage[];
+  extractionCoverage?: ExtractionCoverage;
 }
 
 function readableOcrLines(data: Tesseract.Page): ReadablePassage[] {
@@ -33,31 +35,53 @@ function readableOcrLines(data: Tesseract.Page): ReadablePassage[] {
 }
 
 export async function performOcr(fileBase64: string, timeoutMs = 20000, reportQuality?: (confidence: number) => void,
-  reportPassages?: (passages: ReadablePassage[]) => void): Promise<string> {
+  reportPassages?: (passages: ReadablePassage[]) => void, reportCoverage?: (coverage: ExtractionCoverage) => void): Promise<string> {
   const bytes = Buffer.from(fileBase64.replace(/^data:[^;]+;base64,/, ""), "base64");
-  if (fileBase64.startsWith("data:text/plain")) return bytes.toString("utf8").slice(0, 40000);
+  if (fileBase64.startsWith("data:text/plain")) {
+    const text = bytes.toString("utf8");
+    reportCoverage?.({ method: "text", characters: Math.min(text.length, MAX_DOCUMENT_CHARACTERS), truncated: text.length > MAX_DOCUMENT_CHARACTERS });
+    return text.slice(0, MAX_DOCUMENT_CHARACTERS);
+  }
+  const zip = bytes[0] === 0x50 && bytes[1] === 0x4b;
+  const ole = bytes.subarray(0, 4).toString("hex") === "d0cf11e0";
+  if (zip || ole) {
+    try {
+      const { default: WordExtractor } = await import("word-extractor");
+      const document = await new WordExtractor().extract(bytes);
+      const text = [document.getBody(), document.getFootnotes(), document.getEndnotes(), document.getHeaders(), document.getTextboxes()].filter(Boolean).join("\n\n");
+      reportCoverage?.({ method: zip ? "docx" : "doc", characters: Math.min(text.length, MAX_DOCUMENT_CHARACTERS), truncated: text.length > MAX_DOCUMENT_CHARACTERS });
+      return text.slice(0, MAX_DOCUMENT_CHARACTERS);
+    } catch { return ""; }
+  }
   if (bytes.subarray(0, 5).toString() === "%PDF-") {
     try {
       const { PDFParse } = await import("pdf-parse");
       const parser = new PDFParse({ data: new Uint8Array(bytes) });
       try {
-        const extracted = (await parser.getText({ first: 20 })).text.slice(0, 40000).trim();
-        if (extracted.replace(/-- \d+ of \d+ --/g, "").trim().length >= 40) return extracted;
-        // Scanned PDFs have no text layer. Render a bounded number of pages for the same OCR engine.
         const started = Date.now();
-        const pages = await parser.getScreenshot({ first: 3, desiredWidth: 2000, imageDataUrl: false, imageBuffer: true });
-        const readings: string[] = [];
+        const result = await parser.getText({ first: MAX_DOCUMENT_PAGES });
+        const pages = result.pages || [];
+        const readings = new Map(pages.map(page => [page.num, page.text.replace(/-- \d+ of \d+ --/g, "").trim()]));
+        const hasText = Array.from(readings.values()).join("").trim().length >= 40;
+        const missing = pages.filter(page => (readings.get(page.num) || "").length < 20).map(page => page.num);
+        // Some PDFs mix searchable pages with scans. OCR a bounded number of missing pages,
+        // preserving the text layer and explicitly reporting pages still unreadable.
+        const screenshots = missing.length ? await parser.getScreenshot({ partial: missing.slice(0, 3), desiredWidth: 2000, imageDataUrl: false, imageBuffer: true }) : undefined;
         const reliable: ReadablePassage[] = [];
-        for (const page of pages.pages) {
+        for (const page of screenshots?.pages || []) {
           const remaining = timeoutMs - (Date.now() - started);
           if (remaining < 1000) break;
-          let pagePassages: ReadablePassage[] = [];
-          const reading = await performOcr(`data:image/png;base64,${Buffer.from(page.data).toString("base64")}`, remaining, reportQuality, passages => { pagePassages = passages; });
-          reliable.push(...pagePassages);
-          reportPassages?.(reliable);
-          if (reading.trim()) readings.push(`[Page ${page.pageNumber}]\n${reading}`);
+          const reading = await performOcr(`data:image/png;base64,${Buffer.from(page.data).toString("base64")}`, remaining,
+            hasText ? undefined : reportQuality, passages => { reliable.push(...passages); reportPassages?.(reliable); });
+          if (reading.trim()) readings.set(page.pageNumber, reading.trim());
         }
-        return readings.join("\n\n").slice(0, 40000);
+        const extracted = pages.length ? pages.map(page => `[Page ${page.num}]\n${readings.get(page.num) || "[No readable text on this page]"}`).join("\n\n") : result.text;
+        const unreadablePages = pages.filter(page => (readings.get(page.num) || "").length < 20).map(page => page.num);
+        reportCoverage?.({ method: hasText ? "pdf_text" : "pdf_scan", pagesRead: pages.length, totalPages: result.total,
+          unreadablePages, characters: Math.min(extracted.length, MAX_DOCUMENT_CHARACTERS),
+          truncated: result.total > pages.length || extracted.length > MAX_DOCUMENT_CHARACTERS });
+        return extracted.slice(0, MAX_DOCUMENT_CHARACTERS);
+
       }
       finally { await parser.destroy(); }
     } catch { return ""; }
@@ -131,7 +155,8 @@ export async function analyzeDocumentComprehensive(fileBase64: string, fileName 
 }> {
   let ocrConfidence: number | undefined;
   let readablePassages: ReadablePassage[] = [];
-  const text = await performOcr(fileBase64, 20000, confidence => { ocrConfidence = confidence; }, passages => { readablePassages = passages; });
+  let extractionCoverage: ExtractionCoverage | undefined;
+  const text = await performOcr(fileBase64, 20000, confidence => { ocrConfidence = confidence; }, passages => { readablePassages = passages; }, coverage => { extractionCoverage = coverage; });
   const scope = assessUploadText(text);
   let predictions: Awaited<ReturnType<typeof classifyImageObjects>> = [];
   if (scope === "uncertain" && fileBase64.startsWith("data:image/")) {
@@ -177,7 +202,7 @@ export async function analyzeDocumentComprehensive(fileBase64: string, fileName 
       detectionSummary: reason, reason, extractedData: {}, extractedTextSnippet: text,
       boundingBoxes: [], schemesUnlocked: [], suggestions: ["Upload a clear view of the full document page, or paste the document text."] };
   }
-  const parsed = analyzeDocumentWithNlpSuite(text, fileName);
+  const parsed = { ...analyzeDocumentWithNlpSuite(text, fileName), extractionCoverage };
   if (ocrConfidence !== undefined && ocrConfidence < 55) {
     const readable = partialDocumentSource({ extractedTextSnippet: text, readablePassages });
     const summary = readable ? analyzeDocumentWithNlpSuite(readable, fileName).detectionSummary

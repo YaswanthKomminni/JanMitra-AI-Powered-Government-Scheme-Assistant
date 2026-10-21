@@ -2,7 +2,7 @@ import type { SupportedLanguage } from "@/lib/i18n";
 import type { VisionAnalysisResult } from "@/lib/visionLlm";
 
 export function visionStatusMessage(status: VisionAnalysisResult["visionStatus"], lang: SupportedLanguage): string {
-  if (!status || status.state === "cloud") return "";
+  if (!status || status.state !== "local") return "";
   const codes = status.failures?.map(f => f.code) || [];
   const kind = codes.includes("auth") ? "auth" : codes.includes("quota") ? "quota" : "unavailable";
   const messages = {

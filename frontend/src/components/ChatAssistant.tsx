@@ -306,6 +306,13 @@ export default function ChatAssistant({ variant = "full" }: { variant?: "full" |
               </div>
             )}
             <ChatText text={msg.text} />
+            {!isUser && msg.searchSuggestionsHtml && <iframe title="Google Search suggestions" srcDoc={msg.searchSuggestionsHtml}
+              sandbox="allow-popups allow-popups-to-escape-sandbox" referrerPolicy="no-referrer" className="mt-3 w-full h-28 border-0" />}
+            {!isUser && msg.docDetection?.extractionCoverage && <p className="mt-2 text-xs text-stone-500">
+              {msg.docDetection.extractionCoverage.totalPages ? `Checked text on ${msg.docDetection.extractionCoverage.pagesRead} of ${msg.docDetection.extractionCoverage.totalPages} pages. ` : "Document text extracted. "}
+              {msg.docDetection.extractionCoverage.unreadablePages?.length ? `Pages without readable text: ${msg.docDetection.extractionCoverage.unreadablePages.join(", ")}. ` : ""}
+              {msg.docDetection.extractionCoverage.truncated ? "Extraction reached its processing limit; remaining content is not included." : ""}
+            </p>}
             {!isUser && msg.docDetection?.visionStatus?.state === "local" && <p className="mt-2 text-xs text-amber-800" role="status">{visionStatusMessage(msg.docDetection.visionStatus, language)}</p>}
 
             {/* Document Verification Status Pill */}
@@ -313,7 +320,7 @@ export default function ChatAssistant({ variant = "full" }: { variant?: "full" |
               <div className="mt-3 pt-2.5 border-t border-stone-200/80 flex items-center justify-between gap-2">
                 <span className="text-[11px] font-bold text-stone-500 flex items-center gap-1.5">
                   <CheckCheck className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>{msg.docDetection.analysisQuality === "partial" ? "Partly read" : "Image analyzed"}</span>
+                  <span>{(msg.docDetection.analysisQuality === "partial" || msg.docDetection.extractionCoverage?.truncated || msg.docDetection.extractionCoverage?.unreadablePages?.length) ? "Partly read" : msg.docDetection.extractionCoverage ? "Document read" : "Image analyzed"}</span>
                 </span>
                 <button
                   type="button"

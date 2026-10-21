@@ -23,6 +23,7 @@ export interface ChatMessage {
   clarificationChips?: string[];
   isClarification?: boolean;
   docDetection?: any;
+  searchSuggestionsHtml?: string;
   /** Client-generated id used to de-duplicate retries (user messages). */
   clientMessageId?: string;
   /** Delivery state for user messages: sending -> saved, or failed (retryable). */
@@ -44,6 +45,7 @@ export interface ConversationSummary {
 }
 
 export interface EngineReply {
+  searchSuggestionsHtml?: string;
   text: string;
   chips?: string[];
 }

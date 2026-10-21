@@ -15,7 +15,8 @@ export default function AiConnectionCheck() {
       if (!data.configured) setMessage("No AI provider key is available to this deployment. Configure GEMINI_API_KEY on Render or save a supported key here, then check again.");
       else setMessage(data.checks.map((item: { provider: string; connected: boolean; model?: string; failures: string[] }) =>
         item.connected ? `${item.provider}: image connection working (${item.model}).`
-          : `${item.provider}: ${item.failures.includes("auth") ? "key or permissions rejected" : item.failures.includes("quota") ? "usage limit reached" : item.failures.includes("timeout") ? "connection timed out" : "no usable model response"}.`).join("\n"));
+          : `${item.provider}: ${item.failures.includes("auth") ? "key or permissions rejected" : item.failures.includes("quota") ? "usage limit reached" : item.failures.includes("timeout") ? "connection timed out" : "no usable model response"}.`).join("\n")
+          + `\nOfficial-source research: ${data.officialResearchAvailable ? "working" : "not verified; check Gemini search access, quota or try again"}.`);
     } catch (error) { setMessage((error as Error).message); }
     finally { setBusy(false); }
   }

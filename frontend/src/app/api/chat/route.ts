@@ -27,7 +27,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 const MAX_TEXT = 4000;
-const REPLY_TIMEOUT_MS = 45_000;
+const REPLY_TIMEOUT_MS = 55_000;
 
 function fail(status: number, message: string, extra: Record<string, any> = {}) {
   return NextResponse.json({ success: false, message, ...extra }, { status });
@@ -53,6 +53,7 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
 function compactDetection(det: any) {
   if (!det) return undefined;
   const { previewUrl, ...rest } = det;
+  if (rest.parsedDetails?.fullOcrText) rest.extractedTextSnippet = undefined;
   return rest;
 }
 
@@ -223,6 +224,7 @@ export async function POST(request: Request) {
                 });
                 return {
                   text: llmAnswer.text,
+                  searchSuggestionsHtml: llmAnswer.searchSuggestionsHtml,
                   chips: llmAnswer.chips,
                   docDetection: compactDetection(outcome.detection),
                 };
@@ -267,6 +269,7 @@ export async function POST(request: Request) {
 
           return {
             text: llmReply.text,
+            searchSuggestionsHtml: llmReply.searchSuggestionsHtml,
             chips: llmReply.chips,
             docDetection: llmReply.usedDocument ? activeDocContext : undefined,
           };
@@ -297,7 +300,7 @@ export async function POST(request: Request) {
         clientMessageId,
         text: reply.text,
         language,
-        metadata: { chips: reply.chips || [], docDetection: reply.docDetection, replyTo: userRow.id,
+        metadata: { searchSuggestionsHtml: reply.searchSuggestionsHtml, chips: reply.chips || [], docDetection: reply.docDetection, replyTo: userRow.id,
           conversationMemory: conversationMemory ? finishConversationMemory(conversationMemory, reply.text) : undefined },
       });
     } catch (err: any) {
