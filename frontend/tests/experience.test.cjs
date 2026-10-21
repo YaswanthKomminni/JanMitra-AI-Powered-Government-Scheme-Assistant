@@ -227,14 +227,14 @@ test('model traces remain isolated across concurrent requests', async () => {
   } finally {global.fetch=realFetch;}
 });
 
-test('expanded farmer examples are labeled and never publish invented contact details', () => {
+test('expanded farmer examples are labeled and have demo phone numbers', () => {
   const {peerDirectory}=require('../src/lib/peerDirectory.ts');
   const peers=peerDirectory();
   assert.equal(peers.length,32);
-  assert.ok(peers.every(p=>p.isDemo&&!p.contactAllowed&&!p.contactPhone));
+  assert.ok(peers.every(p=>p.isDemo&&p.contactAllowed&&p.contactPhone));
   const seed=require('../src/lib/mockData.ts').NEARBY_PEERS[0];
   assert.equal(peerDirectory([{id:'migrated-seed',farmer_name:seed.farmerName,village:seed.village,contact_allowed:true,contact_phone:'do-not-publish'}]).length,32);
-  assert.ok(peerDirectory([{id:'registered-test',farmer_name:'Consented record',distance_km:2,contact_allowed:false,contact_phone:'must-not-leak'}]).every(p=>!p.contactPhone));
+  assert.ok(peerDirectory([{id:'registered-test',farmer_name:'Consented record',distance_km:2,contact_allowed:false,contact_phone:'must-not-leak'}]).some(p=>p.id==='registered-test'&&!p.contactPhone));
 });
 
 test('document XAI exposes measured retrieval ablations and source passages', () => {

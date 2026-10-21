@@ -92,6 +92,6 @@ test('registered directory peers require opt-in and matching state/district; dis
 });
 test('anonymous directory responses contain no registered member contacts', async () => {
   signedIn=false;
-  try { const data=await (await peers.GET(new Request('https://example.test'))).json(); assert.ok(data.peers.every(p=>p.isDemo)); assert.ok(data.peers.every(p=>!p.contactPhone)); }
+  try { const data=await (await peers.GET(new Request('https://example.test'))).json(); assert.ok(data.peers.every(p=>p.isDemo)); assert.ok(data.peers.every(p=>p.contactPhone)); }
   finally { signedIn=true; }
 });

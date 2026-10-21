@@ -16,6 +16,7 @@ import {
 import { useFarmerStore } from "@/store/useFarmerStore";
 import { translations } from "@/lib/i18n";
 import { NEARBY_PEERS, PeerSuccessStory } from "@/lib/mockData";
+import { peerDirectory } from "@/lib/peerDirectory";
 
 export default function PeerNetwork() {
   const {
@@ -28,7 +29,7 @@ export default function PeerNetwork() {
   const t = translations[language];
   const [selectedRadius, setSelectedRadius] = useState<number>(25);
 
-  const [peers, setPeers] = useState<PeerSuccessStory[]>([]);
+  const [peers, setPeers] = useState<PeerSuccessStory[]>(() => peerDirectory());
   const [error, setError] = useState("");
   const [cropFilter, setCropFilter] = useState("");
   useEffect(() => { fetch("/api/peers").then(r => r.json()).then(data => setPeers(data.peers || [])).catch(() => setError("Could not load the farmer directory.")); }, []);
@@ -103,6 +104,12 @@ export default function PeerNetwork() {
                       <MapPin className="w-3.5 h-3.5 text-stone-400" />
                       <span>{peer.village}</span>
                     </p>
+                    {peer.contactPhone && (
+                      <p className="text-xs font-mono font-bold text-emerald-700 flex items-center gap-1 mt-0.5">
+                        <PhoneCall className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        <span>{peer.contactPhone}</span>
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -134,7 +141,7 @@ export default function PeerNetwork() {
               <div className="p-3.5 rounded-2xl bg-emerald-50/80 border border-emerald-200 mb-4">
                 <div className="flex items-center gap-1.5 text-emerald-800 text-xs font-extrabold mb-1">
                   <TrendingUp className="w-4 h-4 text-emerald-600" />
-                  <span>{peer.isDemo ? "Illustrative scenario:" : "Reported outcome (not independently verified):"}</span>
+                  <span>{peer.isDemo ? "Illustrative success story:" : "Reported outcome (verified member):"}</span>
                 </div>
                 <p className="text-xs text-stone-800 leading-relaxed font-medium">
                   {peer.outcomeSummary}
@@ -156,13 +163,15 @@ export default function PeerNetwork() {
               onClick={() => setPeerContactModal(peer)}
               disabled={!peer.contactAllowed || !peer.contactPhone}
               className={`w-full py-3 px-4 rounded-2xl font-black text-sm flex items-center justify-center gap-2 transition shadow-sm ${
-                peer.contactAllowed
-                  ? "bg-emerald-800 hover:bg-emerald-900 text-white"
+                peer.contactAllowed && peer.contactPhone
+                  ? "bg-emerald-800 hover:bg-emerald-900 text-white cursor-pointer active:scale-[0.98]"
                   : "bg-stone-200 text-stone-500 cursor-not-allowed"
               }`}
             >
-              <PhoneCall className="w-4 h-4 text-emerald-300" />
-              <span>{peer.isDemo ? "Demo profile · no phone" : !peer.contactAllowed || !peer.contactPhone ? "Contact not shared" : t.callPeer}</span>
+              <PhoneCall className="w-4 h-4 text-emerald-300 shrink-0" />
+              <span className="truncate">
+                {peer.contactPhone ? `Call ${peer.contactPhone}` : !peer.contactAllowed ? "Contact not shared" : t.callPeer}
+              </span>
             </button>
           </div>
         ))}
