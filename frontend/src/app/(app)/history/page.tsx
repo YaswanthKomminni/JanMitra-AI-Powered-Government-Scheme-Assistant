@@ -4,15 +4,18 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { History, Plus, Trash2, MessageSquare } from "lucide-react";
 import { useFarmerStore } from "@/store/useFarmerStore";
+import { translations } from "@/lib/i18n";
 import { relativeTime } from "@/components/ConversationSidebar";
 import { PageContainer, PageTitle, EmptyState, LoadingState, ErrorState, primaryBtn, secondaryBtn } from "@/components/PageKit";
 
 export default function HistoryPage() {
   const router = useRouter();
-  const { isAuthenticated, authStatus, conversations, conversationsLoading, conversationsError, loadConversations, openConversation, startNewConversation, deleteConversation, setAuthModalOpen, isAwaitingReply } = useFarmerStore();
+  const { isAuthenticated, authStatus, conversations, conversationsLoading, conversationsError, loadConversations, openConversation, startNewConversation, deleteConversation, setAuthModalOpen, isAwaitingReply, language } = useFarmerStore();
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const t = translations[language] || translations.en;
 
   if (authStatus === "unknown") return <PageContainer><LoadingState /></PageContainer>;
   if (!isAuthenticated) {
@@ -34,9 +37,9 @@ export default function HistoryPage() {
   return (
     <PageContainer>
       <PageTitle
-        title="Chat History"
+        title={t.navHistory || "Chat History"}
         description="Open a previous conversation to continue where you left off."
-        actions={<button className={primaryBtn} onClick={() => { startNewConversation(); router.push("/assistant"); }}><Plus className="h-4 w-4" /> New conversation</button>}
+        actions={<button className={primaryBtn} onClick={() => { startNewConversation(); router.push("/assistant"); }}><Plus className="h-4 w-4" /> {t.newChat || "New conversation"}</button>}
       />
       {error && <p role="alert" className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{error}</p>}
       {conversationsLoading ? <LoadingState /> : conversationsError ? <ErrorState message={conversationsError} onRetry={() => loadConversations()} /> : conversations.length === 0 ? (

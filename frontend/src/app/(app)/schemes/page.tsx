@@ -4,11 +4,16 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Search, Landmark } from "lucide-react";
 import SchemeCard from "@/components/SchemeCard";
 import { useSchemes } from "@/hooks/useSchemes";
+import { useFarmerStore } from "@/store/useFarmerStore";
+import { translations } from "@/lib/i18n";
 import { PageContainer, PageTitle, EmptyState, LoadingState, ErrorState, secondaryBtn } from "@/components/PageKit";
 
 type Sort = "match" | "name";
 
 export default function SchemesPage() {
+  const language = useFarmerStore((s) => s.language);
+  const t = translations[language] || translations.en;
+
   const { schemes, loading, error, reload } = useSchemes();
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("all");
@@ -38,7 +43,10 @@ export default function SchemesPage() {
 
   return (
     <PageContainer wide>
-      <PageTitle title="Explore Schemes" description="Browse agriculture and welfare support across India. These are saved listings; confirm current rules before applying." />
+      <PageTitle
+        title={t.navSchemes || "Explore Schemes"}
+        description={t.recommendedSchemesSubtitle || "Browse agriculture and welfare support across India. These are saved listings; confirm current rules before applying."}
+      />
 
       <div className="mb-4 flex flex-col gap-3 sm:flex-row">
         <div className="relative flex-1">

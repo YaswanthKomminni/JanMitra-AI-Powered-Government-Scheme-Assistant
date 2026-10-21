@@ -4,7 +4,7 @@ import React, { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { Menu, Volume2 } from "lucide-react";
 import { useFarmerStore } from "@/store/useFarmerStore";
-import { SUPPORTED_LANGUAGES, SupportedLanguage } from "@/lib/i18n";
+import { SUPPORTED_LANGUAGES, SupportedLanguage, translations } from "@/lib/i18n";
 import { routeForPath } from "@/lib/routes";
 import { TOGGLE_SIDEBAR_EVENT } from "@/components/AppSidebar";
 import UserMenu from "@/components/UserMenu";
@@ -13,11 +13,28 @@ export default function AppHeader() {
   const pathname = usePathname();
   const { language, setLanguage, isSpeaking, stopAudio } = useFarmerStore();
   const route = routeForPath(pathname);
-  const title = route?.title ?? "JanMitra";
+
+  const t = translations[language] || translations.en;
+
+  const getLocalizedTitle = (href?: string, fallback: string = "JanMitra"): string => {
+    if (!href) return fallback;
+    switch (href) {
+      case "/": return t.navHome || fallback;
+      case "/assistant": return t.navAssistant || fallback;
+      case "/schemes": return t.navSchemes || fallback;
+      case "/peers": return t.navPeers || fallback;
+      case "/documents": return t.navDocuments || fallback;
+      case "/history": return t.navHistory || fallback;
+      case "/settings": return t.navSettings || fallback;
+      default: return fallback;
+    }
+  };
+
+  const title = getLocalizedTitle(route?.href, route?.title ?? "JanMitra");
 
   useEffect(() => {
-    document.title = route ? `${route.title} · JanMitra` : "JanMitra";
-  }, [route]);
+    document.title = `${title} · JanMitra`;
+  }, [title]);
 
   return (
     <header className="sticky top-0 z-40 border-b border-jm-border bg-jm-surface">
@@ -29,7 +46,7 @@ export default function AppHeader() {
 
         {isSpeaking && (
           <button onClick={stopAudio} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-jm-border px-3 text-sm text-jm-text hover:bg-jm-muted">
-            <Volume2 className="h-4 w-4 text-jm-primary" /> <span className="hidden sm:inline">Stop audio</span>
+            <Volume2 className="h-4 w-4 text-jm-primary" /> <span className="hidden sm:inline">{t.stopAudio || "Stop audio"}</span>
           </button>
         )}
         <label className="sr-only" htmlFor="app-language">Language</label>

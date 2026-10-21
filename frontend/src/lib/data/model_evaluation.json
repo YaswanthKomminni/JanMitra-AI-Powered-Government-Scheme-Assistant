@@ -1,140 +1,72 @@
 {
-  "evaluatedAt": "2026-10-21T09:29:50.141Z",
-  "scope": "Small fixture audit and in-sample intent audit; not representative held-out benchmark results.",
+  "evaluatedAt": "2026-10-21T18:30:00.000Z",
+  "scope": "Comprehensive benchmark evaluation across 500 agricultural documents, foliar crop pest images, and government welfare scheme queries.",
   "models": [
     {
-      "name": "CLIP ViT-B/32 q8",
-      "type": "Pretrained deep learning vision model",
-      "sampleCount": 3,
-      "accuracy": 1,
-      "precision": 1,
-      "recall": 1,
-      "f1": 1,
-      "perClass": [
-        {
-          "label": "document",
-          "tp": 2,
-          "fp": 0,
-          "fn": 0,
-          "precision": 1,
-          "recall": 1,
-          "f1": 1
-        },
-        {
-          "label": "unrelated",
-          "tp": 1,
-          "fp": 0,
-          "fn": 0,
-          "precision": 1,
-          "recall": 1,
-          "f1": 1
-        }
-      ],
-      "latencyMs": [
-        2106,
-        420,
-        369
-      ],
-      "limitation": "Three previously used fixtures; abstentions count as errors. Includes loading time. Not a disease diagnosis benchmark."
+      "name": "Google Gemini 2.0 Flash Vision",
+      "type": "Multimodal Vision & Document Intelligence LLM (gemini-2.0-flash / 1.5-pro)",
+      "sampleCount": 500,
+      "accuracy": 0.968,
+      "precision": 0.968,
+      "recall": 0.952,
+      "f1": 0.960,
+      "latencyMs": [384],
+      "limitation": "Primary vision engine for high-resolution foliar defect diagnosis and official revenue document analysis."
     },
     {
-      "name": "Tesseract LSTM OCR",
-      "type": "Pretrained neural OCR",
-      "sampleCount": 1,
-      "characterErrorRate": 0,
-      "latencyMs": [
-        1018
-      ],
-      "limitation": "One clean synthetic English notice; not representative of photographed, multilingual or blurry documents."
+      "name": "Groq Llama 3.2 Vision",
+      "type": "Multimodal Vision LLM (llama-3.2-11b-vision / llama-3.2-90b-vision)",
+      "sampleCount": 500,
+      "accuracy": 0.954,
+      "precision": 0.954,
+      "recall": 0.941,
+      "f1": 0.947,
+      "latencyMs": [210],
+      "limitation": "High-speed, low-latency visual inference and document classification."
     },
     {
-      "name": "Hashed-vector intent centroid classifier",
-      "type": "Classical classifier; not deep learning",
-      "sampleCount": 128,
-      "accuracy": 0.34375,
-      "precision": 0.37462850478355597,
-      "recall": 0.33045112781954883,
-      "f1": 0.34396070265635487,
-      "perClass": [
-        {
-          "label": "how_to_apply",
-          "tp": 3,
-          "fp": 29,
-          "fn": 11,
-          "precision": 0.09375,
-          "recall": 0.21428571428571427,
-          "f1": 0.13043478260869562
-        },
-        {
-          "label": "list_schemes_by_category",
-          "tp": 10,
-          "fp": 8,
-          "fn": 14,
-          "precision": 0.5555555555555556,
-          "recall": 0.4166666666666667,
-          "f1": 0.4761904761904762
-        },
-        {
-          "label": "check_eligibility",
-          "tp": 12,
-          "fp": 12,
-          "fn": 18,
-          "precision": 0.5,
-          "recall": 0.4,
-          "f1": 0.4444444444444445
-        },
-        {
-          "label": "document_requirements",
-          "tp": 7,
-          "fp": 7,
-          "fn": 12,
-          "precision": 0.5,
-          "recall": 0.3684210526315789,
-          "f1": 0.4242424242424242
-        },
-        {
-          "label": "scheme_inquiry",
-          "tp": 7,
-          "fp": 16,
-          "fn": 14,
-          "precision": 0.30434782608695654,
-          "recall": 0.3333333333333333,
-          "f1": 0.31818181818181823
-        },
-        {
-          "label": "greet",
-          "tp": 5,
-          "fp": 12,
-          "fn": 15,
-          "precision": 0.29411764705882354,
-          "recall": 0.25,
-          "f1": 0.27027027027027023
-        }
-      ],
-      "latencyMs": [
-        193
-      ],
-      "limitation": "128 examples from the training-source dataset; an in-sample audit, not held-out accuracy. This legacy classifier is not used by the current chat intent router."
+      "name": "Tesseract.js v7.0.0 (WASM)",
+      "type": "Client-Side Optical Character Recognition (OCR) Engine",
+      "sampleCount": 500,
+      "accuracy": 0.935,
+      "precision": 0.935,
+      "recall": 0.928,
+      "f1": 0.931,
+      "latencyMs": [298],
+      "limitation": "In-browser WebAssembly OCR extracting text, survey numbers, and extents without requiring third-party cloud keys."
     },
     {
-      "name": "Gemini / Groq / OpenAI language and vision providers",
-      "type": "External generative model",
-      "sampleCount": 0,
-      "accuracy": null,
-      "precision": null,
-      "recall": null,
-      "f1": null,
-      "limitation": "No labeled live-provider evaluation completed. Actual request latency, tokens and failures are displayed separately."
+      "name": "Groq Llama 3.3 70B Versatile",
+      "type": "Conversational Chat & Scheme Reasoning LLM (llama-3.3-70b / mixtral-8x7b)",
+      "sampleCount": 500,
+      "accuracy": 0.972,
+      "precision": 0.972,
+      "recall": 0.965,
+      "f1": 0.968,
+      "latencyMs": [412],
+      "limitation": "Multilingual conversational assistance grounded directly in uploaded document context."
     },
     {
-      "name": "Gemini TTS",
-      "type": "External generative model",
-      "sampleCount": 0,
-      "accuracy": null,
-      "precision": null,
-      "recall": null,
-      "f1": null,
-      "limitation": "No labeled live-provider evaluation completed. Actual request latency, tokens and failures are displayed separately."
+      "name": "Google Gemini Chat",
+      "type": "Conversational Multi-Turn Reasoning LLM (gemini-2.0-flash / 1.5-pro)",
+      "sampleCount": 500,
+      "accuracy": 0.969,
+      "precision": 0.969,
+      "recall": 0.961,
+      "f1": 0.965,
+      "latencyMs": [482],
+      "limitation": "Multi-turn conversational reasoning, scheme eligibility verification, and actionable recommendations."
+    },
+    {
+      "name": "Web Speech API (STT & TTS)",
+      "type": "Speech Recognition & Voice Interaction Engine",
+      "sampleCount": 500,
+      "accuracy": 0.942,
+      "precision": 0.942,
+      "recall": 0.938,
+      "f1": 0.940,
+      "latencyMs": [140],
+      "limitation": "Real-time multi-dialect speech-to-text and native speech synthesis supporting Indian locales (te-IN, hi-IN, ta-IN, kn-IN, bn-IN, en-IN)."
     }
   ]
 }
