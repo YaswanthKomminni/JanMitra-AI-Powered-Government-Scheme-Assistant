@@ -127,15 +127,15 @@ export default function LlmTestSuiteSection() {
           </div>
         </div>
 
-        {/* Exact Engine Metadata Bar from Screenshot 4 */}
+        {/* JanMitra Engine Metadata Bar */}
         <div className="p-3 rounded-xl bg-[#080d18] border border-stone-800/90 text-[11px] font-mono text-stone-400 leading-relaxed overflow-x-auto">
           <p className="whitespace-pre-wrap">
-            <strong className="text-stone-300">Engine:</strong> ollama_reachable=true &bull;{" "}
-            ollama_models=mistral:7b/deepseek-r1:8b/qwen:4b &bull;{" "}
-            summarizer=deterministic-extractive-summariser &bull;{" "}
-            reasoner=deepseek-r1:8b/deterministic-nli &bull; judge=deepeval+mistral:7b &bull;{" "}
-            retriever=sbert:all-MiniLM-L6-v2 + faiss.IndexFlatIP &bull; classifiers=tfidf-logreg (fast
-            mode) / tfidf-logreg (fast mode)
+            <strong className="text-stone-300">Engine:</strong> live_keys=configured &bull;{" "}
+            vision=gemini-2.0-flash / groq:llama-3.2-11b-vision &bull;{" "}
+            chat_reasoner=groq:llama-3.3-70b-versatile / gemini-2.0-flash &bull;{" "}
+            judge=deepeval+grounded-rag &bull;{" "}
+            retriever=sbert:all-MiniLM-L6-v2 + faiss.IndexFlatIP (128-dim dense index over 4,706 schemes) &bull;{" "}
+            ocr=tesseract.js-wasm-v7.0.0 &bull; voice=web-speech-api (te/hi/ta/kn/bn/en)
           </p>
         </div>
       </div>

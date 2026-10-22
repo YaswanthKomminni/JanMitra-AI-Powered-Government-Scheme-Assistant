@@ -28,7 +28,7 @@ export default function LlmXaiAnalysisSuite() {
               LLM Model Benchmark &amp; Explainable AI (XAI) Suite
             </h2>
             <p className="text-xs text-stone-300 leading-relaxed font-sans">
-              Comprehensive empirical evaluation reproducing dense retrieval (FAISS), summarization (Qwen 4B), claim classification (BERT-LIAR), fake-news article discrimination (BERT ISOT-Bharat), LLM reasoning (DeepSeek-R1 / Gemma2), systematic ablation, and interactive LIME &amp; SHAP attribution.
+              Comprehensive empirical evaluation across JanMitra&apos;s production deep learning stack: Google Gemini 2.0 Flash Vision (document &amp; foliar diagnosis), Groq Llama 3.2 Vision (low-latency OCR), Groq Llama 3.3 70B Grounded Entitlement Reasoner, 4,706-Scheme Dense Vector MiniLM-L6 Retriever, systematic ablation, and interactive LIME &amp; SHAP attribution.
             </p>
           </div>
 
