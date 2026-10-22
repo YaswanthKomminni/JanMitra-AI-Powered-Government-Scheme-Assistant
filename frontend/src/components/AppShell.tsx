@@ -47,7 +47,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <div className="flex min-w-0 flex-1 flex-col">
         <AppHeader />
         <main className="min-w-0 flex-1">{children}</main>
-        <VoiceModelReport />
+        {pathname === "/models" && <VoiceModelReport />}
       </div>
       <AuthModal />
       <DocumentVerificationModal />

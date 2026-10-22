@@ -4,6 +4,7 @@ import React from "react";
 import report from "@/lib/data/model_evaluation.json";
 import { PageContainer, PageTitle } from "@/components/PageKit";
 import AiConnectionCheck from "@/components/AiConnectionCheck";
+import RecentChatDiagnostics from "@/components/RecentChatDiagnostics";
 import { modelInventory, apiInventory } from "@/lib/modelInventory";
 import LlmXaiAnalysisSuite from "@/components/llm-analysis/LlmXaiAnalysisSuite";
 import { Sparkles, Activity, ShieldCheck, Cpu, Users } from "lucide-react";
@@ -25,6 +26,8 @@ export default function ModelsPage() {
         title={t.modelsPageTitle || "Models, Measured Performance & Explanation"}
         description={t.modelsPageDesc || "Comprehensive benchmark evaluations across 500 test samples, live execution telemetry, Explainable AI (XAI) feature saliency, and team ownership."}
       />
+
+      <RecentChatDiagnostics />
 
       {/* Deployment Connection */}
       <section className="mb-6 rounded-2xl border border-jm-border bg-white p-5 shadow-xs">
