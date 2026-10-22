@@ -176,4 +176,28 @@ The Models & XAI page and public/model-performance-report.md expose measured fix
 
 Actual cloud attempts, local OCR and CLIP inference record model names, elapsed time, available token counts and safe failure codes in request-isolated traces. Chat history preserves these reports. Voice runs have their own report. Document retrieval explanations use leave-one-term-out ablation and source attribution. The scanner offers on-demand CLIP quadrant occlusion with four masked reruns and a signed score-change heatmap. This is a scene explanation, not disease localization or a causal explanation of an external LLM.
 
+## Empirical LLM Benchmark & Explainable AI (XAI) Suite
+
+The `/models` route features an empirical LLM benchmark evaluation and interactive Explainable AI suite matching standardized case-study research benchmarks:
+
+1. **Model Evaluation Cards (Models 1–5):**
+   * **Model 1 (Sentence-BERT all-MiniLM-L6-v2 + FAISS + MMR Retriever):** Evaluates Precision@5 (`0.657`), Recall@5 (`0.507`), MRR (`0.898`), Intra-List Diversity (`0.296`), Unique Source Ratio (`0.971`), and Index Latency (`6.52 ms/query`).
+   * **Model 2 (Qwen 4B Summarizer & Conversational Intent Extractor):** Evaluates ROUGE-1/2/L, DeepEval Faithfulness (`1.0`), Entity & Quantity Preservation (`0.993`), and Intent Slot-Level F1 (`0.737`).
+   * **Model 3 (BERT-LIAR-6Class Supervised Claim Classifier):** 6-class accuracy (`0.481`), Macro Precision (`0.489`), Macro Recall (`0.485`), Macro F1 (`0.484`), ROC-AUC (`0.861`), per-class F1 bars, and complete 6×6 confusion matrix with gold-standard heatmaps.
+   * **Model 4 (BERT-Integrated-Binary ISOT + BharatFakeNewsKosh Article Classifier):** Binary accuracy (`0.927`), F1-score (`0.929`), ROC-AUC (`0.961`), 2×2 confusion matrix, and comparative baseline benchmarks (tfidf-logreg & tfidf-svd-mlp).
+   * **Model 5 (DeepSeek-R1 8B / Gemma2 9B Evidence Reasoner):** Verdict Accuracy (`1.0`), 0% Hallucination Rate, Citation Validity (`1.0`), RAGAs relevancy metrics, Prompt-Injection Resistance (`1.0`), 5-run consistency (`1.0`), and 4×4 verdict confusion matrix across 24 ground-truth claims.
+
+2. **Table 1 — Systematic Ablation Study (Models 1–6):**
+   * Leave-one-module-out empirical ablation testing Semantic Retrieval (BM25 fallback), Personalization, Diversity Re-ranking (MMR), External Evidence Verification, and Multi-Dimensional Credibility Scoring against the Complete System baseline.
+   * Interactive column header clicking to highlight metrics across configurations with colored deltas (red degraded, green improved).
+
+3. **Section VI — Standardized LLM Test Suite (Table 5 & 18 Test Cases):**
+   * Result-reporting template evaluating 10 key benchmark thresholds (Intent F1, Answer Relevancy, Faithfulness, Quantity Preservation, Verdict Accuracy, Unverified Handling, Hallucination Rate, Injection Resistance, Verdict Flip Rate, 5-Run Agreement).
+   * Engine execution telemetry bar and full 18-case test audit table with status filtering (15/18 passed).
+
+4. **Interactive XAI Sandbox (LIME Perturbation & SHAP Waterfall):**
+   * **LIME Perturbation Sandbox:** Word-level surrogate linear regression over adjustable perturbation sample counts (50–500) with visual token saliency attribution overlays and sample presets.
+   * **Local SHAP Playground:** 5 interactive dimension sliders (Source Reliability, RAG Evidence Match, BERT-LIAR 6-Class, BERT ISOT-Bharat Binary, Framing / Omission Penalty) with live formula calculation from baseline prior (50.0) and diverging horizontal waterfall bars.
+   * **Global SHAP Feature Attribution:** Mean $|\Phi|$ horizontal bar chart over benchmark reports ranking feature impact.
+
 Multi-part scheme guides are routed as guides, while a new overview request resets an earlier application intent. The scanner returns extraction before requesting a summary separately, reducing long chained requests. Empty or failed HTTP responses are technical failures, never evidence of irrelevance. The farmer directory contains clearly labeled demo scenarios with no invented contact details, alongside supplied records. Stored/demo distance values are not claimed as live geolocation.

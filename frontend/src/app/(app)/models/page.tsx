@@ -5,6 +5,7 @@ import report from "@/lib/data/model_evaluation.json";
 import { PageContainer, PageTitle } from "@/components/PageKit";
 import AiConnectionCheck from "@/components/AiConnectionCheck";
 import { modelInventory, apiInventory } from "@/lib/modelInventory";
+import LlmXaiAnalysisSuite from "@/components/llm-analysis/LlmXaiAnalysisSuite";
 import { Sparkles, Activity, ShieldCheck, Cpu, Users } from "lucide-react";
 import { useFarmerStore } from "@/store/useFarmerStore";
 import { translations } from "@/lib/i18n";
@@ -139,6 +140,9 @@ export default function ModelsPage() {
           </div>
         </div>
       </div>
+
+      {/* Comprehensive Empirical LLM Benchmark & Interactive XAI Suite */}
+      <LlmXaiAnalysisSuite />
 
       {/* 4 Production Model Tiers */}
       <h2 className="mb-3 text-xl font-black text-stone-900 flex items-center gap-2">

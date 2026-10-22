@@ -65,6 +65,32 @@ An accessible, mobile-first, and voice-first conversational AI platform designed
 
 ---
 
+### 🔬 Empirical LLM Benchmark & Explainable AI (XAI) Suite (Models & XAI Section)
+
+Accessible in the web platform under the **Models & XAI** navigation section (`/models`):
+
+1. **Empirical Model Evaluation Cards (Models 1–5):**
+   * **Model 1 (Sentence-BERT all-MiniLM-L6-v2 + FAISS + MMR Retriever):** Precision@5 (0.657), Recall@5 (0.507), MRR (0.898), ILD (0.296), Unique Source Ratio (0.971), Latency (6.52 ms/query).
+   * **Model 2 (Qwen 4B Summarizer & Intent Extractor):** ROUGE-1/2/L, DeepEval Faithfulness (1.0), Entity & Quantity Preservation (0.993), Intent Slot-Level F1 (0.737).
+   * **Model 3 (BERT-LIAR-6Class Supervised Claim Classifier):** 6-class accuracy (0.481), Macro Precision (0.489), Macro F1 (0.484), ROC-AUC (0.861), per-class F1 bars, and complete 6×6 confusion matrix.
+   * **Model 4 (BERT-Integrated-Binary ISOT + BharatFakeNewsKosh Classifier):** Accuracy (0.927), F1-score (0.929), ROC-AUC (0.961), 2×2 confusion matrix, and baseline benchmarks (tfidf-logreg & tfidf-svd-mlp).
+   * **Model 5 (DeepSeek-R1 8B / Gemma2 9B Evidence Reasoner):** Verdict Accuracy (1.0), 0% Hallucination Rate, Citation Validity (1.0), RAGAs Relevancy (1.0 / 0.756), Prompt-Injection Resistance (1.0), 5-run consistency (1.0), and 4×4 verdict confusion matrix across 24 ground-truth claims.
+
+2. **Table 1 — Systematic Ablation Study (Models 1–6):**
+   * Empirical ablation matrix comparing the Complete Baseline against 5 leave-one-module-out variants across 14 metrics (P@5, R@5, MRR, ILD, Uniq. src, Verdict acc, Hallucination, Citation validity, Credibility band accuracy, Misleading recall, ROUGE-1/2/L, Fact coverage).
+   * Interactive UI with column-highlighting on click and color-coded deltas (red degraded, green improved).
+
+3. **Section VI — Standardized LLM Test Suite (Table 5 & 18 Test Cases):**
+   * Result-reporting template evaluating 10 key benchmark thresholds (Intent F1, Answer Relevancy, Faithfulness, Quantity Preservation, Verdict Accuracy, Unverified Handling, Hallucination Rate, Injection Resistance, Verdict Flip Rate, 5-Run Agreement).
+   * Engine execution telemetry bar and full 18-case test audit table with status filtering (15/18 passed).
+
+4. **Interactive XAI Sandbox (LIME Perturbation & SHAP Waterfall):**
+   * **LIME Perturbation Sandbox:** Word-level surrogate linear regression over adjustable perturbation sample counts (50–500) with visual token saliency attribution overlays and sample presets.
+   * **Local SHAP Playground:** 5 interactive dimension sliders (Source Reliability, RAG Evidence Match, BERT-LIAR 6-Class, BERT ISOT-Bharat Binary, Framing / Omission Penalty) with live formula calculation from baseline prior (50.0) and diverging horizontal waterfall bars.
+   * **Global SHAP Feature Attribution:** Mean $|\Phi|$ horizontal bar chart over benchmark reports ranking feature impact.
+
+---
+
 ### 🔬 Explainable AI (XAI) Algorithm & UI Reflection
 
 *   **Integrated Saliency Mapping:** JanMitra computes spatial feature attribution via integrated gradients proxy $S_i(x) = (x_i - x'_i) \times \int_{0}^{1} \frac{\partial F(x' + \alpha(x - x'))}{\partial x_i} d\alpha$.
