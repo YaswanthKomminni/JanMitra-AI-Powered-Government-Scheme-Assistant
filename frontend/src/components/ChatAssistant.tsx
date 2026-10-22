@@ -6,8 +6,6 @@ import {
   Mic,
   MicOff,
   Send,
-  Volume2,
-  VolumeX,
   Camera,
   Image as ImageIcon,
   Sparkles,
@@ -30,7 +28,7 @@ import {
 } from "lucide-react";
 import { useFarmerStore, getInitialChatMessage, type ChatMessage } from "@/store/useFarmerStore";
 import { translations } from "@/lib/i18n";
-import { createSpeechRecognizer } from "@/lib/speech";
+import { createSpeechRecognizer, microphoneCopy } from "@/lib/speech";
 import LiveCameraCapture from "@/components/LiveCameraCapture";
 import ConversationSidebar from "@/components/ConversationSidebar";
 import { classifyBase64Image } from "@/lib/visionClassifier";
@@ -56,9 +54,6 @@ export default function ChatAssistant({ variant = "full" }: { variant?: "full" |
     handleClarificationChip,
     isListening,
     setIsListening,
-    speakMessage,
-    stopAudio,
-    speakingMessageId,
     setVerificationModalOpen,
     requireAuth,
     setAuthModalOpen,
@@ -87,6 +82,7 @@ export default function ChatAssistant({ variant = "full" }: { variant?: "full" |
     classification?: any;
   } | null>(null);
   const [speechActive, setSpeechActive] = useState(false);
+  const [speechError, setSpeechError] = useState("");
   const [liveCameraOpen, setLiveCameraOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recognizerRef = useRef<any>(null);
@@ -153,63 +149,53 @@ export default function ChatAssistant({ variant = "full" }: { variant?: "full" |
     return false;
   };
 
-  // Handle Speech Recognition
-  const toggleSpeechRecognition = () => {
-    if (!gate()) return;
-    if (speechActive) {
-      if (recognizerRef.current) {
-        recognizerRef.current.stop();
-      }
+  // An explicit microphone session survives browser silence/end events.
+  useEffect(() => {
+    return () => {
+      const recognizer = recognizerRef.current;
+      recognizerRef.current = null;
+      recognizer?.abort();
       setSpeechActive(false);
       setIsListening(false);
-      return;
-    }
+    };
+  }, [language, isAuthenticated, activeConversationId, setIsListening]);
 
+  const stopMicrophone = () => {
+    const recognizer = recognizerRef.current;
+    recognizerRef.current = null;
+    recognizer?.stop();
+    setSpeechActive(false);
+    setIsListening(false);
+  };
+  const toggleSpeechRecognition = () => {
+    if (!gate()) return;
+    if (recognizerRef.current) { stopMicrophone(); return; }
+    setSpeechError("");
+    const prefix = inputVal.trim();
     const recognizer = createSpeechRecognizer(language, {
-      onResult: (transcript) => {
-        setInputVal(transcript);
+      onResult: transcript => {
+        if (recognizerRef.current === recognizer) setInputVal([prefix, transcript].filter(Boolean).join(" "));
       },
-      onError: (err) => {
-        console.warn("Recognition error:", err);
-        setSpeechActive(false);
-        setIsListening(false);
+      onError: error => {
+        if (recognizerRef.current !== recognizer) return;
+        setSpeechError(["not-allowed", "service-not-allowed"].includes(error) ? microphoneCopy[language].permission : microphoneCopy[language].unavailable);
       },
       onEnd: () => {
-        setSpeechActive(false);
-        setIsListening(false);
+        if (recognizerRef.current !== recognizer) return;
+        recognizerRef.current = null;
+        setSpeechActive(false); setIsListening(false);
       },
     });
-
-    if (recognizer) {
-      try {
-        recognizer.start();
-        recognizerRef.current = recognizer;
-        setSpeechActive(true);
-        setIsListening(true);
-      } catch (e) {
-        console.error("Failed to start speech recognition:", e);
-      }
-    } else {
-      // Fallback simulation for demonstration if browser lacks mic permissions or Web Speech API
-      setSpeechActive(true);
-      setIsListening(true);
-      setTimeout(() => {
-        if (language === "te") {
-          setInputVal("పీఎం కుసుమ్ సోలార్ పంపు సబ్సిడీ వివరాలు ఏమిటి?");
-        } else if (language === "hi") {
-          setInputVal("पीएम कुसुम सोलर पंप योजना के लिए कैसे आवेदन करें?");
-        } else {
-          setInputVal("How can I apply for PM-KUSUM 60% solar pump subsidy?");
-        }
-        setSpeechActive(false);
-        setIsListening(false);
-      }, 2000);
-    }
+    if (!recognizer) { setSpeechError(microphoneCopy[language].unsupported); return; }
+    recognizerRef.current = recognizer;
+    setSpeechActive(true); setIsListening(true);
+    recognizer.start();
   };
 
   const handleSend = () => {
     if (!inputVal.trim() && !selectedFile) return;
     if (isAwaitingReply) return;
+    stopMicrophone();
     const defaultPrompt = selectedFile?.isImage
       ? (t as any).inspectDocPrompt || "Please inspect this attached crop/document photo using AI Vision"
       : (t as any).inspectDocFilePrompt
@@ -353,30 +339,7 @@ export default function ChatAssistant({ variant = "full" }: { variant?: "full" |
                 )}
               </span>
 
-              {/* Read Out Loud TTS Button for AI responses */}
-              {!isUser && (
-                <button
-                  onClick={() => (speakingMessageId === msg.id ? stopAudio() : speakMessage(msg.id, msg.text))}
-                  className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold transition ${
-                    speakingMessageId === msg.id
-                      ? "bg-emerald-100 text-emerald-900 ring-2 ring-emerald-500"
-                      : "bg-stone-100 hover:bg-stone-200 text-stone-700"
-                  }`}
-                  title="Read out loud in regional voice"
-                >
-                  {speakingMessageId === msg.id ? (
-                    <>
-                      <VolumeX className="w-3.5 h-3.5 text-emerald-800" />
-                      <span className="text-[10px]">Stop Audio</span>
-                    </>
-                  ) : (
-                    <>
-                      <Volume2 className="w-3.5 h-3.5 text-emerald-700" />
-                      <span className="text-[10px]">Hear the key points</span>
-                    </>
-                  )}
-                </button>
-              )}
+
             </div>
           </div>
         </div>
@@ -580,6 +543,7 @@ export default function ChatAssistant({ variant = "full" }: { variant?: "full" |
 
       {/* Bottom Input Area */}
       <div className="p-3 sm:p-4 bg-white border-t border-stone-200">
+        {speechError && <p role="alert" className="mb-2 text-sm text-red-700">{speechError}</p>}
         {draftRestored && inputVal && (
           <div className="mb-2 px-3 py-2 rounded-xl bg-amber-50 border border-amber-200 text-[11px] font-bold text-amber-900 flex items-center justify-between gap-2">
             <span>Welcome! Your question is ready below — press Send to ask it.</span>
@@ -677,7 +641,9 @@ export default function ChatAssistant({ variant = "full" }: { variant?: "full" |
                 ? "bg-red-600 text-white ring-4 ring-red-200 animate-pulse"
                 : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/30"
             }`}
-            title={t.pushToTalk}
+            title={speechActive ? microphoneCopy[language].stop : microphoneCopy[language].start}
+            aria-label={speechActive ? microphoneCopy[language].stop : microphoneCopy[language].start}
+            aria-pressed={speechActive}
           >
             {speechActive ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
           </button>

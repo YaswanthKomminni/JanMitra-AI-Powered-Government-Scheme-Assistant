@@ -167,36 +167,73 @@ export function createSpeechRecognizer(
 
   const recognition = new SpeechRecognition();
   recognition.lang = LANGUAGE_BCP47_MAP[lang] || "en-IN";
-  recognition.continuous = false;
+  recognition.continuous = true;
   recognition.interimResults = true;
   recognition.maxAlternatives = 1;
-
-  recognition.onresult = (event: any) => {
-    let interimTranscript = "";
-    let finalTranscript = "";
-
-    for (let i = event.resultIndex; i < event.results.length; ++i) {
-      if (event.results[i].isFinal) {
-        finalTranscript += event.results[i][0].transcript;
-      } else {
-        interimTranscript += event.results[i][0].transcript;
-      }
-    }
-
-    const transcript = finalTranscript || interimTranscript;
-    if (transcript) {
-      handlers.onResult(transcript);
-    }
-  };
-
-  recognition.onerror = (event: any) => {
-    console.error("Speech recognition error:", event.error);
-    handlers.onError(event.error);
-  };
-
-  recognition.onend = () => {
+  let wanted = false;
+  let running = false;
+  let committed = "";
+  let sessionText = "";
+  let restartTimer: ReturnType<typeof setTimeout> | undefined;
+  let retryDelay = 250;
+  const join = (a: string, b: string) => [a.trim(), b.trim()].filter(Boolean).join(" ");
+  const clearRestart = () => { if (restartTimer) clearTimeout(restartTimer); restartTimer = undefined; };
+  const finish = (error?: string) => {
+    if (!wanted) return;
+    wanted = false;
+    clearRestart();
+    try { if (running) recognition.abort(); } catch { /* Already stopped. */ }
+    running = false;
+    if (error) handlers.onError(error);
     handlers.onEnd();
   };
-
-  return recognition;
+  const startNative = () => {
+    if (!wanted || running) return;
+    try { running = true; recognition.start(); }
+    catch { running = false; finish("start-failed"); }
+  };
+  recognition.onresult = (event: any) => {
+    if (!wanted) return;
+    // Results replace the current browser session's transcript. Appending only
+    // resultIndex loses final segments or duplicates interim words on updates.
+    sessionText = Array.from(event.results as ArrayLike<any>).map((result: any) => String(result[0]?.transcript || "").trim()).filter(Boolean).join(" ");
+    retryDelay = 250;
+    if (sessionText) handlers.onResult(join(committed, sessionText));
+  };
+  recognition.onerror = (event: any) => {
+    if (!wanted) return;
+    if (["no-speech", "network", "aborted"].includes(event.error)) {
+      // These browsers end recognition after silence even in continuous mode.
+      // Keep the user's listening session on and restart from onend.
+      retryDelay = event.error === "network" ? Math.min(5000, Math.max(1000, retryDelay * 2)) : 250;
+      return;
+    }
+    finish(event.error || "recognition-failed");
+  };
+  recognition.onend = () => {
+    running = false;
+    if (!wanted) return;
+    committed = join(committed, sessionText);
+    sessionText = "";
+    clearRestart();
+    restartTimer = setTimeout(startNative, retryDelay);
+  };
+  return {
+    start() {
+      if (wanted) return;
+      committed = ""; sessionText = ""; retryDelay = 250;
+      wanted = true; startNative();
+    },
+    stop() { finish(); },
+    abort() { finish(); },
+  };
 }
+
+export const microphoneCopy: Record<SupportedLanguage, { start: string; stop: string; unsupported: string; permission: string; unavailable: string }> = {
+  en: {start:"Turn microphone on",stop:"Turn microphone off",unsupported:"Voice input is not supported in this browser. Please type your question or use a browser with speech recognition.",permission:"Microphone access was denied. Allow microphone access in your browser and try again.",unavailable:"The microphone could not start. Check your microphone and browser speech-recognition connection, then try again."},
+  te: {start:"మైక్ ఆన్ చేయండి",stop:"మైక్ ఆఫ్ చేయండి",unsupported:"ఈ బ్రౌజర్‌లో వాయిస్ ఇన్‌పుట్ లేదు. ప్రశ్న టైప్ చేయండి లేదా వాయిస్ సపోర్ట్ ఉన్న బ్రౌజర్ వాడండి.",permission:"మైక్ అనుమతి లేదు. బ్రౌజర్‌లో మైక్ అనుమతించి మళ్లీ ప్రయత్నించండి.",unavailable:"మైక్ ప్రారంభం కాలేదు. మైక్, బ్రౌజర్ వాయిస్ కనెక్షన్ సరిచూసి మళ్లీ ప్రయత్నించండి."},
+  hi: {start:"माइक चालू करें",stop:"माइक बंद करें",unsupported:"इस ब्राउज़र में वॉइस इनपुट उपलब्ध नहीं है। प्रश्न लिखें या वॉइस पहचान वाला ब्राउज़र उपयोग करें।",permission:"माइक की अनुमति नहीं मिली। ब्राउज़र में माइक की अनुमति देकर फिर कोशिश करें।",unavailable:"माइक शुरू नहीं हुआ। माइक और ब्राउज़र की वॉइस सेवा जाँचकर फिर कोशिश करें।"},
+  ta: {start:"மைக்கை இயக்கவும்",stop:"மைக்கை அணைக்கவும்",unsupported:"இந்த உலாவியில் குரல் உள்ளீடு இல்லை. கேள்வியைத் தட்டச்சு செய்யவும் அல்லது குரல் ஆதரவுள்ள உலாவியைப் பயன்படுத்தவும்.",permission:"மைக் அனுமதி மறுக்கப்பட்டது. உலாவியில் மைக் அனுமதி கொடுத்து மீண்டும் முயலவும்.",unavailable:"மைக் தொடங்கவில்லை. மைக் மற்றும் உலாவி குரல் இணைப்பைச் சரிபார்த்து மீண்டும் முயலவும்."},
+  kn: {start:"ಮೈಕ್ ಆನ್ ಮಾಡಿ",stop:"ಮೈಕ್ ಆಫ್ ಮಾಡಿ",unsupported:"ಈ ಬ್ರೌಸರ್‌ನಲ್ಲಿ ಧ್ವನಿ ಇನ್‌ಪುಟ್ ಇಲ್ಲ. ಪ್ರಶ್ನೆ ಟೈಪ್ ಮಾಡಿ ಅಥವಾ ಧ್ವನಿ ಬೆಂಬಲಿತ ಬ್ರೌಸರ್ ಬಳಸಿ.",permission:"ಮೈಕ್ ಅನುಮತಿ ನಿರಾಕರಿಸಲಾಗಿದೆ. ಬ್ರೌಸರ್‌ನಲ್ಲಿ ಅನುಮತಿ ನೀಡಿ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.",unavailable:"ಮೈಕ್ ಪ್ರಾರಂಭವಾಗಲಿಲ್ಲ. ಮೈಕ್ ಮತ್ತು ಬ್ರೌಸರ್ ಧ್ವನಿ ಸಂಪರ್ಕ ಪರಿಶೀಲಿಸಿ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ."},
+  bn: {start:"মাইক চালু করুন",stop:"মাইক বন্ধ করুন",unsupported:"এই ব্রাউজারে ভয়েস ইনপুট নেই। প্রশ্ন লিখুন বা ভয়েস সমর্থিত ব্রাউজার ব্যবহার করুন।",permission:"মাইকের অনুমতি দেওয়া হয়নি। ব্রাউজারে অনুমতি দিয়ে আবার চেষ্টা করুন।",unavailable:"মাইক চালু হয়নি। মাইক ও ব্রাউজারের ভয়েস সংযোগ দেখে আবার চেষ্টা করুন।"},
+};

@@ -14,7 +14,7 @@
     "user:set-password": "node scripts/set-password.mjs",
     "test:api": "node --test --test-concurrency=1 tests/api.test.mjs",
     "evaluate:models": "node scripts/evaluate-models.cjs",
-    "test:ai": "node --test tests/ai.test.cjs tests/documentConfirmation.test.cjs tests/language.test.cjs tests/textRouting.test.cjs tests/schemes.test.cjs tests/partialUploads.test.cjs tests/experience.test.cjs tests/profile.test.cjs",
+    "test:ai": "node --test tests/ai.test.cjs tests/documentConfirmation.test.cjs tests/language.test.cjs tests/textRouting.test.cjs tests/schemes.test.cjs tests/partialUploads.test.cjs tests/experience.test.cjs tests/profile.test.cjs tests/microphone.test.cjs",
     "db:transfer-mysql": "node scripts/migrate-mysql-data.mjs"
   },
   "dependencies": {
