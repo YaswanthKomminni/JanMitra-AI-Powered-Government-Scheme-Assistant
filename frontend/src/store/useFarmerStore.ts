@@ -12,6 +12,7 @@ import {
 } from "@/lib/mockData";
 import { localVoiceBriefing } from "@/lib/speechText";
 import { speakText, stopSpeaking } from "@/lib/speech";
+import { preferredChatLanguage } from "@/lib/answerLanguage";
 import { classifyBase64Image } from "@/lib/visionClassifier";
 import {
   ChatMessage,
@@ -241,7 +242,9 @@ export const useFarmerStore = create<FarmerState>((set, get) => {
         ? { conversations: [], activeConversationId: null, chatMessages: [], chatError: null }
         : {}),
     });
-    const lang = (user.preferredLanguage as SupportedLanguage) || get().language;
+    let selected: string | null = null;
+    try { if (typeof window !== "undefined") selected = localStorage.getItem("janmitra_language"); } catch { /* Browser storage may be unavailable. */ }
+    const lang = preferredChatLanguage(selected, user.preferredLanguage, get().language);
     if (translations[lang]) get().setLanguage(lang);
     get().loadConversations({ openLatest: true });
   };

@@ -129,6 +129,7 @@ function updateUser(memory: ConversationMemory, query: string, attachment = fals
   const comparison = /\b(compare|versus|vs|or)\b/i.test(q);
   const cropsMentioned = q.match(cropPattern) || [];
   const personalCrop = !comparison && crop && (/\b(i|we)\s+(?:am\s+)?(?:grow|growing|planted|cultivate|have)|\bnot\b.*\b(?:cotton|maize|paddy|rice)\b/i.test(q)
+    || new RegExp(`\\b(?:i|we)\\b(?:[^.!?\\n]|\\.(?=\\d)){0,180}\\b(?:growing|cultivating|planted|sown)\\s+${rawCrop}\\b`, "i").test(q)
     || q.toLowerCase() === rawCrop?.toLowerCase()
     || new RegExp(`\\bmy\\s+(?:crop (?:is |of )?|farm (?:has |grows )?)?${rawCrop}\\b`, "i").test(q)
     || (q.length < 150 && (!/\b(how|what|why|when|which)\b/i.test(q) && (/crop|grow|plant/i.test(pending) || memory.topic?.kind === "crop"))));
@@ -162,7 +163,9 @@ function updateUser(memory: ConversationMemory, query: string, attachment = fals
   const soil = lastMatch(q, /\b(black soil|red soil|alluvial(?: soil)?|sandy(?: loam| soil)?|clay(?: soil)?|dryland|wetland)\b/gi);
   if (soil && !comparison) facts.soil = soil;
   const irrigation = lastMatch(q, /\b(drip|borewell|bore well|canal|rainfed|rain-fed|sprinkler)\b/gi);
-  if (irrigation && !comparison) facts.irrigation = irrigation;
+  const desiredIrrigation = /want|need|planning|plan to|install|subsid|apply|eligible|assistance/i.test(q)
+    && !/\b(?:i|we) (?:already )?(?:use|have)|my irrigation|currently using/i.test(q);
+  if (irrigation && !comparison && !desiredIrrigation) facts.irrigation = irrigation;
   if (/yellow|wilting|spots|curling|stunted|pest|insect|drying|rotting|older leaves|newer leaves/i.test(q) && !/\b(if|example|neighbour)\b/i.test(q)) facts.symptoms = q.slice(0, 200);
   if (/last rain|last rained|rainfall/i.test(pending) && /yesterday|today|\d+\s*(?:days?|weeks?)\s*ago|no rain/i.test(q)) facts.lastRain = q.slice(0, 100);
 

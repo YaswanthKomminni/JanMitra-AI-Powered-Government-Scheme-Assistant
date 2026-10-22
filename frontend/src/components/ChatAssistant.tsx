@@ -1,5 +1,6 @@
 "use client";
 import ModelReportPanel from "@/components/ModelReportPanel";
+import { answerFailureNotice } from "@/lib/answerLanguage";
 
 import ChatText from "@/components/ChatText";
 import { visionStatusMessage } from "@/lib/visionStatus";
@@ -310,7 +311,7 @@ export default function ChatAssistant({ variant = "full" }: { variant?: "full" |
             )}
             <ChatText text={msg.text} />
             {!isUser && <ModelReportPanel report={{ runs: [...(msg.docDetection?.modelReport?.runs || []), ...(msg.modelReport?.runs || [])], explanation: msg.modelReport?.explanation }} />}
-            {!isUser && msg.aiStatus?.state === "fallback" && <p className="mt-2 text-xs text-amber-800" role="status">{msg.aiStatus.reason || {
+            {!isUser && msg.aiStatus?.state === "fallback" && <p className="mt-2 text-xs text-amber-800" role="status">{answerFailureNotice(msg.aiStatus.reason, language) || {
               en: "AI connection unavailable for this answer. Showing limited local guidance or readable source text; current scheme rules have not been verified.",
               te: "ఈ సమాధానానికి AI కనెక్షన్ అందుబాటులో లేదు. స్థానిక సూచనలు లేదా చదవగలిగిన పత్రం సమాచారం మాత్రమే; ప్రస్తుత పథకం నియమాలు నిర్ధారించలేదు.",
               hi: "इस उत्तर के लिए AI कनेक्शन उपलब्ध नहीं है। केवल सीमित स्थानीय मार्गदर्शन या पठनीय स्रोत दिया गया है; वर्तमान नियम सत्यापित नहीं हैं।",

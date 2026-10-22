@@ -1,4 +1,5 @@
 import { schemeQuestionIntent } from "@/lib/conversationMemory";
+import { localizedCropAdvice, cropFollowup, interveinalAdvice, dripAdvice, paperworkGuide } from "@/lib/farmerAnswerCopy";
 import type { SupportedLanguage } from "@/lib/i18n";
 import { GUEST_FARMER, SCHEMES_DATABASE, type FarmerProfile } from "@/lib/mockData";
 import { semanticSearchSchemes, findNamedCatalogScheme, schemeJurisdiction } from "@/lib/aiCopilotService";
@@ -72,7 +73,9 @@ const recommendationCopy: Record<SupportedLanguage, { intro: string; state: stri
 function isRecommendationRequest(query: string): boolean {
   if (namedSchemes.some(item => item.match.test(query))) return false;
   if (/pension|scholarship|housing|ration|education|disability|widow|employment|పింఛను|छात्रवृत्ति|आवास/i.test(query)) return false;
-  if (/\b(?:cardamom|chaff|tractor|drip|irrigation|solar|pump|equipment|seed|fertilizer|machinery|organic|horticulture)\b/i.test(query)) return false;
+  // A farmer may request several kinds of help in one question, including drip irrigation.
+  if (/\b(?:cardamom|chaff|tractor|solar|pump|equipment|seed|fertilizer|machinery|organic|horticulture)\b/i.test(query)
+    && !/schemes|financial assistance|central and state|which.*eligible/i.test(query)) return false;
   if (/\b(?:related government schemes|government schemes|schemes|subsidies|benefits)\b/i.test(query)
     && (/\b(?:farmers?|agricultur\w*|crops?|land|acres?|acers?)\b/i.test(query) || /^(?:related )?government schemes[?.!]*$/i.test(query.trim()))) return true;
   return /\b(?:schemes?|subsidies|benefits)\b.{0,45}\b(?:for me|fit me|help me|my farm|can i apply|am i eligible|i am eligible)\b|\bwhat can i apply for\b|\b(?:suggest|recommend|show|find|list)\b.{0,25}\b(?:schemes?|subsidies)\b(?:\s+for (?:me|my farm))?[?.!]*$|నా.*పథక|मेरे.*योजना|எனக்கு.*திட்ட|ನನಗೆ.*ಯೋಜನೆ|আমার.*প্রকল্প/i.test(query);
@@ -90,10 +93,13 @@ function broadSchemeGuidance(lang: SupportedLanguage, facts: ReturnType<typeof k
     kn: ["ನಿಮ್ಮ ಹೊಲ ಯಾವ ರಾಜ್ಯ ಮತ್ತು ಜಿಲ್ಲೆಯಲ್ಲಿದೆ?", "ನೀವು ಯಾವ ಬೆಳೆ ಬೆಳೆಯುತ್ತಿದ್ದೀರಿ?"],
     bn: ["আপনার খামার কোন রাজ্য ও জেলায়?", "আপনি কোন ফসল চাষ করছেন?"],
   };
-  const nextQuestion = !facts.state ? missingQuestion[lang][0] : !facts.crop ? missingQuestion[lang][1] : supportQuestion[lang];
+  const wantsDrip = /drip|micro.?irrigation|నీటి|బిందు|ड्रिप|சொட்டு|ಹನಿ|ড্রিপ/i.test(query);
+  const nextQuestion = !facts.state ? missingQuestion[lang][0] : !facts.crop ? missingQuestion[lang][1]
+    : wantsDrip ? !facts.district ? cropFollowup[lang].district : "" : supportQuestion[lang];
+  const drip = wantsDrip ? /andhra pradesh/i.test(facts.state || "") ? dripAdvice[lang] : dripAdvice[lang].split(/[.!।]\s/)[0] + "." : "";
   const acreage = query.match(/\b(?:(?:more|less) than|over|above|under|below)?\s*\d+(?:\.\d+)?\s*(?:acres?|acers?|hectares?)\b/i)?.[0]?.trim();
   const landNote = lang === "en" && acreage ? `For the land criterion you asked about (${acreage}): land size alone does not establish eligibility. PM-KISAN covers eligible landholding farmer families irrespective of holding size, subject to its exclusions; check https://pmkisan.gov.in/. Other schemes have their own crop, location and land limits.` : "";
-  return { text: [`**${l.intro}**`, known.join("; "), landNote, `• ${l.kisan}`, `• ${l.insurance}`, `• ${l.credit}`,
+  return { text: [`**${l.intro}**`, known.join("; "), landNote, drip, `• ${l.kisan}`, `• ${l.insurance}`, `• ${l.credit}`,
     /pump|borewell|sprinkler|drip/i.test(facts.irrigation || "") ? `• ${l.solar}` : "", l.unknown, nextQuestion].filter(Boolean).join("\n\n"),
     chips: scopeMessages[lang].chips };
 }
@@ -121,13 +127,25 @@ const schemeActions: Record<SupportedLanguage, { apply: string; documents: strin
 };
 
 export function schemeReferences(query: string, profile?: FarmerProfile | null, memory?: ConversationMemory) {
-  const explicit = findNamedCatalogScheme(query) || (memory?.topic?.scheme ? findNamedCatalogScheme(memory.topic.scheme) : undefined);
-  if (explicit) return [{ name: explicit.name, department: explicit.ministry, description: explicit.description, benefits: explicit.benefits,
-    documents: explicit.documents_required, jurisdiction: schemeJurisdiction(explicit.ministry), source: "Saved scheme catalog; current rules, deadlines and eligibility are unverified" }];
-  if (isRecommendationRequest(query)) return SCHEMES_DATABASE.filter(item => ["SCH_KISAN", "SCH_FASAL", "SCH_KCC"].includes(item.id))
+  memory = memory || buildConversationMemory([], query);
+  const requested = namedSchemes.filter(item => item.match.test(query));
+  if (requested.length > 1) {
+    const ids: Record<string,string> = { "PM-KISAN": "SCH_KISAN", "PMFBY crop insurance": "SCH_FASAL", "PM-KUSUM": "SCH_KUSUM", "Kisan Credit Card": "SCH_KCC" };
+    return requested.map(item => SCHEMES_DATABASE.find(row => row.id === ids[item.name])!).filter(Boolean).map(item => ({
+      name: item.name, department: item.department, description: item.description, benefits: item.benefits,
+      documents: item.documentsRequired.join("\n"), jurisdiction: undefined as string | undefined,
+      source: `General scheme background: ${item.sourceUrl}; current rules and application window must be verified`,
+    }));
+  }
+  const explicits = (requested.length > 1 ? requested.map(item => findNamedCatalogScheme(item.name))
+    : [findNamedCatalogScheme(query) || (memory?.topic?.scheme ? findNamedCatalogScheme(memory.topic.scheme) : undefined)]).filter(Boolean);
+  if (explicits.length) return explicits.map(explicit => ({ name: explicit!.name, department: explicit!.ministry, description: explicit!.description, benefits: explicit!.benefits,
+    documents: explicit!.documents_required, jurisdiction: schemeJurisdiction(explicit!.ministry), source: "Saved scheme catalog; current rules, deadlines and eligibility are unverified" }));
+  if (isRecommendationRequest(query)) return [...SCHEMES_DATABASE.filter(item => ["SCH_KISAN", "SCH_FASAL", "SCH_KCC"].includes(item.id))
     .map(item => ({ name: item.name, department: item.department, description: item.description, benefits: item.benefits,
       documents: item.documentsRequired.join("\n"), jurisdiction: undefined as string | undefined,
-      source: "General scheme background; current rules, deadlines and eligibility are unverified" }));
+      source: "General scheme background; current rules, deadlines and eligibility are unverified" })),
+    ...(/drip|micro.?irrigation/i.test(query) && /andhra pradesh/i.test(knownFarmerFacts(profile, memory).state || "") ? [{name: "Andhra Pradesh Micro Irrigation Project (APMIP)", department: "District Micro Irrigation Project Director / Horticulture Department", description: dripAdvice.en, benefits: "Micro-irrigation support; current rates and sanction must be verified", documents: "District page describes land records, Aadhaar and active bank-account proof", jurisdiction: "Andhra Pradesh", source: "Official background: https://kurnool.ap.gov.in/apmip/ ; current window and subsidy terms unverified"}] : [])];
   if (!/scheme|yojana|subsid|pension|scholarship|welfare|pm[- ]|kisan|\bkcc\b|insurance|loan|పథక|योजना|திட்ட|ಯೋಜನೆ|প্রকল্প/i.test(query)) return [];
   const farmer = { ...(profile || GUEST_FARMER), state: knownFarmerFacts(profile, memory).state || "" };
   return semanticSearchSchemes(query, farmer, 3)
@@ -137,7 +155,7 @@ export function schemeReferences(query: string, profile?: FarmerProfile | null, 
       source: "Saved scheme catalog; current rules, deadlines and eligibility are unverified" }));
 }
 
-export function farmerChatReply(query: string, lang: SupportedLanguage, profile?: FarmerProfile | null, history: HistoryTurn[] = [], suppliedMemory?: ConversationMemory) {
+export function farmerChatReply(query: string, lang: SupportedLanguage, profile?: FarmerProfile | null, history: HistoryTurn[] = [], suppliedMemory?: ConversationMemory): { text: string; chips: string[] } {
   const memory = suppliedMemory || buildConversationMemory(history, query);
   prepareFarmerConversation(query, memory);
   const nonDomain = nonDomainChatReply(query, lang, profile, memory);
@@ -149,6 +167,16 @@ export function farmerChatReply(query: string, lang: SupportedLanguage, profile?
   const location = [facts.district, facts.state].filter(Boolean).join(", ");
   const crop = memory.topic?.crop || facts.crop;
   const context = [crop, facts.cropAge, facts.land, facts.soil, facts.irrigation, location].filter(Boolean).join("; ");
+  const requestedSchemes = namedSchemes.filter(item => item.match.test(query));
+  if (requestedSchemes.length > 1) {
+    const intent = schemeQuestionIntent(query);
+    const parts = requestedSchemes.map(item => farmerChatReply(
+      intent === "guide" ? `Guide me through ${item.name}. Explain eligibility, documents and how to apply.`
+        : intent === "documents" ? `What documents are needed for ${item.name}?`
+        : intent === "apply" ? `How to apply for ${item.name}?` : `Tell me about ${item.name}`,
+      lang, profile, [], { ...memory, facts: { ...memory.facts }, topic: { kind: "scheme", scheme: item.name, query: item.name, intent } }));
+    return { text: parts.map(part => part.text).join("\n\n---\n\n"), chips: scopeMessages[lang].chips };
+  }
   if (isRecommendationRequest(query) || memory.topic?.kind === "scheme" && !memory.topic.scheme && facts.crop && /^(?:my crop|mirchi|chilli|మిర్చి|मिर्च)/i.test(query)) return broadSchemeGuidance(lang, facts, query);
   const named = memory.topic?.kind !== "crop" && namedSchemes.find((item) => item.match.test(effective));
   if (named) {
@@ -160,15 +188,17 @@ export function farmerChatReply(query: string, lang: SupportedLanguage, profile?
     const status = !multi && !overviewRequest && (memory.topic?.intent === "status" || /status|payment|installment|paid|track/i.test(query));
     const deadline = !multi && !overviewRequest && (memory.topic?.intent === "deadline" || /deadline|last date|closing date|when.*apply/i.test(query));
     const actionWords = schemeActions[lang];
+    const preparation = `${paperworkGuide[lang].common}${/insurance/.test(named.name) ? ` ${paperworkGuide[lang].insurance}` : ""}`;
     if (lang !== "en") {
       const l = recommendationCopy[lang];
       const overview = /PM-KISAN/.test(named.name) ? l.kisan : /insurance/.test(named.name) ? l.insurance : /Credit/.test(named.name) ? l.credit : l.solar;
-      const action = deadline ? actionWords.deadline : documents ? actionWords.documents : status ? actionWords.status : eligible ? actionWords.eligible : apply ? actionWords.apply : overview;
+      const action = multi ? [overview, actionWords.eligible, preparation, actionWords.documents, actionWords.apply, actionWords.deadline].join("\n\n")
+        : deadline ? actionWords.deadline : documents ? `${preparation}\n\n${actionWords.documents}` : status ? actionWords.status : eligible ? actionWords.eligible : apply ? actionWords.apply : overview;
       const known = [facts.state && `${l.state}: ${facts.state}`, crop && `${l.crop}: ${crop}`, facts.land && `${l.land}: ${facts.land}`].filter(Boolean).join("; ");
       return { text: [`**${named.name}**`, known, action, `${actionWords.official}: ${named.url}`].filter(Boolean).join("\n\n"), chips: scopeMessages[lang].chips };
     }
     let guidance = named.text;
-    if (multi) guidance += `\n\nEligibility: ${actionWords.eligible}\n\nDocuments: ${actionWords.documents}\n\nApplication: ${/Credit/.test(named.name) ? "Approach your bank branch for its KCC application and assessment of your farming activity, land/tenancy records and credit needs. Keep the application acknowledgement and follow up with the branch." : actionWords.apply}\n\nDeadline: ${actionWords.deadline}`;
+    if (multi) guidance += `\n\nEligibility: ${actionWords.eligible}\n\nDocuments: ${preparation} ${actionWords.documents}\n\nApplication: ${/Credit/.test(named.name) ? "Approach your bank branch for its KCC application and assessment of your farming activity, land/tenancy records and credit needs. Keep the application acknowledgement and follow up with the branch." : actionWords.apply}\n\nDeadline: ${actionWords.deadline}`;
     if (deadline) guidance = `${named.name}: ${actionWords.deadline}`;
     else if (documents) guidance = `For ${named.name}, prepare identity and bank details, plus the relevant land, tenancy or farming-activity records requested by the implementing agency. ${/PM-KISAN/.test(named.name) ? "Check Aadhaar/e-KYC and that names match your land and bank records." : /insurance/.test(named.name) ? "Also check the seasonal notification for crop, sowing and insurance/enrollment records." : /Credit/.test(named.name) ? "Ask your bank for its current KCC checklist and application form." : "Ask the state implementing agency which component-specific records are required."} Confirm the exact current checklist before applying.`;
     else if (status) guidance = `To check ${named.name} status, use the official portal below or contact the implementing agency${/Credit/.test(named.name) ? " / your bank" : ""}. Use the beneficiary or application-status section where available. I cannot access your payment or application record. Do not share Aadhaar numbers, passwords or OTPs in this chat.`;
@@ -179,6 +209,13 @@ export function farmerChatReply(query: string, lang: SupportedLanguage, profile?
   // Prefer the current agricultural question, then the active issue for short replies.
   const topic = memory.topic?.kind !== "scheme" ? knowledge.find((item) => item.terms.test(memory.topic?.query || query)) || knowledge.find((item) => item.terms.test(effective)) : undefined;
   if (topic) {
+    const interveinal = /between.*veins|interveinal|veins.*(?:stay|remain|are).*green|ఈనెల|नसों के बीच/i.test(query);
+    if (interveinal) return { text: `${interveinalAdvice[lang]}\n\n${cropFollowup[lang].leaves}\n\nhttps://www.vegetables.cornell.edu/pest-management/keys-for-identifying-vegetable-diseases/tomato-diagnostic-key/tomato-wilt-crown-and-general-plant-decline/nutrient-disorders/`, chips: cropFollowup[lang].chips };
+    const localized = localizedCropAdvice(knowledge.indexOf(topic), lang);
+    if (localized) {
+      const l = cropFollowup[lang];
+      return { text: `${context ? `${l.context}: ${context}\n\n` : ""}${localized}\n\n${!crop ? l.crop : knowledge.indexOf(topic) === 0 ? l.leaves : !facts.cropAge ? l.age : !facts.district ? l.district : ""}`, chips: l.chips };
+    }
     let advice = topic.text
       .replace(/Which crop is it, how old is it, and are the spots spreading\?/, "")
       .replace(/Which crop and soil type do you have, and when did it last rain\?/, "")
@@ -222,5 +259,5 @@ export function farmerChatReply(query: string, lang: SupportedLanguage, profile?
   if (memory.topic?.kind === "scheme" || /\b(?:apply|application|eligib\w*|documents?|deadline|benefits?|subsid\w*|schemes?)\b/i.test(query)) {
     return { text: scopeMessages[lang].schemeName, chips: scopeMessages[lang].chips };
   }
-  return { text: context ? `I have these farm details: ${context}. What crop problem or government scheme would you like help with?` : help[lang], chips };
+  return { text: context ? `${cropFollowup[lang].context}: ${context}.\n\n${help[lang]}` : help[lang], chips: scopeMessages[lang].chips };
 }

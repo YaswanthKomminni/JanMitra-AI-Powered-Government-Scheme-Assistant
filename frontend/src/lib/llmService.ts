@@ -1,4 +1,5 @@
 import { explainRetrieval } from "@/lib/explainability";
+import { usesAnswerLanguage, answerChips } from "@/lib/answerLanguage";
 import { captureModels } from "@/lib/modelTelemetry";
 import type { ModelReport } from "@/lib/modelReport";
 import { modelFetch } from "@/lib/modelTelemetry";
@@ -154,7 +155,7 @@ async function callGeminiText(
 
       if (!res.ok) {
         console.warn(`[text] ${model}: HTTP ${res.status}`);
-        if (!discovered && [400, 403, 404, 410, 429].includes(res.status)) {
+        if (!discovered && [400, 403, 404, 410].includes(res.status)) {
           discovered = true;
           const available = await discoverProviderModels("gemini", apiKey, false, signal);
           models.push(...available.filter((id) => !models.includes(id)));
@@ -218,7 +219,7 @@ async function callGroqText(
 
       if (!res.ok) {
         console.warn(`[text] ${model}: HTTP ${res.status}`);
-        if (!discovered && [400, 403, 404, 410, 429].includes(res.status)) {
+        if (!discovered && [400, 403, 404, 410].includes(res.status)) {
           discovered = true;
           const available = await discoverProviderModels("groq", apiKey, false, signal);
           models.push(...available.filter((id) => !models.includes(id)));
@@ -282,7 +283,7 @@ async function callOpenAiText(
 
       if (!res.ok) {
         console.warn(`[text] ${model}: HTTP ${res.status}`);
-        if (!discovered && [400, 403, 404, 410, 429].includes(res.status)) {
+        if (!discovered && [400, 403, 404, 410].includes(res.status)) {
           discovered = true;
           const available = await discoverProviderModels("openai", apiKey, false, signal);
           models.push(...available.filter((id) => !models.includes(id)));
@@ -430,15 +431,16 @@ async function generateReply(
   // Factual document answers see original source passages, not a previous model's summary as evidence.
   const promptContext = grounded ? undefined : documentContext;
   const systemPrompt = buildSystemPrompt(language, profile, promptContext, memory)
+    + `\nMANDATORY RESPONSE LANGUAGE: ${language}. Use this language for every explanation, next step and follow-up chip, even when the user's question or earlier chat is in English or another language. Preserve proper names and exact quoted source evidence.`
     + `\nToday in India is ${new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" })}. Answer the exact request directly, using ordered steps for application processes and a checklist for paperwork. Do not dump source excerpts into the answer. Identify the scheme and state before assessing conditions. Search evidence is accessed now but may describe an old notice; its publication and application dates still matter. Never call old catalog data the latest policy. For a document/image summary or explanation, provide a substantial, clearly organized explanation in the requested language: purpose and publication date, main sections, named schemes or subjects, important conditions and useful next actions. For long booklets aim for 600–1000 words when the evidence supports it; short uploads need less. Cover the whole range of supplied sections, not just the cover, and state any sampling or unreadable-page limits. Treat a compilation as a reference booklet, not a single application notice. Specific follow-up questions should focus on their requested section and use the original upload again, not just the previous summary. Ask at most one useful missing question after the supported answer.`
     + (partialSource ? "\nThis upload was only partly readable. The supplied passages are the readable portions, not the whole document. Summarize those portions specifically. Answer follow-ups from them; state exactly which requested facts are missing. Do not replace a useful partial summary with a generic unreadable-upload message. General scheme background must be clearly separated from what this document says." : "") + (grounded
     ? `\n\nThe following contract replaces the CHIPS format. Answer from the supplied evidence; apply profile facts only to explain which conditions still need checking. ${catalogPassages.length ? "C-prefixed passages are saved catalog entries, NOT current policy. Never state a deadline, open window, final eligibility, required document checklist or benefit as current merely from the catalog. Explain what remains unverified and point to the issuing department or official directory." : "For official passages, only a dated scheme application notice can establish a deadline for the farmer's state and season."} ${groundedAnswerContract}\nSOURCE PASSAGES:\n${JSON.stringify(passages.map(({id, text}) => ({id, text})))}` : "");
 
   const accept = (res: { text: string; chips: string[]; model: string } | null) => {
     if (!res) return null;
-    if (!grounded) return res;
+    if (!grounded) return usesAnswerLanguage(res.text, language) ? { ...res, chips: answerChips(res.chips, language) } : null;
     const verified = validateGroundedAnswer(res.text, passages);
-    return verified ? { ...res, ...verified } : null;
+    return verified && usesAnswerLanguage(verified.text, language) ? { ...res, ...verified, chips: answerChips(verified.chips, language) } : null;
   };
 
   // 1. Try Cloud LLM (Gemini, Groq, OpenAI) if key is provided or present in environment
@@ -453,8 +455,8 @@ async function generateReply(
       const call = apiInfo.provider === "gemini" ? callGeminiText : apiInfo.provider === "groq" ? callGroqText : callOpenAiText;
       let raw = await call(apiInfo.key, query, systemPrompt, providerSignal, history, grounded);
       let res = accept(raw);
-      if (!res && raw && grounded && !providerSignal.aborted) {
-        raw = await call(apiInfo.key, query, systemPrompt + "\nThe previous response did not pass source validation. Regenerate using ONLY the supplied JSON contract. Copy each supporting quote exactly from a source passage. Omit unsupported claims, altered names/amounts/units and uncited application steps; put missing facts in missingInformation. Keep the answer focused on the current question.", providerSignal, history, true);
+      if (!res && raw && !providerSignal.aborted) {
+        raw = await call(apiInfo.key, query, systemPrompt + `\nThe previous answer failed language or source validation. Write the explanatory answer and chips in response language ${language}, regardless of the history language. ${grounded ? "Use ONLY the supplied JSON contract and exact supporting quotes. Omit unsupported claims, altered names/amounts/units and uncited application steps; put missing facts in missingInformation." : "Keep the normal response and CHIPS format."} Answer the current question directly.`, providerSignal, history, grounded);
         res = accept(raw);
       }
       if (res) return { text: res.text, chips: res.chips, provider: apiInfo.provider, modelUsed: res.model, usedDocument: useDocument };

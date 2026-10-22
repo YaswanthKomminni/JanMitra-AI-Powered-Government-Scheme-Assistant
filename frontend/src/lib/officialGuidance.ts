@@ -5,6 +5,7 @@ const sources = [
   { terms: /pm[ -]?kisan|kisan samman|पीएम किसान|పీఎం కిసాన్/i, url: "https://pmkisan.gov.in/" },
   { terms: /pmfby|crop insurance|फसल बीमा|పంట బీమా/i, url: "https://pmfby.gov.in/" },
   { terms: /kusum|solar.*pump|कुसुम|సౌర పంపు/i, url: "https://pmkusum.mnre.gov.in/landing-faq.html" },
+  { terms: /andhra pradesh[\s\S]*drip|drip[\s\S]*andhra pradesh|\bAPMIP\b/i, url: "https://kurnool.ap.gov.in/apmip/" },
 ];
 const cache = new Map<string, { expires: number; text: string }>();
 

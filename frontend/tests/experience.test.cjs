@@ -21,6 +21,34 @@ const { createVoiceBriefing } = require('../src/lib/voiceBriefing.ts');
 const { speechChunks, pcmToWav, synthesizeVoice } = require('../src/lib/voiceAudio.ts');
 const { sanitizeTextForSpeech, speakText, stopSpeaking } = require('../src/lib/speech.ts');
 
+test('a cloud answer in the wrong language is repaired and follow-up chips use the selected language', async () => {
+  const {generateIntelligentChatReply}=require('../src/lib/llmService.ts');
+  process.env.GEMINI_API_KEY='test-key'; let calls=0;
+  global.fetch=async (url,options)=> {
+    calls++; const payload=JSON.parse(options.body);
+    assert.match(payload.systemInstruction.parts[0].text,/MANDATORY RESPONSE LANGUAGE: te/);
+    const text=calls===1 ? 'Plants use sunlight to convert water and carbon dioxide into sugars for growth. CHIPS: ["Tell me more"]'
+      : 'మొక్కలు సూర్యకాంతిని ఉపయోగించి నీరు, కార్బన్ డయాక్సైడ్ నుంచి ఆహారం తయారు చేసుకుంటాయి. ఈ ప్రక్రియ వల్ల పంట పెరుగుదలకు శక్తి లభిస్తుంది. CHIPS: ["Tell me more"]';
+    return new Response(JSON.stringify({candidates:[{content:{parts:[{text}]}}]}));
+  };
+  try {
+    const reply=await generateIntelligentChatReply({query:'How does photosynthesis help crops grow?',language:'te'});
+    assert.equal(reply.aiStatus.state,'cloud'); assert.equal(calls,2); assert.match(reply.text,/మొక్కలు/);
+    assert.ok(reply.chips.every(c=>/[\u0C00-\u0C7F]/.test(c)));
+  } finally {delete process.env.GEMINI_API_KEY;global.fetch=realFetch;}
+});
+test('provider quota failures still answer the complete broad farmer question with a localized fallback', async () => {
+  const {generateIntelligentChatReply}=require('../src/lib/llmService.ts');
+  process.env.GEMINI_API_KEY='test-key';
+  global.fetch=async()=>new Response('{}',{status:429});
+  try {
+    const reply=await generateIntelligentChatReply({query:'I am a marginal farmer from Andhra Pradesh with 2.5 acres of dry land growing groundnut. What central and state government schemes am I eligible for to get financial assistance and subsidized drip irrigation?',language:'te'});
+    assert.equal(reply.aiStatus.state,'fallback'); assert.match(reply.aiStatus.reason,/usage limit/);
+    assert.match(reply.text,/APMIP/);assert.match(reply.text,/పథకాలు|డ్రిప్/); assert.doesNotMatch(reply.text,/Which scheme do you mean/);
+    assert.ok(reply.modelReport.runs.every(r=>r.status==='failed'));
+  } finally {delete process.env.GEMINI_API_KEY;global.fetch=realFetch;}
+});
+
 test('long booklet summaries cover sections beyond the cover and keep original sources for specific follow-ups', async () => {
   const pages = Array.from({length:90}, (_,i) => `[Page ${i+1}]\n${i===0 ? 'TELANGANA SAMANVAY: A compilation of Central sector and State schemes. October 2015.' : `Section ${i+1}: Government welfare information`}\n${`This section explains public support and procedures for its stated beneficiaries. `.repeat(12)}\n${i===70 ? 'Special application channel: submit at the district horticulture office.\nRequired documents: Land passbook\nBank passbook' : ''}`);
   const source=pages.join('\n\n');

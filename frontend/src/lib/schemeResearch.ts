@@ -78,7 +78,7 @@ export async function researchOfficialSchemes(query: string, customApiKey?: stri
             tools: [{ google_search: {} }], generationConfig: geminiGenerationConfig(model, 2000) }),
         });
         if (!response.ok) {
-          if (response.status === 401) break;
+          if (response.status === 401 || response.status === 429) break;
           if (!discovered) { discovered = true; models.push(...await discoverProviderModels("gemini", key, false, signal)); }
           continue;
         }

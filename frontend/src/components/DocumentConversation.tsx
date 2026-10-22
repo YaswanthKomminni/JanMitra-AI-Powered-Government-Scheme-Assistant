@@ -6,6 +6,7 @@ import { documentChatContext } from "@/lib/documentChatContext";
 import ImageExplanation from "@/components/ImageExplanation";
 import ModelReportPanel from "@/components/ModelReportPanel";
 import ChatText from "@/components/ChatText";
+import { answerFailureNotice } from "@/lib/answerLanguage";
 import { useRouter } from "next/navigation";
 
 export default function DocumentConversation({ detection, language }: { detection: any; language: SupportedLanguage }) {
@@ -51,7 +52,7 @@ export default function DocumentConversation({ detection, language }: { detectio
     <h3 className="font-bold text-stone-900">Understand your upload</h3>
     {summaryBusy && <p role="status" className="text-xs">Preparing a source-based explanation…</p>}
     <div className="text-sm leading-relaxed text-stone-800"><ChatText text={summary || ""} /></div>
-    {aiState?.state === "fallback" && <p className="text-xs text-amber-900">{aiState.reason || "AI connection unavailable. This is local source extraction."}</p>}
+    {aiState?.state === "fallback" && <p className="text-xs text-amber-900">{answerFailureNotice(aiState.reason || "AI connection unavailable", language)}</p>}
     {detection.previewUrl?.startsWith("data:") && <button type="button" className="ml-4 text-sm font-semibold text-emerald-800 underline" onClick={() => {
       const context = turns.slice(-4).map(t => `${t.role}: ${t.content.slice(0, 500)}`).join("\n");
       close(false); router.push("/assistant");
