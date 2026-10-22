@@ -3,8 +3,6 @@
 import React from "react";
 import report from "@/lib/data/model_evaluation.json";
 import { PageContainer, PageTitle } from "@/components/PageKit";
-import AiConnectionCheck from "@/components/AiConnectionCheck";
-import RecentChatDiagnostics from "@/components/RecentChatDiagnostics";
 import { modelInventory, apiInventory } from "@/lib/modelInventory";
 import LlmXaiAnalysisSuite from "@/components/llm-analysis/LlmXaiAnalysisSuite";
 import { Sparkles, Activity, ShieldCheck, Cpu, Users } from "lucide-react";
@@ -26,26 +24,6 @@ export default function ModelsPage() {
         title={t.modelsPageTitle || "Models, Measured Performance & Explanation"}
         description={t.modelsPageDesc || "Comprehensive benchmark evaluations across 500 test samples, live execution telemetry, Explainable AI (XAI) feature saliency, and team ownership."}
       />
-
-      <RecentChatDiagnostics />
-
-      {/* Deployment Connection */}
-      <section className="mb-6 rounded-2xl border border-jm-border bg-white p-5 shadow-xs">
-        <h2 className="text-lg font-bold flex items-center gap-2">
-          <Activity className="w-5 h-5 text-emerald-600" />
-          {t.liveKeyStatusTitle || "Deployment Connection & Live Key Status"}
-        </h2>
-        <p className="mt-2 text-sm text-jm-text2">
-          {isTe
-            ? "క్లౌడ్ మరియు క్లయింట్-సైడ్ AI ఇంజిన్లు సక్రియంగా ఉన్నాయి. బ్రౌజర్‌లోనే నడిచే OCR (Tesseract.js WASM) మరియు వాయిస్ (Web Speech API) 100% ఆఫ్‌లైన్‌లో పనిచేస్తాయి; Google Gemini, Groq మరియు OpenAI మోడల్స్ ప్రత్యక్షంగా అనుసంధానించబడ్డాయి."
-            : isHi
-            ? "सक्रिय एआई प्रदाता कॉन्फ़िगर किए गए हैं। इन-ब्राउज़र ओसीआर (Tesseract.js WASM) और वॉयस (Web Speech API) पूरी तरह से ऑफ़लाइन काम करते हैं; गूगल जेमिनी, ग्रॉक और ओपनएआई द्वारा एलएलएम रीजनिंग संचालित होती है।"
-            : "Active AI providers configured. In-browser client-side OCR (Tesseract.js WASM) and Speech Recognition (Web Speech API) operate 100% offline; LLM reasoning connects via configured Google Gemini, Groq, or OpenAI keys."}
-        </p>
-        <div className="mt-4">
-          <AiConnectionCheck />
-        </div>
-      </section>
 
       {/* Team Member Ownership & Architecture Division */}
       <div className="mb-8">
